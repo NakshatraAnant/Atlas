@@ -1,0 +1,31 @@
+{
+  "name": "atlas",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ATLAS — research workspace for Indian equities (Release 1.0 MVP)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build -w @atlas/shared && npm run typecheck -w @atlas/api && npm run build -w @atlas/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test -w @atlas/shared && npm run test -w @atlas/api",
+    "test:web": "npm run test -w @atlas/web",
+    "seed": "npm run seed -w @atlas/api",
+    "dev:api": "npm run dev -w @atlas/api",
+    "dev:web": "npm run dev -w @atlas/web",
+    "eval": "npm run eval -w @atlas/api",
+    "traceability": "node scripts/gen-traceability.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
