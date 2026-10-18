@@ -19,3 +19,4 @@ seed-timing.log
 .atlas/
 backups/
 data.before-restore-*/
+data.failed-seed-*/

@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Secret scan
+        run: node scripts/check-secrets.mjs
+      - name: Build shared package
+        run: npm run build -w @atlas/shared
+      - name: Typecheck API and web
+        run: npm run typecheck
+      - name: Unit, pipeline, policy and integration tests
+        run: npm test
+      - name: Web production build
+        run: npm run build -w @atlas/web
+      - name: Dependency audit (production, high and above)
+        run: npm audit --omit=dev --audit-level=high

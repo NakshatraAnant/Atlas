@@ -29,24 +29,29 @@ export function regimeLabels(indexClose: number | null, sma200: number | null, v
   };
 }
 
+type DailyRow = { trade_date: string; security_id: number; ret_1d: number | null; adj_close: number; sma_50: number | null; sma_200: number | null; high_52w: number | null; low_52w: number | null; market_cap_cr: number | null; traded_value: number; sector: string; classification_version: number };
+
+/** Calendar days of history replayed before `fromDate` so carried state (previous-day values, 20-session turnover) matches a full run. */
+export const MARKET_WARMUP_DAYS = 60;
+const WINDOW_DAYS = 366;
+const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
 export async function computeMarketDaily(db: Db, opts: { fromDate?: string; calcRunId: string }): Promise<number> {
-  const rows = await db.query<{ trade_date: string; security_id: number; ret_1d: number | null; adj_close: number; sma_50: number | null; sma_200: number | null; high_52w: number | null; low_52w: number | null; market_cap_cr: number | null; traded_value: number; sector: string; classification_version: number }>(
-    `SELECT d.trade_date, d.security_id, d.ret_1d, d.adj_close, d.sma_50, d.sma_200, d.high_52w, d.low_52w, d.market_cap_cr, p.traded_value, c.sector, c.classification_version
-       FROM calc.security_daily d
-       JOIN market.price_eod p ON p.security_id=d.security_id AND p.trade_date=d.trade_date AND p.exchange_code='NSE'
-       JOIN ref.securities s ON s.security_id=d.security_id JOIN ref.companies c USING (company_id)
-      WHERE c.coverage='full' ORDER BY d.trade_date`,
-  );
-  const byDate = new Map<string, typeof rows>();
-  for (const r of rows) {
-    const list = byDate.get(r.trade_date);
-    if (list) list.push(r);
-    else byDate.set(r.trade_date, [r]);
-  }
+  // Rows are read one window of dates at a time: a single query over the full history of a large
+  // universe exhausts the embedded database's memory, and incremental runs only need recent state.
+  const span = await db.one<{ lo: string | null; hi: string | null }>(`SELECT min(trade_date) AS lo, max(trade_date) AS hi FROM calc.security_daily`);
+  const loadWindow = (from: string, to: string) =>
+    db.query<DailyRow>(
+      `SELECT d.trade_date, d.security_id, d.ret_1d, d.adj_close, d.sma_50, d.sma_200, d.high_52w, d.low_52w, d.market_cap_cr, p.traded_value, c.sector, c.classification_version
+         FROM calc.security_daily d
+         JOIN market.price_eod p ON p.security_id=d.security_id AND p.trade_date=d.trade_date AND p.exchange_code='NSE'
+         JOIN ref.securities s ON s.security_id=d.security_id JOIN ref.companies c USING (company_id)
+        WHERE c.coverage='full' AND d.trade_date >= $1 AND d.trade_date < $2 ORDER BY d.trade_date`,
+      [from, to],
+    );
   const prevHigh = new Map<number, number>();
   const prevLow = new Map<number, number>();
   const prevCap = new Map<number, number>();
-  const dates = [...byDate.keys()].sort();
   const idx = await db.query<{ trade_date: string; close: number }>(`SELECT trade_date, close FROM market.index_levels WHERE index_code='DEMO500' ORDER BY trade_date`);
   const idxClose = idx.map((r) => r.close);
   const idxSma200 = sma(idxClose, 200);
@@ -55,8 +60,7 @@ export async function computeMarketDaily(db: Db, opts: { fromDate?: string; calc
   const turnoverHist: number[] = [];
   const market: Record<string, unknown>[] = [];
   const sectors: Record<string, unknown>[] = [];
-  for (const d of dates) {
-    const list = byDate.get(d)!;
+  const processDate = (d: string, list: DailyRow[]) => {
     let adv = 0, dec = 0, unch = 0, traded = 0, above50 = 0, has50 = 0, above200 = 0, has200 = 0, highs = 0, lows = 0, turnover = 0;
     const sectorAgg = new Map<string, { n: number; sum: number; capRet: number; cap: number; adv: number; dec: number; cv: number }>();
     for (const r of list) {
@@ -107,7 +111,7 @@ export async function computeMarketDaily(db: Db, opts: { fromDate?: string; calc
     }
     const p50 = has50 ? (above50 / has50) * 100 : null;
     const regime = regimeLabels(ii !== undefined ? idxClose[ii]! : null, ii !== undefined ? idxSma200[ii] ?? null : null, vol, pctl, p50);
-    if (opts.fromDate && d < opts.fromDate) continue;
+    if (opts.fromDate && d < opts.fromDate) return;
     market.push({
       universe_code: 'COVERED', trade_date: d, traded, advances: adv, declines: dec, unchanged: unch,
       pct_above_50dma: p50, pct_above_200dma: has200 ? (above200 / has200) * 100 : null, new_highs: highs, new_lows: lows,
@@ -115,6 +119,19 @@ export async function computeMarketDaily(db: Db, opts: { fromDate?: string; calc
     });
     for (const [sector, a] of sectorAgg) {
       sectors.push({ trade_date: d, sector, ret_equal: a.sum / a.n, ret_cap: a.cap > 0 ? a.capRet / a.cap : a.sum / a.n, constituents: a.n, advances: a.adv, declines: a.dec, classification_version: a.cv, calc_run_id: opts.calcRunId });
+    }
+  };
+  if (span.lo && span.hi) {
+    const start = opts.fromDate ? (addDays(opts.fromDate, -MARKET_WARMUP_DAYS) > span.lo ? addDays(opts.fromDate, -MARKET_WARMUP_DAYS) : span.lo) : span.lo;
+    for (let from = start; from <= span.hi; from = addDays(from, WINDOW_DAYS)) {
+      const rows = await loadWindow(from, addDays(from, WINDOW_DAYS));
+      const byDate = new Map<string, DailyRow[]>();
+      for (const row of rows) {
+        const list = byDate.get(row.trade_date);
+        if (list) list.push(row);
+        else byDate.set(row.trade_date, [row]);
+      }
+      for (const d of [...byDate.keys()].sort()) processDate(d, byDate.get(d)!);
     }
   }
   await db.query(`DELETE FROM calc.market_daily WHERE universe_code='COVERED' ${opts.fromDate ? 'AND trade_date >= $1' : ''}`, opts.fromDate ? [opts.fromDate] : []);

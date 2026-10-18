@@ -24,9 +24,11 @@ const WEB_DIR = join(ROOT, 'apps', 'web');
 const HOST = '127.0.0.1';
 
 const log = (...a) => console.log('[atlas]', ...a);
+class AtlasError extends Error {}
+// Throw instead of process.exit(): exiting while a fetch is still closing trips a libuv assertion on Windows.
 const fail = (msg, code = 1) => {
-  console.error(`[atlas] ERROR: ${msg}`);
-  process.exit(code);
+  process.exitCode = code;
+  throw new AtlasError(msg);
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
@@ -344,4 +346,9 @@ if (!cmd || !commands[cmd]) {
   console.log('Usage: node scripts/atlas.mjs <start|stop|restart|status|logs [api|web|seed] [--follow]|backup|restore [file] [--start]|update|test|seed>');
   process.exit(cmd ? 1 : 0);
 }
-await commands[cmd]();
+try {
+  await commands[cmd]();
+} catch (e) {
+  if (!(e instanceof AtlasError)) throw e;
+  console.error(`[atlas] ERROR: ${e.message}`);
+}

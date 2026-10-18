@@ -44,6 +44,9 @@ export class LocalObjectStore implements ObjectStore {
 
 export class MemoryObjectStore implements ObjectStore {
   private readonly items = new Map<string, Buffer>();
+  entries(): IterableIterator<[string, Buffer]> {
+    return this.items.entries();
+  }
   serialize(): string {
     return JSON.stringify([...this.items].map(([k, v]) => [k, v.toString('base64')]));
   }
