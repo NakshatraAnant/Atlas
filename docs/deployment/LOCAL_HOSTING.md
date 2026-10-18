@@ -103,7 +103,7 @@ Put overrides in `.env.local` (one `KEY=value` per line). Useful ones:
 | `LOG_LEVEL` | info | `debug`, `info`, `warn`, `error` or `silent`. |
 | `AI_PROVIDER` | deterministic | Set `anthropic` with `ANTHROPIC_API_KEY` to use a language model. Language-model text is only shown after a passing evaluation run is recorded for that model and prompt version (release gate AIA-13). |
 | `DATABASE_URL` | empty | Point at your own PostgreSQL 16+ instead of the embedded database. Back it up with `pg_dump`; `backup` and `restore` handle the embedded database only. |
-| `SYNTHETIC_COMPANIES` | 120 | Size of the synthetic universe (applies to a new database only). |
+| `SYNTHETIC_COMPANIES` | 40 | Size of the synthetic universe (applies to a new database only; keep the same value for the API). 120 exceeded the embedded engine's memory during seeding in session 3. |
 
 `NODE_ENV=production` is refused by the local script: production needs real data licences, a
 managed database, a real email provider and a payment gateway (see

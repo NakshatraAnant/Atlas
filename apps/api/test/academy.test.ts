@@ -128,6 +128,11 @@ describe('placement diagnostic (5 questions, transparent result)', () => {
     expect((await b.post(`/v1/academy/diagnostics/${s.json.attempt_id}/submit`, { answers: [] })).status).toBe(404);
     expect((await b.post('/v1/academy/courses/market-architect/enrol', { attempt_id: s.json.attempt_id, acknowledge: true })).status).toBe(404);
     expect((await a.get(`/v1/academy/diagnostics/${s.json.attempt_id}`)).json.result).toBeNull();
+    await a.post(`/v1/academy/diagnostics/${s.json.attempt_id}/submit`, { answers: [] });
+    const reopened = (await a.get(`/v1/academy/diagnostics/${s.json.attempt_id}`)).json;
+    expect(reopened.result.outcomes).toHaveLength(5);
+    expect(reopened.result.outcomes.every((o: any) => o.stem && o.qtype && o.explanation)).toBe(true);
+    expect((await b.get(`/v1/academy/diagnostics/${s.json.attempt_id}`)).status).toBe(404);
   });
 
   it('rejects malformed answers', async () => {

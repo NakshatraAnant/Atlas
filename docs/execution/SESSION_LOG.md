@@ -19,3 +19,6 @@
 - Added `DATABASE_SSL`/`DATABASE_CA_CERT`, RLS tests, an opt-in real-PostgreSQL integration suite.
 - GitHub blocked (no connector/CLI). Docker blocked (no WSL). Supabase DB password needed for app connection.
 - Created the execution ledger (MASTER_EXECUTION_STATE, PHASE_STATUS, DECISION_LOG, TEST_RESULTS, NEXT_ACTIONS, BLOCKERS).
+- Academy foundation: migration 006, engine, curriculum (4 courses, 48 diagnostic questions, MARKET DECODER module 1), API, web, labs. Found and fixed a non-idempotent curriculum sync.
+- Local verification exposed that the default 120-company seed crashes PGlite (and has likely never completed); defaulted to 40 (ADR-017), reseeded, verified the Academy journey in the browser.
+- 217 tests pass, 8 skipped. Web build passes.

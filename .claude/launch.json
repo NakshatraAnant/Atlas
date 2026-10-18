@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "atlas-api", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:api"], "port": 4000 },
+    { "name": "atlas-api-nojobs", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:api"], "env": { "ATLAS_BACKGROUND_JOBS": "false" }, "port": 4000 },
+    { "name": "atlas-web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:web"], "port": 3000 }
+  ]
+}

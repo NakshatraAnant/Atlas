@@ -1,0 +1,154 @@
+'use client';
+import { use, useEffect, useRef, useState } from 'react';
+import { api, ApiError } from '@/lib/api';
+import { answered, DraftBanner, Lab, QuestionInput, StageStepper, type Answer, type PublicQuestion } from '@/components/academy';
+import { Loading, Problem, useApi } from '@/components/ui';
+
+type Block =
+  | { stage: 'discover'; kind: 'text'; title: string; body: string[] }
+  | { stage: 'observe'; kind: 'interactive'; title: string; widget: string; intro: string; alt_text: string }
+  | { stage: 'predict'; kind: 'prediction'; prompt: string; options: string[]; answer: number; reveal: string }
+  | { stage: 'investigate'; kind: 'worked_example'; title: string; steps: string[] }
+  | { stage: 'decide'; kind: 'guided_practice'; prompt: string; hint: string; answer_text: string }
+  | { stage: 'explain'; kind: 'reflection'; prompt: string; model_answer: string }
+  | { stage: 'review'; kind: 'summary'; points: string[] };
+
+interface Lesson {
+  lesson_id: string; version: number; course: { course_id: string; title: string }; title: string; minutes: number; draft: boolean;
+  objectives: { objective_id: string; statement: string }[]; prerequisites: { lesson_id: string; title: string; completed: boolean }[];
+  blocks: Block[]; references: { title: string; url?: string; note: string }[]; mastery_rule: string; quiz: PublicQuestion[];
+  progress: { last_block: number; completed_at: string | null } | null;
+}
+interface QuizResult { score: number; correct: number; of: number; outcomes: { question_id: string; correct: boolean; correct_answer: any; explanation: string; misconception: string | null }[]; mastery: { objective_id: string; state: string; estimate: number; evidence_count: number; next_review_at: string }[] }
+
+export default function LessonPlayer({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const l = useApi<Lesson>(`/v1/academy/lessons/${id}`);
+  const [i, setI] = useState(0);
+  const [reached, setReached] = useState(0);
+  const [inQuiz, setInQuiz] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (l.data?.progress) {
+      const b = Math.min(l.data.progress.last_block, l.data.blocks.length - 1);
+      setReached(l.data.progress.completed_at ? l.data.blocks.length - 1 : b);
+    }
+  }, [l.data]);
+  if (l.loading) return <Loading lines={8} label="Loading lesson" />;
+  if (l.error) return <Problem error={l.error} retry={l.reload} />;
+  const d = l.data!;
+  const go = (n: number) => {
+    setI(n);
+    setInQuiz(false);
+    const r = Math.max(reached, n);
+    setReached(r);
+    void api(`/v1/academy/lessons/${id}/progress`, { body: { block: r } }).catch(() => undefined);
+    requestAnimationFrame(() => heading.current?.focus());
+  };
+  const b = d.blocks[i]!;
+  const last = i === d.blocks.length - 1;
+  return (
+    <div className="academy narrow">
+      <p><a href={`/app/academy/${d.course.course_id}`}>← {d.course.title}</a></p>
+      <h1>{d.title}</h1>
+      <p className="mu">{d.minutes} min · {d.objectives.map((o) => o.statement).join(' ')}</p>
+      {d.draft && <DraftBanner what="This lesson" />}
+      {d.prerequisites.some((p) => !p.completed) && <p className="mu">Builds on: {d.prerequisites.map((p, k) => <span key={p.lesson_id}>{k > 0 && ', '}<a href={`/app/academy/lesson/${p.lesson_id}`}>{p.title}</a>{p.completed ? ' ✓' : ''}</span>)}. You can continue without it.</p>}
+      <StageStepper current={inQuiz ? -1 : i} maxReached={reached} onPick={go} />
+      {!inQuiz ? (
+        <section className="stage card" key={i} aria-labelledby="stage-h">
+          <h2 id="stage-h" tabIndex={-1} ref={heading}>{stageTitle(b)}</h2>
+          <BlockView b={b} />
+          <div className="row" style={{ justifyContent: 'space-between', marginTop: 16 }}>
+            <button className="btn s" disabled={i === 0} onClick={() => go(i - 1)}>Back</button>
+            {last ? <button className="btn" onClick={() => { setInQuiz(true); setReached(d.blocks.length - 1); }}>Check your understanding</button> : <button className="btn" onClick={() => go(i + 1)}>Continue</button>}
+          </div>
+        </section>
+      ) : (
+        <Quiz lesson={d} />
+      )}
+      {d.references.length > 0 && (
+        <details className="card"><summary>References</summary><ul>{d.references.map((r) => <li key={r.title}>{r.url ? <a href={r.url} rel="noopener noreferrer" target="_blank">{r.title}</a> : r.title} <span className="mu">{r.note}</span></li>)}</ul></details>
+      )}
+    </div>
+  );
+}
+
+const stageTitle = (b: Block) => ('title' in b ? b.title : b.stage === 'predict' ? 'Make a prediction' : b.stage === 'decide' ? 'Try it yourself' : b.stage === 'explain' ? 'Explain it in your words' : 'Key points');
+
+function BlockView({ b }: { b: Block }) {
+  const [pick, setPick] = useState<number | null>(null);
+  const [show, setShow] = useState(false);
+  const [text, setText] = useState('');
+  switch (b.kind) {
+    case 'text':
+      return <>{b.body.map((p) => <p key={p}>{p}</p>)}</>;
+    case 'interactive':
+      return <><p>{b.intro}</p><Lab widget={b.widget} /><p className="sr-only">{b.alt_text}</p></>;
+    case 'prediction':
+      return (
+        <fieldset className="qcard"><legend><strong>{b.prompt}</strong></legend>
+          {b.options.map((o, k) => <label key={o} className={`opt${pick !== null && k === b.answer ? ' key' : ''}`}><input type="radio" name="predict" disabled={pick !== null} checked={pick === k} onChange={() => setPick(k)} /> <span>{o}</span></label>)}
+          {pick !== null && <p className="feedback" role="status"><strong>{pick === b.answer ? 'Good prediction.' : 'Interesting guess. Here is what happens:'}</strong> {b.reveal}</p>}
+          {pick === null && <p className="mu">Commit to an answer first; predicting before checking helps you remember.</p>}
+        </fieldset>
+      );
+    case 'worked_example':
+      return <ol className="steps">{b.steps.map((s) => <li key={s}>{s}</li>)}</ol>;
+    case 'guided_practice':
+      return (
+        <div>
+          <p><strong>{b.prompt}</strong></p>
+          <label className="field">Your working (not graded)<textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} /></label>
+          <details><summary>Hint</summary><p>{b.hint}</p></details>
+          {show ? <p className="okbox">{b.answer_text}</p> : <button className="btn s" onClick={() => setShow(true)}>Show the answer</button>}
+        </div>
+      );
+    case 'reflection':
+      return (
+        <div>
+          <p><strong>{b.prompt}</strong></p>
+          <label className="field">Your explanation (stays on this device; not saved)<textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} /></label>
+          {show ? <p className="okbox">One good answer: {b.model_answer}</p> : <button className="btn s" disabled={text.trim().length < 10} onClick={() => setShow(true)}>Compare with a model answer</button>}
+        </div>
+      );
+    case 'summary':
+      return <ul>{b.points.map((p) => <li key={p}>{p}</li>)}</ul>;
+  }
+}
+
+function Quiz({ lesson }: { lesson: Lesson }) {
+  const [ans, setAns] = useState<Record<string, Answer>>({});
+  const [res, setRes] = useState<QuizResult | null>(null);
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState(false);
+  const all = lesson.quiz.every((q) => answered(ans[q.question_id] ?? null));
+  const submit = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      setRes(await api<QuizResult>(`/v1/academy/lessons/${lesson.lesson_id}/quiz`, { body: { answers: lesson.quiz.map((q) => ({ question_id: q.question_id, version: q.version, response: ans[q.question_id] ?? null })) } }));
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="card" aria-labelledby="quiz-h">
+      <h2 id="quiz-h">Check your understanding</h2>
+      <p className="mu">{lesson.mastery_rule}</p>
+      {lesson.quiz.map((q, k) => <QuestionInput key={q.question_id} index={k} q={q} value={ans[q.question_id] ?? null} onChange={(a) => setAns({ ...ans, [q.question_id]: a })} disabled={!!res} outcome={res?.outcomes.find((o) => o.question_id === q.question_id)} />)}
+      {res ? (
+        <div className="okbox" role="status">
+          <p><strong>{res.correct} of {res.of} correct.</strong> Lesson marked complete.</p>
+          {res.mastery.map((m) => <p key={m.objective_id}>{m.state === 'mastered' ? 'Objective mastered.' : `Still practising this objective (estimate ${Math.round(m.estimate * 100)}% from ${m.evidence_count} answers).`} Next review: {new Date(m.next_review_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}.</p>)}
+          <p><a href={`/app/academy/${lesson.course.course_id}`}>Back to the course</a></p>
+        </div>
+      ) : (
+        <button className="btn" disabled={!all || busy} onClick={() => void submit()}>{busy ? 'Checking…' : all ? 'Check answers' : 'Answer every question to check'}</button>
+      )}
+      <Problem error={err} />
+    </section>
+  );
+}

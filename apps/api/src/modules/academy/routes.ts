@@ -172,19 +172,23 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
       const result = scoreDiagnostic(questions, responses, a.rules, { precedingCourseTitle: preceding?.title ?? null });
       await t.query(`UPDATE acad.diagnostic_attempts SET submitted_at=$3, responses=$4, result=$5, readiness=$6 WHERE attempt_id=$1 AND user_id=$2`, [attemptId, u.userId, now.toISOString(), JSON.stringify(responses), JSON.stringify(result), result.readiness]);
       await track(t, 'academy_diagnostic_completed', { course: a.course_id, readiness: result.readiness, ratio: result.ratio }, { userId: u.userId, origin: 'server', at: now });
-      return { attempt_id: attemptId, course_id: a.course_id, preceding_course: preceding ? { course_id: preceding.course_id, title: preceding.title } : null, ...result, outcomes: result.outcomes.map((o, i) => ({ ...o, stem: questions[i]!.stem, options: questions[i]!.options, your_response: responses[i] })) };
+      return { attempt_id: attemptId, course_id: a.course_id, preceding_course: preceding ? { course_id: preceding.course_id, title: preceding.title } : null, ...result, outcomes: enrich(result.outcomes, questions, responses) };
     });
   });
 
   app.get('/v1/academy/diagnostics/:attemptId', async (req) => {
     const u = requireUser(req);
     const { attemptId } = parse(z.object({ attemptId: z.string().uuid() }), req.params);
-    const a = await db.maybeOne<{ course_id: string; submitted_at: string | null; result: unknown; readiness: string | null; started_at: string }>(
-      `SELECT course_id, submitted_at, result, readiness, started_at FROM acad.diagnostic_attempts WHERE attempt_id=$1 AND user_id=$2`,
+    const a = await db.maybeOne<{ course_id: string; submitted_at: string | null; result: ReturnType<typeof scoreDiagnostic> | null; readiness: string | null; started_at: string; question_refs: { question_id: string; version: number }[]; responses: Response[] | null }>(
+      `SELECT course_id, submitted_at, result, readiness, started_at, question_refs, responses FROM acad.diagnostic_attempts WHERE attempt_id=$1 AND user_id=$2`,
       [attemptId, u.userId],
     );
     if (!a) throw notFound();
-    return a.submitted_at ? a : { course_id: a.course_id, started_at: a.started_at, submitted_at: null, result: null };
+    if (!a.submitted_at || !a.result) return { course_id: a.course_id, started_at: a.started_at, submitted_at: null, result: null };
+    const questions = await questionsByRefs(db, a.question_refs);
+    const c = await course(a.course_id).catch(() => null);
+    const preceding = c?.preceding_course_id ? (await currentCourses(db, statuses)).find((x) => x.course_id === c.preceding_course_id) : undefined;
+    return { course_id: a.course_id, started_at: a.started_at, submitted_at: a.submitted_at, readiness: a.readiness, result: { ...a.result, attempt_id: attemptId, preceding_course: preceding ? { course_id: preceding.course_id, title: preceding.title } : null, outcomes: enrich(a.result.outcomes, questions, a.responses ?? []) } };
   });
 
   // ───── Enrolment (never blocked by a readiness result; low readiness needs an explicit choice) ─────
@@ -373,6 +377,10 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
     return { lesson_id: p.id, version: p.version, status: 'published', review: updated };
   });
 }
+
+/** Adds the question text to stored outcomes (only after submission). */
+const enrich = (outcomes: ReturnType<typeof scoreDiagnostic>['outcomes'], questions: BankQuestion[], responses: Response[]) =>
+  outcomes.map((o, i) => ({ ...o, qtype: questions[i]!.qtype, stem: questions[i]!.stem, options: questions[i]!.options, unit: 'value' in questions[i]!.correct ? (questions[i]!.correct.unit ?? null) : null, your_response: responses[i] ?? null }));
 
 const scoreCaveat = () => 'Five questions give a rough readiness estimate only. Answers are shown after you submit.';
 

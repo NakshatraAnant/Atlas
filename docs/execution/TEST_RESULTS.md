@@ -2,6 +2,20 @@
 
 Newest first. Only results of commands that actually ran.
 
+## 19 Oct 2026, session 3 (end)
+
+| Command | Result |
+|---|---|
+| `npm test` | **217 passed** (shared 36: content rules 20, format 7, learning sims 9; API 181: calc 29, content-policy 38, pipeline 23, api 57, rls 3, security 1, academy-engine 16, academy 14), **8 skipped** (postgres.integration, no TEST_DATABASE_URL), 0 failed |
+| `npm run typecheck` | pass (all workspaces) |
+| `npm run build -w @atlas/web` | pass; Academy routes /app/academy, /[course], /[course]/check, /lesson/[id], /review |
+| `npm run check:secrets` | pass |
+| `SYNTHETIC_COMPANIES=120 npm run seed` | **FAILED**: PGlite "memory access out of bounds" after macro_calendar (calc stage) |
+| `SYNTHETIC_COMPANIES=40 npm run seed` | pass: 50 companies, 63.0 MB compressed, 155 s |
+| Manual UI journey (in-app browser, dev servers) | pass: sign-in → Academy → MARKET DECODER → readiness check (4/5, "ready", reasons shown) → enrol → lesson md-l2 order-book lab (250 @ ₹101.60, spread ₹3.00) → quiz 3/3 → "Objective mastered, next review 20 Oct" |
+| Supabase fingerprint after 006 | local == hosted: cf903493041bedc1db60c4847c37d52e / 2438 lines |
+
+
 ## 19 Oct 2026, session 3
 
 Command: `npm test` (root) on Windows 11, Node 24.16.0.
