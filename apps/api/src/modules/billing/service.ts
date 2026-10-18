@@ -246,10 +246,15 @@ export async function changePlan(ctx: AppContext, user: { userId: string; email:
     const now = ctx.clock();
     const taxable = prorationAmount(sub.price_inr, newPrice, sub.current_period_start, sub.current_period_end, now);
     const split = gstSplit(taxable, ctx.cfg.GST_RATE, ctx.cfg.SUPPLIER_STATE_CODE, sub.place_of_supply_state ?? ctx.cfg.SUPPLIER_STATE_CODE);
+    // External side effects never run inside a database transaction; the captured charge is
+    // recorded immediately afterwards (reconciliation covers a crash between the two steps).
+    let charge: { gatewayPaymentId: string; status: 'captured' | 'failed' } | null = null;
+    if (taxable > 0) {
+      charge = await ctx.payments.chargeOneTime({ userId: user.userId, amountPaise: Math.round(split.total * 100), description: `Upgrade to ${target} (prorated)`, subscriptionId: sub.gateway_subscription_id });
+      if (charge.status !== 'captured') throw badRequest('The prorated upgrade charge did not go through. Try another payment method.');
+    }
     await ctx.db.tx(async (db) => {
-      if (taxable > 0) {
-        const charge = await ctx.payments.chargeOneTime({ userId: user.userId, amountPaise: Math.round(split.total * 100), description: `Upgrade to ${target} (prorated)`, subscriptionId: sub.gateway_subscription_id });
-        if (charge.status !== 'captured') throw badRequest('The prorated upgrade charge did not go through. Try another payment method.');
+      if (charge) {
         const pay = await db.one<{ payment_id: string }>(`INSERT INTO app.payments (user_id, subscription_id, gateway_payment_id, kind, taxable_inr, gst_inr, amount_inr, status, method, is_sandbox) VALUES ($1,$2,$3,'proration',$4,$5,$6,'captured','mandate',$7) RETURNING payment_id`, [user.userId, sub.subscription_id, charge.gatewayPaymentId, split.taxable, r2(split.total - split.taxable), split.total, ctx.payments.isSandbox]);
         await issueInvoice(ctx, db, { userId: user.userId, paymentId: pay.payment_id, docType: 'invoice', taxable: split.taxable, description: `Prorated upgrade to ${target === 'pro' ? 'Pro Research' : 'Plus'} until ${sub.current_period_end.slice(0, 10)}`, placeOfSupply: sub.place_of_supply_state ?? ctx.cfg.SUPPLIER_STATE_CODE, buyerName: sub.buyer_name, buyerGstin: sub.buyer_gstin, at: now });
       }
@@ -296,7 +301,7 @@ export async function refundPayment(ctx: AppContext, admin: { userId: string; ro
   const r = await ctx.payments.refund(pay.gateway_payment_id, Math.round(pay.amount_inr * 100));
   if (withinPolicy && pay.subscription_id) {
     // Full refund under the 7-day policy ends paid access now.
-    await ctx.db.query(`UPDATE app.subscriptions SET status='cancelled', cancel_at_period_end=true, current_period_end=now(), mandate_status='revoked', cancel_reason=COALESCE(cancel_reason,'refunded'), updated_at=now() WHERE subscription_id=$1`, [pay.subscription_id]);
+    await ctx.db.query(`UPDATE app.subscriptions SET status='cancelled', cancel_at_period_end=true, current_period_end=$2, mandate_status='revoked', cancel_reason=COALESCE(cancel_reason,'refunded'), updated_at=now() WHERE subscription_id=$1`, [pay.subscription_id, ctx.clock().toISOString()]);
   }
   await audit(ctx.db, { actorUserId: admin.userId, actorRole: admin.role, action: 'payment.refund', targetType: 'payment', targetId: paymentId, reason, details: { gateway_refund_id: r.refundId, within_policy: withinPolicy, amount_inr: pay.amount_inr } });
   return { refundId: r.refundId, withinPolicy };
