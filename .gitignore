@@ -12,3 +12,8 @@ apps/web/next-env.d.ts
 test-results/
 playwright-report/
 test/.fixture/
+
+# Local hosting runtime state and backups (never commit)
+.atlas/
+backups/
+data.before-restore-*/

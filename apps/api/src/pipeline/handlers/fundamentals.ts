@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { bulkInsert } from '../../lib/bulk.js';
 import { FLOW_ITEMS, LINE_ITEM_BY_CODE } from '../../modules/fundamentals/lineItems.js';
 import type { CheckResult, HandlerResult, PipelineCtx } from '../context.js';
@@ -30,6 +31,29 @@ export async function handleFundamentals(ctx: PipelineCtx, records: VendorPeriod
   // Process in filing order so restatements follow their originals.
   const typeOrder = (p: VendorPeriod) => (p.period_type === 'Q' ? 0 : 1);
   const sorted = [...records].sort((a, b) => (a.filed_at < b.filed_at ? -1 : a.filed_at > b.filed_at ? 1 : a.version - b.version || typeOrder(a) - typeOrder(b)));
+  // Preload the latest version of every period and the version-1 quarterly sums, so the loop needs no
+  // per-record lookups (an earlier per-row query made a full history load quadratic).
+  const pkey = (c: string, basis: string, type: string, fy: number, fq: number | null) => `${c}|${basis}|${type}|${fy}|${fq ?? ''}`;
+  const latest = new Map<string, { period_id: string; version: number }>();
+  for (const r of await db.query<{ period_id: string; version: number; company_id: string; basis: string; period_type: string; fiscal_year: number; fiscal_quarter: number | null }>(
+    `SELECT DISTINCT ON (company_id, basis, period_type, fiscal_year, fiscal_quarter) period_id, version, company_id, basis, period_type, fiscal_year, fiscal_quarter
+       FROM fund.financial_periods ORDER BY company_id, basis, period_type, fiscal_year, fiscal_quarter, version DESC`,
+  )) latest.set(pkey(r.company_id, r.basis, r.period_type, r.fiscal_year, r.fiscal_quarter), { period_id: r.period_id, version: r.version });
+  const qkey = (c: string, basis: string, fy: number) => `${c}|${basis}|${fy}`;
+  const qsums = new Map<string, Map<string, { total: number; n: number }>>();
+  const addQ = (k: string, code: string, v: number) => {
+    const m = qsums.get(k) ?? new Map<string, { total: number; n: number }>();
+    const e = m.get(code) ?? { total: 0, n: 0 };
+    e.total += v;
+    e.n += 1;
+    m.set(code, e);
+    qsums.set(k, m);
+  };
+  for (const r of await db.query<{ company_id: string; basis: string; fiscal_year: number; line_item_code: string; total: number; n: number }>(
+    `SELECT fp.company_id, fp.basis, fp.fiscal_year, v.line_item_code, sum(v.value)::float8 AS total, count(*)::int AS n
+       FROM fund.financial_periods fp JOIN fund.financial_values v USING (period_id)
+      WHERE fp.period_type='Q' AND fp.version=1 AND v.value IS NOT NULL GROUP BY 1,2,3,4`,
+  )) qsums.set(qkey(r.company_id, r.basis, r.fiscal_year), (qsums.get(qkey(r.company_id, r.basis, r.fiscal_year)) ?? new Map()).set(r.line_item_code, { total: r.total, n: r.n }));
   await db.tx(async (t) => {
     for (const p of sorted) {
       const companyId = companies.get(p.isin);
@@ -47,10 +71,8 @@ export async function handleFundamentals(ctx: PipelineCtx, records: VendorPeriod
         await raiseQualityIssue(t, { kind: 'quarantine', severity: 'fail', dataset: 'fundamentals', entityRef: companyId, title: 'Shares outstanding must be positive', details: { period: p } });
         continue;
       }
-      const prior = await t.maybeOne<{ period_id: string; version: number }>(
-        `SELECT period_id, version FROM fund.financial_periods WHERE company_id=$1 AND basis=$2 AND period_type=$3 AND fiscal_year=$4 AND fiscal_quarter IS NOT DISTINCT FROM $5 ORDER BY version DESC LIMIT 1`,
-        [companyId, p.basis, p.period_type, p.fiscal_year, p.fiscal_quarter],
-      );
+      const key = pkey(companyId, p.basis, p.period_type, p.fiscal_year, p.fiscal_quarter);
+      const prior = latest.get(key);
       if (prior && prior.version >= p.version) continue; // idempotent re-delivery
       const period = await t.one<{ period_id: string }>(
         `INSERT INTO fund.financial_periods (company_id, basis, period_type, fiscal_year, fiscal_quarter, period_start, period_end, filed_at, audited, version, is_current, restatement_of, source_id, ingestion_run_id)
@@ -58,6 +80,8 @@ export async function handleFundamentals(ctx: PipelineCtx, records: VendorPeriod
         [companyId, p.basis, p.period_type, p.fiscal_year, p.fiscal_quarter, p.period_start, p.period_end, p.filed_at, p.audited, p.version, prior?.period_id ?? null, meta.sourceId, meta.runId],
       );
       if (prior) await t.query(`UPDATE fund.financial_periods SET is_current = false WHERE period_id = $1`, [prior.period_id]);
+      latest.set(key, { period_id: period.period_id, version: p.version });
+      if (p.period_type === 'Q' && p.version === 1) for (const [code, v] of Object.entries(p.values)) if (v !== null && v !== undefined) addQ(qkey(companyId, p.basis, p.fiscal_year), code, v);
       let status: 'validated' | 'conflict' = 'validated';
       if (p.period_type === 'FY' && p.values.total_assets !== undefined && p.values.total_equity !== undefined && p.values.total_liabilities !== undefined) {
         const gap = Math.abs(p.values.total_assets - (p.values.total_equity + p.values.total_liabilities));
@@ -69,11 +93,7 @@ export async function handleFundamentals(ctx: PipelineCtx, records: VendorPeriod
       }
       let periodSumIssues: string[] = [];
       if (p.period_type === 'FY' && p.version === 1) {
-        const qs = await t.query<{ line_item_code: string; total: number; n: number }>(
-          `SELECT v.line_item_code, sum(v.value)::float8 AS total, count(*)::int AS n FROM fund.financial_periods fp JOIN fund.financial_values v USING (period_id)
-            WHERE fp.company_id=$1 AND fp.basis=$2 AND fp.period_type='Q' AND fp.fiscal_year=$3 AND fp.version=1 AND v.value IS NOT NULL GROUP BY v.line_item_code`,
-          [companyId, p.basis, p.fiscal_year],
-        );
+        const qs = [...(qsums.get(qkey(companyId, p.basis, p.fiscal_year)) ?? new Map<string, { total: number; n: number }>())].map(([line_item_code, e]) => ({ line_item_code, ...e }));
         periodSumIssues = qs
           .filter((q) => q.n === 4 && FLOW_ITEMS.has(q.line_item_code) && p.values[q.line_item_code] !== undefined)
           .filter((q) => Math.abs(q.total - p.values[q.line_item_code]!) > Math.max(Math.abs(p.values[q.line_item_code]!) * FUND_RULES.periodSumPct, FUND_RULES.periodSumAbsCr))
@@ -155,6 +175,9 @@ export async function handleShareholding(ctx: PipelineCtx, records: VendorShareh
   let valid = 0;
   let bad = 0;
   const affected = new Set<string>();
+  const existing = new Set((await db.query<{ k: string }>(`SELECT company_id || '|' || quarter_end::text AS k FROM fund.shareholding_snapshots`)).map((r) => r.k));
+  const snaps: Record<string, unknown>[] = [];
+  const vals: Record<string, unknown>[] = [];
   await db.tx(async (t) => {
     for (const s of records) {
       const companyId = companies.get(s.isin);
@@ -164,18 +187,20 @@ export async function handleShareholding(ctx: PipelineCtx, records: VendorShareh
         await raiseQualityIssue(t, { kind: 'quarantine', severity: 'fail', dataset: 'shareholding', entityRef: companyId ?? s.isin, title: `Shareholding for ${s.quarter_end} sums to ${total.toFixed(2)}% (rule: 100 ± 0.1)`, details: { record: s } });
         continue;
       }
-      const snap = await t.maybeOne<{ snapshot_id: string }>(
-        `INSERT INTO fund.shareholding_snapshots (company_id, quarter_end, filed_at, source_id, ingestion_run_id) VALUES ($1,$2,$3,$4,$5)
-         ON CONFLICT (company_id, quarter_end) DO NOTHING RETURNING snapshot_id`,
-        [companyId, s.quarter_end, s.filed_at, meta.sourceId, meta.runId],
-      );
-      if (!snap) continue;
+      // First delivery wins: a snapshot already stored (or earlier in this batch) is not replaced.
+      const key = `${companyId}|${s.quarter_end}`;
+      if (existing.has(key)) continue;
+      existing.add(key);
+      const snapshot_id = randomUUID();
+      snaps.push({ snapshot_id, company_id: companyId, quarter_end: s.quarter_end, filed_at: s.filed_at, source_id: meta.sourceId, ingestion_run_id: meta.runId });
       for (const [category, pct] of [['promoter', s.promoter], ['fii', s.fii], ['dii', s.dii], ['public', s.public], ['government', s.government], ['other', s.other]] as const) {
-        await t.query(`INSERT INTO fund.shareholding_values (snapshot_id, category, pct, pledged_pct_of_promoter) VALUES ($1,$2,$3,$4)`, [snap.snapshot_id, category, pct, category === 'promoter' ? s.pledged_pct_of_promoter : null]);
+        vals.push({ snapshot_id, category, pct, pledged_pct_of_promoter: category === 'promoter' ? s.pledged_pct_of_promoter : null });
       }
       valid++;
       affected.add(companyId);
     }
+    await bulkInsert(t, 'fund.shareholding_snapshots', snaps);
+    await bulkInsert(t, 'fund.shareholding_values', vals);
   });
   return { rowsIn: records.length, rowsValid: valid, rowsQuarantined: bad, checks: [{ check: 'ranges_and_signs', severity: bad ? 'fail' : 'pass', detail: `${bad} snapshots quarantined (categories must sum to 100 ± 0.1)`, count: bad }], status: bad ? 'partial' : 'succeeded', affected: { companies: [...affected] } };
 }

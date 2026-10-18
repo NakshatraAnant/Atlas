@@ -53,6 +53,15 @@ export function createMetrics(): RequestMetrics {
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+/** Exact loopback host match (a prefix test would accept http://localhost.attacker.example). */
+export function isLoopbackOrigin(origin: string): boolean {
+  try {
+    const u = new URL(origin);
+    return (u.protocol === 'http:' || u.protocol === 'https:') && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
 
 export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics } = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -91,7 +100,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
     // CSRF: SameSite=Lax cookies plus a double-submit token header on state-changing requests.
     if (!SAFE_METHODS.has(req.method) && !cfg?.csrfExempt) {
       const origin = req.headers.origin;
-      if (origin && origin !== ctx.cfg.WEB_ORIGIN && !origin.startsWith('http://localhost') && !origin.startsWith('http://127.0.0.1')) {
+      if (origin && origin !== ctx.cfg.WEB_ORIGIN && (ctx.cfg.isProduction || !isLoopbackOrigin(origin))) {
         throw new ApiError(403, 'Forbidden', 'Cross-origin request rejected.');
       }
       const header = req.headers['x-csrf-token'];
