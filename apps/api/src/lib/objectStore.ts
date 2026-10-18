@@ -44,6 +44,14 @@ export class LocalObjectStore implements ObjectStore {
 
 export class MemoryObjectStore implements ObjectStore {
   private readonly items = new Map<string, Buffer>();
+  serialize(): string {
+    return JSON.stringify([...this.items].map(([k, v]) => [k, v.toString('base64')]));
+  }
+  static deserialize(json: string): MemoryObjectStore {
+    const s = new MemoryObjectStore();
+    for (const [k, v] of JSON.parse(json) as [string, string][]) s.items.set(k, Buffer.from(v, 'base64'));
+    return s;
+  }
   async put(key: string, body: Buffer | string) {
     const k = safeKey(key);
     const buf = typeof body === 'string' ? Buffer.from(body) : body;

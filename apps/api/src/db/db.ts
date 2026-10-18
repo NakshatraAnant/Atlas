@@ -53,7 +53,7 @@ class PgliteDb implements Db {
   }
   async tx<T>(fn: (db: Db) => Promise<T>): Promise<T> {
     if (this.inTx) return fn(this);
-    return this.root.transaction(async (t) => fn(new PgliteDb(t as unknown as PGlite, this.root, true)));
+    return (await this.root.transaction(async (t) => fn(new PgliteDb(t as unknown as PGlite, this.root, true)))) as T;
   }
   async close(): Promise<void> {
     if (!this.inTx) await this.root.close();
@@ -103,6 +103,8 @@ export interface OpenDbOptions {
   databaseUrl?: string;
   /** Directory for persistent PGlite data; omit for in-memory. */
   pgliteDir?: string;
+  /** Load a PGlite data-directory dump (tests). */
+  loadDataDir?: Blob;
 }
 
 export async function openDb(opts: OpenDbOptions): Promise<Db> {
@@ -112,7 +114,7 @@ export async function openDb(opts: OpenDbOptions): Promise<Db> {
         if (oid === OID.int8 || oid === OID.numeric) return toNumber;
         if (oid === OID.date) return keepString;
         if (oid === OID.timestamptz || oid === OID.timestamp) return toIso;
-        return pg.types.getTypeParser(oid, format);
+        return pg.types.getTypeParser(oid, (format ?? 'text') as 'text');
       },
     };
     const pool = new pg.Pool({ connectionString: opts.databaseUrl, max: 10, types: types as pg.CustomTypesConfig });
@@ -122,6 +124,7 @@ export async function openDb(opts: OpenDbOptions): Promise<Db> {
   if (opts.pgliteDir) mkdirSync(opts.pgliteDir, { recursive: true });
   const lite = await PGlite.create({
     dataDir: opts.pgliteDir,
+    loadDataDir: opts.loadDataDir,
     extensions: { pg_trgm },
     parsers: {
       [OID.int8]: toNumber,
@@ -132,4 +135,11 @@ export async function openDb(opts: OpenDbOptions): Promise<Db> {
     },
   });
   return new PgliteDb(lite, lite);
+}
+
+/** Dump a PGlite database to a tarball (test fixtures). */
+export async function dumpPglite(db: Db): Promise<Blob> {
+  const inner = (db as unknown as { root: PGlite }).root;
+  if (!inner || typeof inner.dumpDataDir !== 'function') throw new Error('dumpPglite requires a PGlite database');
+  return (await inner.dumpDataDir('gzip')) as Blob;
 }
