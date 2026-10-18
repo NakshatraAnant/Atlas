@@ -299,7 +299,7 @@ export async function computeCompanyMetrics(db: Db, opts: { companyIds?: string[
     for (const [code, v] of latestRows) emit(ctx, code, 'LATEST', v.result, v.refs, v.periodEnd, v.at);
     const rows = opts.latestOnly ? out.filter((r) => r.period_key === 'LATEST') : out;
     await db.query(`DELETE FROM calc.metric_values WHERE entity_type='company' AND entity_id=$1 ${opts.latestOnly ? `AND period_key='LATEST'` : ''}`, [c.company_id]);
-    written += await bulkInsert(db, 'calc.metric_values', rows, { chunk: 3000 });
+    written += await bulkInsert(db, 'calc.metric_values', rows as unknown as Record<string, unknown>[], { chunk: 3000 });
   }
   return written;
 }

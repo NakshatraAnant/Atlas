@@ -14,7 +14,7 @@ const schema = z.object({
   EMAIL_TRANSPORT: z.enum(['outbox', 'ses']).default('outbox'),
   AI_PROVIDER: z.enum(['deterministic', 'anthropic']).default('deterministic'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
-  AI_MODEL: z.string().default('claude-sonnet-5-5'),
+  AI_MODEL: z.string().default('claude-opus-5-5'),
   AI_COST_BUDGET_INR_PER_ANSWER: z.coerce.number().positive().default(5),
   AI_USD_INR: z.coerce.number().positive().default(85),
   PAYMENT_GATEWAY: z.enum(['sandbox', 'razorpay']).default('sandbox'),

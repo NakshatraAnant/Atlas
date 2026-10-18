@@ -28,6 +28,7 @@ export interface VendorMasterRecord {
   segments_reported: boolean;
   symbols: { symbol: string; valid_from: string; valid_to: string | null }[];
   coverage: 'full' | 'not_covered';
+  bse_code: string | null;
 }
 
 export interface SyntheticWorld {
@@ -119,10 +120,12 @@ export function buildWorld(opts: WorldOptions = {}): SyntheticWorld {
       face_value: 10, description: `${name} is a fictional listed company outside the ATLAS coverage universe (synthetic).`, segments_reported: false,
       symbols: [{ symbol: name.replace(/[^A-Za-z]/g, '').slice(0, 10).toUpperCase(), valid_from: '2015-06-01', valid_to: null }],
       coverage: 'not_covered' as const,
+      bse_code: String(590000 + k),
     };
   });
   const master: VendorMasterRecord[] = companies.map((c) => ({
     coverage: 'full' as const,
+    bse_code: String(500100 + c.idx),
     isin: c.isin,
     company_name: c.legalName,
     short_name: c.shortName,

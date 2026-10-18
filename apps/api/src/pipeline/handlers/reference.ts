@@ -58,6 +58,12 @@ export async function handleMaster(ctx: PipelineCtx, records: VendorMasterRecord
           [securityId, s.symbol, s.valid_from, s.valid_to],
         );
       }
+      if (m.bse_code) {
+        await db.query(
+          `INSERT INTO ref.security_identifiers (security_id, exchange_code, symbol, series, valid_from, valid_to) VALUES ($1,'BSE',$2,'A',$3,NULL) ON CONFLICT (security_id, exchange_code, valid_from) DO NOTHING`,
+          [securityId, m.bse_code, m.listed_on],
+        );
+      }
       valid++;
     }
   });

@@ -29,6 +29,7 @@ const ALLOWED_PHRASES: RegExp[] = [
   /\bbuy or sell\b/gi, // used in the standard disclosure: "offer or solicitation to buy or sell"
   /\bto buy, sell\b/gi,
   /\bbuy\/sell\/hold\b/gi, // used when explaining what ATLAS does not do
+  /\bbuy, sell or hold\b/gi,
   /\bexit (?:rule|rules|condition|conditions|signal on the close|price|prices|at the last traded price)\b/gi,
   /\bentry and exit\b/gi,
   /\bholding(?:s)?\b/gi,
