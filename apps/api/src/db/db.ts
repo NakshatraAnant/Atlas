@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import pg from 'pg';
@@ -105,6 +105,16 @@ export interface OpenDbOptions {
   pgliteDir?: string;
   /** Load a PGlite data-directory dump (tests). */
   loadDataDir?: Blob;
+  /** TLS for databaseUrl; omitted uses whatever the connection string specifies. */
+  ssl?: { mode: 'disable' | 'require' | 'verify-full'; caCertPath?: string };
+}
+
+function pgSsl(ssl: OpenDbOptions['ssl']): pg.PoolConfig['ssl'] {
+  if (!ssl) return undefined;
+  if (ssl.mode === 'disable') return false;
+  if (ssl.mode === 'require') return { rejectUnauthorized: false };
+  if (!ssl.caCertPath) throw new Error('DATABASE_SSL=verify-full needs DATABASE_CA_CERT');
+  return { rejectUnauthorized: true, ca: readFileSync(ssl.caCertPath, 'utf8') };
 }
 
 export async function openDb(opts: OpenDbOptions): Promise<Db> {
@@ -117,7 +127,10 @@ export async function openDb(opts: OpenDbOptions): Promise<Db> {
         return pg.types.getTypeParser(oid, (format ?? 'text') as 'text');
       },
     };
-    const pool = new pg.Pool({ connectionString: opts.databaseUrl, max: 10, types: types as pg.CustomTypesConfig });
+    // An explicit ssl setting wins over sslmode in the URL (node-postgres would otherwise let the URL override it).
+    const ssl = pgSsl(opts.ssl);
+    const connectionString = ssl === undefined ? opts.databaseUrl : stripSslParams(opts.databaseUrl);
+    const pool = new pg.Pool({ connectionString, max: Number(process.env.DATABASE_POOL_MAX ?? 10), types: types as pg.CustomTypesConfig, ...(ssl === undefined ? {} : { ssl }) });
     await pool.query('SELECT 1');
     return new PgDb(pool);
   }
@@ -135,6 +148,12 @@ export async function openDb(opts: OpenDbOptions): Promise<Db> {
     },
   });
   return new PgliteDb(lite, lite);
+}
+
+function stripSslParams(url: string): string {
+  const u = new URL(url);
+  for (const k of ['sslmode', 'ssl', 'sslcert', 'sslkey', 'sslrootcert']) u.searchParams.delete(k);
+  return u.toString();
 }
 
 /** Dump a PGlite database to a tarball (test fixtures). */

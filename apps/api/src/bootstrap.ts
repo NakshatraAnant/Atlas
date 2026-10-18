@@ -1,4 +1,4 @@
-import { loadConfig, type Config } from './config.js';
+import { dbOptions, loadConfig, type Config } from './config.js';
 import { cachedRights, type AppContext } from './context.js';
 import { openDb, type Db } from './db/db.js';
 import { migrate } from './db/migrate.js';
@@ -27,7 +27,7 @@ export interface ContextOptions {
 export async function createContext(opts: ContextOptions = {}): Promise<AppContext> {
   const cfg = opts.cfg ?? loadConfig();
   const log = createLogger(cfg.LOG_LEVEL, { service: 'atlas-api' });
-  const db = opts.db ?? (await openDb({ databaseUrl: cfg.DATABASE_URL || undefined, pgliteDir: opts.memory ? undefined : cfg.PGLITE_DIR }));
+  const db = opts.db ?? (await openDb(dbOptions(cfg, { memory: opts.memory })));
   await migrate(db);
   const clock = opts.clock ?? (() => new Date());
   const store = opts.store ?? (opts.memory ? new MemoryObjectStore() : new LocalObjectStore(cfg.OBJECT_STORE_DIR));

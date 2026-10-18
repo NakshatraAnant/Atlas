@@ -6,6 +6,10 @@ import { z } from 'zod';
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().optional().default(''),
+  /** TLS for DATABASE_URL: 'verify-full' (checks the server certificate against DATABASE_CA_CERT), 'require' (encrypted, certificate not checked; development only) or 'disable'. Empty uses the driver default. */
+  DATABASE_SSL: z.enum(['', 'disable', 'require', 'verify-full']).default(''),
+  /** Path to the CA certificate (PEM) for DATABASE_SSL=verify-full, e.g. the Supabase root certificate. */
+  DATABASE_CA_CERT: z.string().optional().default(''),
   PGLITE_DIR: z.string().default('./data/pglite'),
   API_PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
@@ -48,6 +52,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 export function assertProductionSafe(cfg: Config): void {
   const problems: string[] = [];
   if (!cfg.DATABASE_URL) problems.push('DATABASE_URL must point to managed PostgreSQL in production');
+  if (cfg.DATABASE_URL && (cfg.DATABASE_SSL !== 'verify-full' || !cfg.DATABASE_CA_CERT)) problems.push('DATABASE_SSL=verify-full with DATABASE_CA_CERT is required in production');
   if (cfg.APP_SECRET.startsWith('dev-only') || cfg.APP_SECRET.includes('change-me')) problems.push('APP_SECRET must be a managed secret');
   if (cfg.allowSyntheticData) problems.push('Synthetic data must never be served in production (ALLOW_SYNTHETIC_DATA)');
   if (cfg.PAYMENT_GATEWAY === 'sandbox') problems.push('PAYMENT_GATEWAY=sandbox is not allowed in production');
@@ -55,6 +60,15 @@ export function assertProductionSafe(cfg: Config): void {
   if (cfg.EMAIL_TRANSPORT === 'outbox') problems.push('EMAIL_TRANSPORT must be a real provider in production');
   if (cfg.AI_PROVIDER === 'anthropic' && !cfg.ANTHROPIC_API_KEY) problems.push('ANTHROPIC_API_KEY is required for AI_PROVIDER=anthropic');
   if (problems.length) throw new Error(`Unsafe production configuration:\n- ${problems.join('\n- ')}`);
+}
+
+/** Options for openDb derived from configuration (one place, so the API, CLIs and worker agree). */
+export function dbOptions(cfg: Config, opts: { memory?: boolean } = {}) {
+  return {
+    databaseUrl: cfg.DATABASE_URL || undefined,
+    pgliteDir: opts.memory ? undefined : cfg.PGLITE_DIR,
+    ssl: cfg.DATABASE_SSL ? { mode: cfg.DATABASE_SSL, caCertPath: cfg.DATABASE_CA_CERT || undefined } : undefined,
+  } as const;
 }
 
 export const CODE_VERSION = process.env.ATLAS_CODE_VERSION ?? '0.1.0-dev';

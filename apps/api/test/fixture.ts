@@ -12,7 +12,7 @@ import { seedAll } from '../src/seed.js';
 // One seeded database for all integration tests: built once (globalSetup), dumped, then loaded
 // into a fresh in-memory PGlite per test file so tests are isolated and fast.
 
-export const FIXTURE = { version: 'fx-9', companies: 16, start: '2020-01-01', asOf: '2026-10-14', dailyDays: 2 };
+export const FIXTURE = { version: 'fx-10', companies: 16, start: '2020-01-01', asOf: '2026-10-14', dailyDays: 2 };
 export const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), '.fixture');
 export const FIXTURE_DUMP = join(FIXTURE_DIR, `atlas-${FIXTURE.version}.tar.gz`);
 export const FIXTURE_OBJECTS = join(FIXTURE_DIR, `objects-${FIXTURE.version}.json`);

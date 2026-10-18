@@ -1,4 +1,6 @@
-# Master task ledger
+# Master task ledger (sessions 1–2, superseded)
+
+> **Superseded on 19 Oct 2026.** Status columns below were not kept up to date after session 1: most rows marked `not started` were built and are covered by tests (see `MASTER_EXECUTION_STATE.md`). Kept for history only.
 
 Status values: `not started` · `in progress` · `blocked` · `completed` · `deferred`. Priorities P0 (launch-critical) to P3.
 Evidence must point to a test, command output or artefact. Updated by every session.
