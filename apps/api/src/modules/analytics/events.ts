@@ -32,6 +32,11 @@ export const EVENT_SCHEMAS = {
   subscription_cancelled: z.object({ reason: str.optional(), tenure_days: num }),
   issue_reported: z.object({ issue_type: str, surface: str }),
   lesson_completed: z.object({ lesson: str, score: num }),
+  // Academy (learning outcomes are measured from acad.* tables, not from these engagement events)
+  academy_diagnostic_started: z.object({ course: str, attempt_number: num }),
+  academy_diagnostic_completed: z.object({ course: str, readiness: z.enum(['high', 'borderline', 'low']), ratio: num }),
+  academy_enrolled: z.object({ course: str, entry_route: str }),
+  academy_quiz_submitted: z.object({ lesson: str, score: num, kind: z.enum(['lesson_quiz', 'review']) }),
   experiment_exposed: z.object({ experiment: str, variant: str }),
 } as const;
 

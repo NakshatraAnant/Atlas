@@ -8,6 +8,7 @@ import { accountRoutes } from './modules/accounts/routes.js';
 import { adminRoutes } from './modules/admin/routes.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { billingRoutes } from './modules/billing/routes.js';
+import { academyRoutes } from './modules/academy/routes.js';
 import { contentRoutes } from './modules/content/routes.js';
 import { dataRoutes } from './modules/research/dataRoutes.js';
 import { labRoutes } from './modules/research/labRoutes.js';
@@ -178,6 +179,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
   await workspaceRoutes(app, ctx);
   await labRoutes(app, ctx);
   await contentRoutes(app, ctx);
+  await academyRoutes(app, ctx);
   await adminRoutes(app, ctx);
   return app;
 }

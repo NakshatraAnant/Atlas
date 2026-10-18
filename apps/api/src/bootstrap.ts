@@ -2,6 +2,7 @@ import { dbOptions, loadConfig, type Config } from './config.js';
 import { cachedRights, type AppContext } from './context.js';
 import { openDb, type Db } from './db/db.js';
 import { migrate } from './db/migrate.js';
+import { syncCurriculum } from './modules/academy/service.js';
 import { createLogger } from './lib/logger.js';
 import { LocalObjectStore, MemoryObjectStore, type ObjectStore } from './lib/objectStore.js';
 import { MemoryRateLimiter } from './lib/rateLimit.js';
@@ -29,6 +30,8 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   const log = createLogger(cfg.LOG_LEVEL, { service: 'atlas-api' });
   const db = opts.db ?? (await openDb(dbOptions(cfg, { memory: opts.memory })));
   await migrate(db);
+  // Curriculum is version-controlled content; syncing is idempotent and only adds new versions.
+  await syncCurriculum(db);
   const clock = opts.clock ?? (() => new Date());
   const store = opts.store ?? (opts.memory ? new MemoryObjectStore() : new LocalObjectStore(cfg.OBJECT_STORE_DIR));
   let payments: PaymentGateway;

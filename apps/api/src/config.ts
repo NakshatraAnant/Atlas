@@ -32,19 +32,22 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional().default(''),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(''),
   ALLOW_SYNTHETIC_DATA: z.enum(['true', 'false']).optional(),
+  /** Serve Academy content that is still in review (labelled as draft). Defaults to on outside production. */
+  ACADEMY_SHOW_DRAFTS: z.enum(['true', 'false']).optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false'),
   /** Scales route rate limits (tests use a high value; never set above 1 in production). */
   RATE_LIMIT_MULTIPLIER: z.coerce.number().min(1).max(100000).default(1),
 });
 
-export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean };
+export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean; academyShowDrafts: boolean };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = schema.parse(env);
   const isProduction = parsed.NODE_ENV === 'production';
   const allowSyntheticData = parsed.ALLOW_SYNTHETIC_DATA ? parsed.ALLOW_SYNTHETIC_DATA === 'true' : !isProduction;
-  const cfg: Config = { ...parsed, allowSyntheticData, isProduction };
+  const academyShowDrafts = parsed.ACADEMY_SHOW_DRAFTS ? parsed.ACADEMY_SHOW_DRAFTS === 'true' : !isProduction;
+  const cfg: Config = { ...parsed, allowSyntheticData, isProduction, academyShowDrafts };
   if (isProduction) assertProductionSafe(cfg);
   return cfg;
 }
@@ -54,6 +57,7 @@ export function assertProductionSafe(cfg: Config): void {
   if (!cfg.DATABASE_URL) problems.push('DATABASE_URL must point to managed PostgreSQL in production');
   if (cfg.DATABASE_URL && (cfg.DATABASE_SSL !== 'verify-full' || !cfg.DATABASE_CA_CERT)) problems.push('DATABASE_SSL=verify-full with DATABASE_CA_CERT is required in production');
   if (cfg.APP_SECRET.startsWith('dev-only') || cfg.APP_SECRET.includes('change-me')) problems.push('APP_SECRET must be a managed secret');
+  if (cfg.academyShowDrafts) problems.push('Unreviewed Academy content must not be served in production (ACADEMY_SHOW_DRAFTS)');
   if (cfg.allowSyntheticData) problems.push('Synthetic data must never be served in production (ALLOW_SYNTHETIC_DATA)');
   if (cfg.PAYMENT_GATEWAY === 'sandbox') problems.push('PAYMENT_GATEWAY=sandbox is not allowed in production');
   if (cfg.PAYMENT_GATEWAY === 'razorpay' && (!cfg.RAZORPAY_KEY_ID || !cfg.RAZORPAY_KEY_SECRET || !cfg.RAZORPAY_WEBHOOK_SECRET)) problems.push('Razorpay keys and webhook secret are required');
