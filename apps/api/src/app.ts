@@ -101,7 +101,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
     // Rate limits: a default per user/IP, tighter on sensitive routes.
     const rl = cfg?.rateLimit ?? { limit: 300, windowMs: 60_000, key: 'user' as const };
     const key = `${req.routeOptions.url}:${rl.key === 'user' && req.user ? req.user.userId : req.ip}`;
-    const r = ctx.limiter.hit(key, rl.limit, rl.windowMs);
+    const r = ctx.limiter.hit(key, rl.limit * ctx.cfg.RATE_LIMIT_MULTIPLIER, rl.windowMs);
     reply.header('ratelimit-limit', String(rl.limit));
     reply.header('ratelimit-remaining', String(r.remaining));
     reply.header('ratelimit-reset', String(Math.ceil(r.resetMs / 1000)));
