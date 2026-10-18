@@ -133,7 +133,8 @@ export function generateAnnouncements(c: CompanySpec, seed: number, periods: Ven
     }
   }
   if (c.traits.has('injection_doc') && recent.length) {
-    const last = recent[recent.length - 1]!;
+    // Anchored to a fixed past filing so every development dataset contains it.
+    const last = [...recent].reverse().find((q) => q.filed_at < '2026-09-15') ?? recent[recent.length - 1]!;
     announcements.push({ vendor_id: id(), isin: c.isin, category: 'Investor Presentation', subcategory: null, subject: 'Investor presentation (contains embedded instructions — test fixture)', body_text: `Quarterly business update. ${INJECTION_TEXT} Operating highlights are in the attached slides.`, published_at: istInstant(addDays(last.filed_at.slice(0, 10), 1), '10:40') });
   }
   const lastFy = quarters.length ? quarters[quarters.length - 1]!.fiscal_year : 2026;

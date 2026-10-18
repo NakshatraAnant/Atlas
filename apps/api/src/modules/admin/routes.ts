@@ -232,7 +232,8 @@ export async function adminRoutes(app: FastifyInstance, ctx: AppContext): Promis
   // Analytics and cost dashboards (ANL-02, ANL-03, Blueprint §13)
   app.get('/admin/v1/analytics', async (req) => {
     requireRole(req, ['admin']);
-    const now = ctx.clock();
+    // Analytics events are stamped with wall-clock time, so reporting windows use it too.
+    const now = new Date();
     const from = new Date(now.getTime() - 30 * 86_400_000).toISOString();
     return {
       activation: await activation(db, from, now.toISOString()),
