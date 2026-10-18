@@ -30,6 +30,8 @@ const schema = z.object({
   ALLOW_SYNTHETIC_DATA: z.enum(['true', 'false']).optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false'),
+  /** Scales route rate limits (tests use a high value; never set above 1 in production). */
+  RATE_LIMIT_MULTIPLIER: z.coerce.number().min(1).max(100000).default(1),
 });
 
 export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean };

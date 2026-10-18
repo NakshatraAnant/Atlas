@@ -19,7 +19,7 @@ export const FIXTURE_OBJECTS = join(FIXTURE_DIR, `objects-${FIXTURE.version}.jso
 /** 22:00 IST on the fixture date: the data window is closed, so data is fresh. */
 export const FIXTURE_CLOCK = new Date('2026-10-14T16:30:00.000Z');
 
-export const testConfig = () => loadConfig({ NODE_ENV: 'test', APP_SECRET: 'test-secret-test-secret-test-secret-test', LOG_LEVEL: 'silent', WEB_ORIGIN: 'http://localhost:3000' } as NodeJS.ProcessEnv);
+export const testConfig = () => loadConfig({ NODE_ENV: 'test', APP_SECRET: 'test-secret-test-secret-test-secret-test', LOG_LEVEL: 'silent', RATE_LIMIT_MULTIPLIER: '1000', WEB_ORIGIN: 'http://localhost:3000' } as NodeJS.ProcessEnv);
 export const testVendor = () => new SyntheticVendor({ companies: FIXTURE.companies, start: FIXTURE.start });
 
 export async function buildFixture(): Promise<void> {
