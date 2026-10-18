@@ -11,7 +11,9 @@ data/
 apps/web/next-env.d.ts
 test-results/
 playwright-report/
-test/.fixture/
+**/test/.fixture/
+*.tsbuildinfo
+seed-timing.log
 
 # Local hosting runtime state and backups (never commit)
 .atlas/
