@@ -1,3 +1,5 @@
+import { existsSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { buildApp } from './app.js';
 import { createContext, startBackgroundJobs } from './bootstrap.js';
 
@@ -7,11 +9,30 @@ const stopJobs = process.env.ATLAS_BACKGROUND_JOBS === 'false' ? () => undefined
 await app.listen({ port: ctx.cfg.API_PORT, host: '127.0.0.1' });
 ctx.log.info('ATLAS API listening', { port: ctx.cfg.API_PORT, synthetic: ctx.cfg.allowSyntheticData, ai: ctx.ai.provider, payments: ctx.payments.name });
 
-const shutdown = async () => {
+let stopping = false;
+const shutdown = async (reason: string) => {
+  if (stopping) return;
+  stopping = true;
+  ctx.log.info('ATLAS API shutting down', { reason });
   stopJobs();
   await app.close();
+  // Closing the database flushes the embedded PGlite store to disk; a hard kill can lose recent writes.
   await ctx.db.close();
+  ctx.log.info('ATLAS API stopped cleanly');
   process.exit(0);
 };
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+
+// Local hosting (scripts/atlas.mjs) asks for a graceful stop by creating a file, because Windows
+// cannot deliver SIGTERM to a detached process. This adds no network surface.
+const runDir = process.env.ATLAS_RUN_DIR;
+if (runDir) {
+  const stopFile = join(runDir, 'api.stop');
+  setInterval(() => {
+    if (existsSync(stopFile)) {
+      rmSync(stopFile, { force: true });
+      void shutdown('stop file');
+    }
+  }, 500).unref();
+}
