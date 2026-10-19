@@ -185,3 +185,4 @@ textarea { width: 100%; }
 .badges li.on { border-style: solid; border-color: var(--ac); }
 .badges .glyph { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--ln); color: var(--mu); }
 .badges li.on .glyph { background: var(--ac); color: var(--bg); }
+.rights { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }

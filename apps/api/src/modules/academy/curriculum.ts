@@ -9,6 +9,7 @@ import type { Correct, QType, ReadinessRules } from './engine.js';
 import { ED_MODULE_1, ED_MODULE_2, ED_MODULE_3, ED_MODULE_4 } from './content/equity-detective.js';
 import { MA_MODULE_1, MA_MODULE_2, MA_MODULE_3 } from './content/market-architect.js';
 import { MD_MODULE_2, MD_MODULE_3, MD_MODULE_4 } from './content/market-decoder.js';
+import { MD_MODULE_5, MD_MODULE_5_OBJECTIVES } from './content/market-decoder-plumbing.js';
 import { SE_MODULE_1, SE_MODULE_2, SE_MODULE_3 } from './content/signal-engineer.js';
 
 export interface SourceQuestion {
@@ -94,6 +95,7 @@ const marketDecoder: SourceCourse = {
     { id: 'md-o7', statement: 'Calculate compound growth and estimate doubling times.', skill: 'compounding' },
     { id: 'md-o8', statement: 'Explain how index weighting determines index returns.', skill: 'index' },
     { id: 'md-o9', statement: 'Read market breadth and an evidence-linked daily briefing.', skill: 'market_reading' },
+    ...MD_MODULE_5_OBJECTIVES,
   ],
   modules: [
     {
@@ -198,6 +200,7 @@ const marketDecoder: SourceCourse = {
     { id: 'md-m2', title: 'Risk and return', summary: 'Volatility, diversification, and why higher potential return comes with more uncertainty.', lessons: MD_MODULE_2 },
     { id: 'md-m3', title: 'Money over time', summary: 'Compounding, inflation and real returns.', lessons: MD_MODULE_3 },
     { id: 'md-m4', title: 'Reading the market', summary: 'Indices, sectors, breadth and the daily briefing.', lessons: MD_MODULE_4 },
+    { id: 'md-m5', title: 'How trading and market data work', summary: 'Exchanges and identifiers, settlement, primary and secondary markets, OHLC data, and how to spot stale or misleading data.', lessons: MD_MODULE_5 },
   ],
   diagnostic: [
     { id: 'md-d01', skill: 'percentages', difficulty: 1, qtype: 'numeric', critical: true, stem: 'A share price rises from ₹200 to ₹250. What is the percentage increase?', correct: { value: 25, abs_tol: 0.05, unit: '%' }, explanation: '(250 − 200) ÷ 200 = 25%.', misconception: 'Dividing by the new price (50 ÷ 250 = 20%).' },

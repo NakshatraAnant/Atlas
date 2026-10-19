@@ -113,7 +113,7 @@ describe('learner dashboard (/v1/academy/me)', () => {
     ]);
     const ach = after2.achievements;
     for (const id of ['first-lesson', 'first-mastery', 'learned-from-mistake']) expect(ach.find((a: any) => a.id === id).unlocked_at).toBeTruthy();
-    expect(ach.find((a: any) => a.id === 'market-foundations')).toMatchObject({ unlocked_at: null, progress: [1, 9] });
+    expect(ach.find((a: any) => a.id === 'market-foundations')).toMatchObject({ unlocked_at: null, progress: [1, 14] });
     expect(after2.streak.daily).toMatchObject({ current: 1, today_active: true });
     expect(after2.missions.find((m: any) => m.id === 'daily').done).toBe(true);
     expect(after2.recommendation.kind).toBe('next');

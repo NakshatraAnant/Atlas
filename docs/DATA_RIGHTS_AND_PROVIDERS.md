@@ -7,6 +7,21 @@
 - The UI shows a synthetic badge, and production refuses to start with synthetic data (`assertProductionSafe` → `ALLOW_SYNTHETIC_DATA`).
 - Synthetic values must never be used to claim anything about a real company.
 
+## Official public sources: terms read on 20 Oct 2026
+
+Before building an automated Nifty 50 / end-of-day / filings engine, the published terms of the official sites were read in a browser. The result is recorded in `apps/api/src/modules/data/providers.ts` and shown on **Data health** (`/app/data-health`).
+
+| Source | Terms | Automated retrieval | Outcome |
+|---|---|---|---|
+| NSE website (nseindia.com, nsearchives; all reports, bhavcopy, announcements, financial results, index files) | https://www.nseindia.com/static/nse-terms-of-use | **Prohibited.** The terms bar systematic or automated data collection (scraping, data mining, extraction, harvesting), and also bar copying or electronically storing site content. | Not fetched; no job targets it |
+| NSE Indices (niftyindices.com; Nifty 50 constituent list) | https://www.niftyindices.com/terms-of-use | **Needs express written consent.** Use of the site is limited to personal, non-commercial purposes. | Not fetched |
+| BSE (bseindia.com) | https://www.bseindia.com/termsofuse.html | **Unverified.** The page did not render its terms text, so they could not be read. | Treated as not permitted |
+
+Consequences:
+- The "automated real-data engine" against these sites is **blocked by their terms**, not by missing code. ATLAS does not scrape them, does not use undocumented endpoints and does not work around their controls.
+- Real data needs one of the pending licences already in the registry (NSE Data & Analytics end-of-day, corporate and master data; NSE Indices for constituents; a fundamentals vendor), or written consent. Once a licence is signed, a provider adapter implements `VendorAdapter` (`apps/api/src/pipeline/vendor.ts`). Ingestion, validation, quarantine, provenance, freshness, scheduling, catch-up and data health then apply unchanged, because they already run on the synthetic vendor.
+- Until then, every exercise and research screen runs on clearly labelled synthetic data, and users can upload price files they are entitled to use (private to them).
+
 ## How rights are enforced (fail closed)
 
 `apps/api/src/modules/ref/rights.ts` builds a field-level rights matrix from `ref.licences` × `ref.licence_rights`:
