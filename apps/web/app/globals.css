@@ -141,3 +141,8 @@ textarea { width: 100%; }
 .pathsvg circle { fill: var(--ac); }
 .pathsvg .base { stroke: var(--mu); stroke-dasharray: 4 4; stroke-width: 1; }
 @media (prefers-reduced-motion: reduce) { .stage, .lab .fresh { animation: none; } .course-link, .bar i, .bar b { transition: none; } .course-link:hover { transform: none; } }
+
+/* Rule builder (BKT-02) */
+.rb-group { border: 1px solid var(--ln); border-radius: var(--r); padding: 10px 12px; margin: 0 0 10px; }
+.rb-cond { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+.rb-ind { display: inline-flex; gap: 4px; }

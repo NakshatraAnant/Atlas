@@ -48,3 +48,16 @@ export async function raiseOpsAlert(db: Db, alert: { kind: string; severity: 'SE
     [alert.kind, alert.severity, alert.message, JSON.stringify(alert.details ?? {}), alert.dedupeKey ?? null],
   );
 }
+
+/**
+ * Resource trace for pipeline stages (ATLAS_PIPELINE_TRACE=1): process memory (heap, and
+ * arrayBuffers, which includes the embedded database's WASM memory) and database size. Used to
+ * diagnose the embedded engine's memory ceiling; cheap enough to leave in production code.
+ */
+export async function traceStage(ctx: Pick<PipelineCtx, 'db' | 'log'>, stage: string, extra: Record<string, unknown> = {}): Promise<void> {
+  if (process.env.ATLAS_PIPELINE_TRACE !== '1') return;
+  const m = process.memoryUsage();
+  const mb = (n: number) => Math.round(n / 1048576);
+  const size = await ctx.db.one<{ mb: number; wal_mb: number }>(`SELECT round(pg_database_size(current_database()) / 1048576.0)::int AS mb, coalesce((SELECT round(sum(size) / 1048576.0)::int FROM pg_ls_waldir()), -1) AS wal_mb`).catch(() => ({ mb: -1, wal_mb: -1 }));
+  ctx.log.info('pipeline trace', { stage, rss_mb: mb(m.rss), heap_mb: mb(m.heapUsed), array_buffers_mb: mb(m.arrayBuffers), db_mb: size.mb, wal_mb: size.wal_mb, ...extra });
+}

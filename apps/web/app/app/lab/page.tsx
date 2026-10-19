@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { DEFAULT_RULES, RuleBuilder, type RuleSet } from '@/components/rule-builder';
 import { api } from '@/lib/api';
 import { useApp } from '@/components/providers';
 import { Loading, Problem, useApi } from '@/components/ui';
@@ -16,6 +17,7 @@ export default function Lab() {
   const screens = useApi<{ screens: { screen_id: string; name: string }[] }>('/v1/screens');
   const [tpl, setTpl] = useState('ma_crossover');
   const [params, setParams] = useState<Record<string, number>>({});
+  const [rules, setRules] = useState<RuleSet>(DEFAULT_RULES);
   const [uType, setUType] = useState<'security' | 'index' | 'screen'>('security');
   const [uRef, setURef] = useState('');
   const [from, setFrom] = useState('2019-01-01');
@@ -37,7 +39,7 @@ export default function Lab() {
     try {
       const universe = uType === 'security' ? { type: 'security', company_id: uRef || cov.data?.companies[0]?.company_id } : uType === 'index' ? { type: 'index', index_code: uRef || m.indices[0]?.index_code } : { type: 'screen', screen_id: uRef || screens.data?.screens[0]?.screen_id };
       const p = Object.fromEntries(t.params.map((x) => [x.key, params[x.key] ?? x.default]));
-      const r = await api<{ run_id: string; status: string }>('/v1/backtests', { body: { template: tpl, params: p, universe, period: { from, to }, costs: { included: costs, slippage_bps: slip }, capital_inr: capital }, headers: { 'idempotency-key': `bt-${Date.now()}` } });
+      const r = await api<{ run_id: string; status: string }>('/v1/backtests', { body: { template: tpl, params: p, ...(tpl === 'custom_rules' ? { rules } : {}), universe, period: { from, to }, costs: { included: costs, slippage_bps: slip }, capital_inr: capital }, headers: { 'idempotency-key': `bt-${Date.now()}` } });
       window.location.href = `/app/lab/runs/${r.run_id}`;
     } catch (e) {
       setErr(e as Error);
@@ -57,6 +59,7 @@ export default function Lab() {
           </label>
           <p>{t.description}</p>
           <p className="mu">Rules: {t.rules}</p>
+          {tpl === 'custom_rules' && <RuleBuilder value={rules} onChange={setRules} />}
           {t.params.map((p) => (
             <label key={p.key} className="field">{p.label} <span className="mu">({p.min}–{p.max})</span>
               <input type="number" min={p.min} max={p.max} step={p.step} value={params[p.key] ?? p.default} onChange={(e) => setParams({ ...params, [p.key]: Number(e.target.value) })} />

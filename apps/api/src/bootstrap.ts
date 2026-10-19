@@ -38,11 +38,21 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   if (cfg.PAYMENT_GATEWAY === 'razorpay') payments = new RazorpayGateway(cfg.RAZORPAY_KEY_ID, cfg.RAZORPAY_KEY_SECRET, cfg.RAZORPAY_WEBHOOK_SECRET, JSON.parse(process.env.RAZORPAY_PLAN_IDS ?? '{}'));
   else payments = new SandboxGateway(db, cfg.SANDBOX_WEBHOOK_SECRET, cfg.WEB_ORIGIN, clock);
   const ai = opts.ai ?? (cfg.AI_PROVIDER === 'anthropic' && cfg.ANTHROPIC_API_KEY ? new AnthropicGateway(cfg.ANTHROPIC_API_KEY, cfg.AI_MODEL, cfg.AI_USD_INR) : new DeterministicGateway());
-  // 40 is the largest universe verified to seed within the embedded engine's memory (ADR-017); the
-  // seed and the running API must use the same size or daily cycles generate unknown companies.
-  const vendor = opts.vendor ?? new SyntheticVendor({ companies: Number(process.env.SYNTHETIC_COMPANIES ?? 40), injectFaults: process.env.SYNTHETIC_INJECT_FAULTS === 'true' });
+  const vendor = opts.vendor ?? new SyntheticVendor({ companies: await syntheticUniverseSize(db, log), injectFaults: process.env.SYNTHETIC_INJECT_FAULTS === 'true' });
   if (vendor.isSynthetic && !cfg.allowSyntheticData) throw new Error('A synthetic vendor cannot be used in this environment');
   return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg) };
+}
+
+/**
+ * Size of the synthetic universe. A seeded database is authoritative: daily cycles must generate
+ * exactly the companies that were seeded, whatever SYNTHETIC_COMPANIES says now (ADR-018). An empty
+ * database uses SYNTHETIC_COMPANIES, default 120.
+ */
+export async function syntheticUniverseSize(db: Db, log?: { warn: (msg: string, f?: Record<string, unknown>) => void }): Promise<number> {
+  const requested = Number(process.env.SYNTHETIC_COMPANIES ?? 120);
+  const seeded = (await db.one<{ n: number }>(`SELECT count(*)::int AS n FROM ref.companies WHERE is_synthetic AND coverage='full'`)).n;
+  if (seeded > 0 && seeded !== requested && process.env.SYNTHETIC_COMPANIES) log?.warn('SYNTHETIC_COMPANIES differs from the seeded database; using the seeded size', { requested, seeded });
+  return seeded > 0 ? seeded : requested;
 }
 
 /** In-process scheduler for single-instance deployments; production runs the same jobs in the worker. */

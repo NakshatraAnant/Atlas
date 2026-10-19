@@ -8,6 +8,9 @@ import { requireUser } from '../auth/service.js';
 import { userPlan } from '../billing/entitlements.js';
 import { METRICS, METRIC_BY_CODE } from '../calc/definitions.js';
 import { freshness } from '../provenance/evidence.js';
+import { createDraft, listContent, publish, publishedPage, PUBLISH_CHECKS, submitForReview, type CmsKind } from './cms.js';
+import { audit } from '../ops/audit.js';
+import { requireRole } from '../auth/service.js';
 import { HELP_ARTICLES, LEGAL_PAGES, LESSONS, METHODOLOGY_PAGES, RELEASE_NOTES } from './content.js';
 import { raiseQualityIssue } from '../../pipeline/context.js';
 
@@ -23,6 +26,8 @@ export function addBusinessDays(from: Date, days: number): Date {
   return d;
 }
 
+const PARAGRAPH = '\n\n';
+
 export async function contentRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   const db = ctx.db;
   // Methodology (MTH-01..MTH-06)
@@ -36,8 +41,10 @@ export async function contentRoutes(app: FastifyInstance, ctx: AppContext): Prom
   });
   app.get('/v1/methodology/pages/:slug', async (req) => {
     const { slug } = parse(z.object({ slug: z.string().max(40) }), req.params);
-    const p = METHODOLOGY_PAGES[slug];
-    if (!p) throw notFound();
+    const builtin = METHODOLOGY_PAGES[slug];
+    const override = await publishedPage(db, 'methodology', slug);
+    if (!builtin && !override) throw notFound();
+    const p = override ? { title: override.title, sections: override.sections, version: override.version, published_at: override.published_at } : { ...builtin!, version: 0, published_at: null };
     let evaluation = null;
     if (slug === 'ai') {
       evaluation = await db.maybeOne(`SELECT provider, model_id, prompt_version, tool_version, metrics, thresholds, passed, finished_at FROM ai.eval_runs WHERE finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 1`);
@@ -74,14 +81,49 @@ export async function contentRoutes(app: FastifyInstance, ctx: AppContext): Prom
   app.get('/v1/help', async (req) => {
     const q = parse(z.object({ q: z.string().max(100).optional(), category: z.string().max(30).optional() }), req.query);
     const terms = (q.q ?? '').toLowerCase().split(/\s+/).filter(Boolean);
-    const list = HELP_ARTICLES.filter((a) => (!q.category || a.category === q.category) && terms.every((t) => `${a.title} ${a.body}`.toLowerCase().includes(t)));
-    return { total: HELP_ARTICLES.length, articles: list };
+    const articles = await Promise.all(HELP_ARTICLES.map(async (a) => {
+      const o = await publishedPage(db, 'help', a.slug);
+      return o ? { ...a, title: o.title, body: o.sections.map((s) => s.body).join(PARAGRAPH), version: o.version } : a;
+    }));
+    const list = articles.filter((a) => (!q.category || a.category === q.category) && terms.every((t) => `${a.title} ${a.body}`.toLowerCase().includes(t)));
+    return { total: articles.length, articles: list };
   });
   app.get('/v1/help/:slug', async (req) => {
     const { slug } = parse(z.object({ slug: z.string().max(60) }), req.params);
     const a = HELP_ARTICLES.find((x) => x.slug === slug);
     if (!a) throw notFound();
-    return a;
+    const o = await publishedPage(db, 'help', slug);
+    return o ? { ...a, title: o.title, body: o.sections.map((s) => s.body).join(PARAGRAPH), version: o.version, published_at: o.published_at } : a;
+  });
+
+  // Content management (ADM-06): draft → review → publish, versioned and audited. Admin only.
+  const cmsKind = z.enum(['methodology', 'help']);
+  const sectionSchema = z.object({ heading: z.string().trim().min(1).max(200), body: z.string().trim().min(1).max(20_000) });
+  app.get('/admin/v1/content', async (req) => {
+    requireRole(req, ['admin']);
+    return listContent(db);
+  });
+  app.post('/admin/v1/content', async (req) => {
+    const a = requireRole(req, ['admin']);
+    const body = parse(z.object({ kind: cmsKind, slug: z.string().regex(/^[a-z0-9-]{2,60}$/), title: z.string().trim().min(3).max(200), sections: z.array(sectionSchema).min(1).max(30) }), req.body);
+    const r = await createDraft(db, a.userId, body as { kind: CmsKind; slug: string; title: string; sections: { heading: string; body: string }[] });
+    await audit(db, { actorUserId: a.userId, actorRole: a.role, action: 'content.draft', targetType: body.kind, targetId: `${r.slug}@${r.version}` });
+    return r;
+  });
+  app.post('/admin/v1/content/:slug/versions/:version/submit', async (req) => {
+    const a = requireRole(req, ['admin']);
+    const p = parse(z.object({ slug: z.string().max(60), version: z.coerce.number().int().positive() }), req.params);
+    await submitForReview(db, p.slug, p.version);
+    await audit(db, { actorUserId: a.userId, actorRole: a.role, action: 'content.submit', targetType: 'content', targetId: `${p.slug}@${p.version}` });
+    return { status: 'in_review' };
+  });
+  app.post('/admin/v1/content/:slug/versions/:version/publish', async (req) => {
+    const a = requireRole(req, ['admin']);
+    const p = parse(z.object({ slug: z.string().max(60), version: z.coerce.number().int().positive() }), req.params);
+    const body = parse(z.object({ checks: z.object(Object.fromEntries(PUBLISH_CHECKS.map((k) => [k, z.literal(true)])) as Record<(typeof PUBLISH_CHECKS)[number], z.ZodLiteral<true>>), reviewer_name: z.string().trim().min(3).max(120) }), req.body);
+    await publish(db, a.userId, p.slug, p.version, { ...body.checks, reviewer_name: body.reviewer_name, reviewed_on: ctx.clock().toISOString().slice(0, 10) });
+    await audit(db, { actorUserId: a.userId, actorRole: a.role, action: 'content.publish', targetType: 'content', targetId: `${p.slug}@${p.version}`, reason: `Review by ${body.reviewer_name}` });
+    return { status: 'published' };
   });
 
   // Learning Centre (LRN)

@@ -1,7 +1,7 @@
 import type { Db } from '../../db/db.js';
 import { bulkInsert } from '../../lib/bulk.js';
 import { istInstant } from '../../lib/dates.js';
-import { lastFourQuarters, latestFy, loadPit, sumItem, type CompanyFundamentalsPit } from '../../modules/fundamentals/pit.js';
+import { forEachPitBatch, lastFourQuarters, latestFy, sumItem, type CompanyFundamentalsPit } from '../../modules/fundamentals/pit.js';
 import { realisedVol, rollingExtreme, rollingMean, rsi, sma } from '../../modules/calc/indicators.js';
 import { dividendYield, evEbitda, isMissing, pbRatio, peRatio } from '../../modules/calc/ratios.js';
 
@@ -53,14 +53,15 @@ export function sharesOn(reported: number, asOf: string, date: string, actions: 
   return shares;
 }
 
-export async function computeSecurityDaily(db: Db, opts: { securityIds?: number[]; fromDate?: string; calcRunId: string }): Promise<number> {
+export async function computeSecurityDaily(db: Db, opts: { securityIds?: number[]; fromDate?: string; calcRunId: string; pitBatch?: number }): Promise<number> {
   const secs = await db.query<{ security_id: number; company_id: string; template: string }>(
     `SELECT s.security_id, s.company_id, c.sector_template AS template FROM ref.securities s JOIN ref.companies c USING (company_id) WHERE c.coverage='full' ${opts.securityIds ? 'AND s.security_id = ANY($1::bigint[])' : ''}`,
     opts.securityIds ? [opts.securityIds] : [],
   );
-  const pits = await loadPit(db, [...new Set(secs.map((s) => s.company_id))]);
   let total = 0;
-  for (const s of secs) {
+  // One batch of companies at a time: bounded queries and bounded memory (see PIT_BATCH_COMPANIES).
+  await forEachPitBatch(db, secs.map((s) => s.company_id), async (pits, batch) => {
+  for (const s of secs.filter((x) => batch.includes(x.company_id))) {
     const bars = await db.query<{ trade_date: string; adj_close: number; close: number; traded_value: number; adj_volume: number }>(
       `SELECT a.trade_date, a.adj_close, p.close, p.traded_value, a.adj_volume FROM market.adjusted_price_cache a
          JOIN market.price_eod p ON p.security_id=a.security_id AND p.trade_date=a.trade_date AND p.exchange_code='NSE'
@@ -109,5 +110,6 @@ export async function computeSecurityDaily(db: Db, opts: { securityIds?: number[
     await db.query(`DELETE FROM calc.security_daily WHERE security_id=$1 ${opts.fromDate ? 'AND trade_date >= $2' : ''}`, opts.fromDate ? [s.security_id, opts.fromDate] : [s.security_id]);
     total += await bulkInsert(db, 'calc.security_daily', rows, { chunk: 5000 });
   }
+  }, opts.pitBatch);
   return total;
 }

@@ -10,14 +10,16 @@ import { benchmarkSeries, getSnapshot, indexUniverse, latestSnapshot, loadSecuri
 import { ENGINE_VERSION, runEngine } from './engine.js';
 import { calendarYearReturns, computeMetrics, drawdownSeries, regimeReturns } from './metrics.js';
 import { TEMPLATE_BY_CODE, resolveParams, type TemplateSpec } from './templates.js';
+import { ruleSetSchema } from './rules.js';
 import { robustnessWarnings } from './warnings.js';
 
 // Backtest service (PRD BKT-01..BKT-13). Runs are immutable records; re-running a saved run on
 // the same snapshot reproduces an identical results hash.
 
 export const backtestRequestSchema = z.object({
-  template: z.enum(['ma_crossover', 'breakout_52w', 'rsi_mean_reversion', 'momentum_monthly', 'low_vol_monthly']),
+  template: z.enum(['ma_crossover', 'breakout_52w', 'rsi_mean_reversion', 'momentum_monthly', 'low_vol_monthly', 'custom_rules']),
   params: z.record(z.number()).default({}),
+  rules: ruleSetSchema.optional(),
   universe: z.discriminatedUnion('type', [
     z.object({ type: z.literal('security'), company_id: z.string().uuid() }),
     z.object({ type: z.literal('index'), index_code: z.string().max(20) }),
@@ -89,6 +91,11 @@ export async function createRun(ctx: AppContext, user: { userId: string }, plan:
   if (!t.universeKinds.includes(req.universe.type)) throw badRequest(`${t.name} runs on ${t.universeKinds.join(' or ')} universes.`);
   if (req.universe.type !== 'security' && plan.plan === 'free') requireFeature(plan, 'backtest_universe_strategies', 'Testing on a universe');
   if (t.kind === 'cross_sectional' || req.universe.type === 'screen') requireFeature(plan, 'backtest_universe_strategies', 'Universe strategies and screen universes');
+  if (t.code === 'custom_rules') {
+    // BKT-02: the rule builder is a Pro feature.
+    requireFeature(plan, 'backtest_universe_strategies', 'The rule builder');
+    if (!req.rules) throw badRequest('Add at least one entry and one exit condition.');
+  } else if (req.rules) throw badRequest('Rules apply only to the custom-rules template.');
   if (req.period.from >= req.period.to) throw badRequest('The period start must be before its end.');
   if (opts.idempotencyKey) {
     const prior = await ctx.db.maybeOne<{ run_id: string; status: CreateRunResult['status'] }>(`SELECT run_id, status FROM bt.backtest_runs WHERE user_id=$1 AND idempotency_key=$2`, [user.userId, opts.idempotencyKey]);
@@ -161,7 +168,7 @@ export async function executeRun(ctx: AppContext, runId: string, onProgress?: (p
     const securities = await loadSecurities(db, securityIds, calendar, snap);
     await db.query(`UPDATE bt.backtest_runs SET progress=55 WHERE run_id=$1`, [runId]);
     const costs = cfg.costs.included ? { ...DEFAULT_COST_TABLE, brokerage_pct: (cfg.costs.brokerage_bps ?? 0) / 10_000 } : ZERO_COSTS;
-    const base = { template: t, params: cfg.params, calendar, startIdx: 0, endIdx: calendar.length - 1, securities, universe, capital: cfg.capital_inr, liquidity: { maxAdvPct: cfg.liquidity.max_adv_pct, minAdvInr: cfg.liquidity.min_adv_cr * 1e7, mode: cfg.liquidity.mode } };
+    const base = { template: t, params: cfg.params, rules: cfg.rules, calendar, startIdx: 0, endIdx: calendar.length - 1, securities, universe, capital: cfg.capital_inr, liquidity: { maxAdvPct: cfg.liquidity.max_adv_pct, minAdvInr: cfg.liquidity.min_adv_cr * 1e7, mode: cfg.liquidity.mode } };
     const result = runEngine({ ...base, costs, costMultiplier: 1, slippageBps: cfg.costs.included ? cfg.costs.slippage_bps : 0 });
     const doubled = cfg.costs.included ? runEngine({ ...base, costs, costMultiplier: 2, slippageBps: cfg.costs.slippage_bps * 2 }) : null;
     await db.query(`UPDATE bt.backtest_runs SET progress=85 WHERE run_id=$1`, [runId]);

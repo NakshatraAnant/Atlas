@@ -13,12 +13,35 @@ import { DEV_USERS, seedAll } from '../seed.js';
 const t = Date.now();
 const cfg = loadConfig();
 const dailyDays = Number(process.env.SEED_DAILY_DAYS ?? 3);
+/** memory (fast, needs ~3× the final database size in RAM) | disk (bounded memory) | auto (disk above 150 companies). */
+function seedMode(): 'memory' | 'disk' {
+  const m = process.env.ATLAS_SEED_MODE ?? 'auto';
+  if (m === 'memory' || m === 'disk') return m;
+  return Number(process.env.SYNTHETIC_COMPANIES ?? 120) > 150 ? 'disk' : 'memory';
+}
 
 if (cfg.DATABASE_URL) {
   const ctx = await createContext({ cfg });
   const r = await seedAll(ctx, { dailyDays });
   console.log(`Seeded ATLAS development data as of ${r.asOf} in ${Math.round((Date.now() - t) / 1000)} s.`);
   await ctx.db.close();
+} else if (seedMode() === 'disk') {
+  // Large universes: build directly in the on-disk store so table data is not held in the
+  // engine's WASM memory (the in-memory build needs ~3× the database size and reached the 4 GB
+  // WASM ceiling at 500 companies; session 4). Relaxed durability is safe here because a failed
+  // seed is simply deleted and rerun.
+  if (existsSync(join(cfg.PGLITE_DIR, 'PG_VERSION'))) {
+    console.error(`A database already exists at ${cfg.PGLITE_DIR}. Seeding only runs on an empty database; nothing was changed.`);
+    process.exit(1);
+  }
+  const disk = await openDb({ pgliteDir: cfg.PGLITE_DIR, relaxedDurability: true });
+  await disk.exec('SET synchronous_commit TO off');
+  const ctx = await createContext({ cfg, db: disk, store: new LocalObjectStore(cfg.OBJECT_STORE_DIR) });
+  const r = await seedAll(ctx, { dailyDays });
+  const check = await disk.one<{ n: number }>(`SELECT count(*)::int AS n FROM ref.companies`);
+  await disk.exec('CHECKPOINT');
+  await disk.close();
+  console.log(`Seeded on disk as of ${r.asOf}: ${check.n} companies in ${Math.round((Date.now() - t) / 1000)} s.`);
 } else {
   if (existsSync(join(cfg.PGLITE_DIR, 'PG_VERSION'))) {
     console.error(`A database already exists at ${cfg.PGLITE_DIR}. Seeding only runs on an empty database; nothing was changed.`);

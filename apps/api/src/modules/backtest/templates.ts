@@ -13,7 +13,7 @@ export interface ParamSpec {
 }
 
 export interface TemplateSpec {
-  code: 'ma_crossover' | 'breakout_52w' | 'rsi_mean_reversion' | 'momentum_monthly' | 'low_vol_monthly';
+  code: 'ma_crossover' | 'breakout_52w' | 'rsi_mean_reversion' | 'momentum_monthly' | 'low_vol_monthly' | 'custom_rules';
   version: number;
   name: string;
   kind: 'time_series' | 'cross_sectional';
@@ -78,6 +78,14 @@ export const TEMPLATES: TemplateSpec[] = [
     ],
     limitations: ['Concentrates in defensive sectors.', 'Lags in strong rallies.', 'Volatility is measured historically and can change.'],
     universeKinds: ['index', 'screen'],
+  },
+  {
+    code: 'custom_rules', version: 1, name: 'Custom rules (rule builder)', kind: 'time_series',
+    description: 'Your own entry and exit conditions built from indicators, combined with AND or OR (Pro).',
+    rules: 'Enter long when the entry group is met at the close; exit when the exit group is met (or after an optional maximum holding period). Indicators use closes up to the signal session only; orders fill at the next session’s open.',
+    params: [],
+    limitations: ['Long only.', 'Every extra condition and variant tested raises the risk of fitting noise; the report warns when many variants are tried.', 'Conditions needing long lookbacks delay the first possible signal.'],
+    universeKinds: ['security', 'index'],
   },
 ];
 

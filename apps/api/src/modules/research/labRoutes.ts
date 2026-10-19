@@ -12,6 +12,7 @@ import { METRIC_BY_CODE } from '../calc/definitions.js';
 import { getCompany, getMetrics, getQualityFlags } from '../companies/service.js';
 import { DEFAULT_COST_TABLE } from '../backtest/costs.js';
 import { TEMPLATES } from '../backtest/templates.js';
+import { describeRules, type RuleSet } from '../backtest/rules.js';
 import { backtestRequestSchema, createRun, getRun, rerun } from '../backtest/service.js';
 import { ENGINE_VERSION } from '../backtest/engine.js';
 import { ask } from '../ai/service.js';
@@ -64,7 +65,8 @@ export async function labRoutes(app: FastifyInstance, ctx: AppContext): Promise<
     const run = await getRun(db, id, u.userId);
     if (!run) throw notFound();
     const job = await db.maybeOne(`SELECT status, progress, error FROM ops.job_queue WHERE idempotency_key=$1`, [`backtest:${id}`]);
-    return { run, job, definitions: REPORT_METRICS.map(([code]) => ({ code, name: METRIC_BY_CODE.get(code)!.name, url: `/methodology/metrics/${code}` })), methodology: '/methodology/backtests', watermark: run.cost_table_version === 'ZERO-COSTS' ? COSTS_EXCLUDED_WATERMARK : null };
+    const cfgRules = (run.config as { rules?: RuleSet }).rules;
+    return { run, job, rules_text: cfgRules ? describeRules(cfgRules) : null, definitions: REPORT_METRICS.map(([code]) => ({ code, name: METRIC_BY_CODE.get(code)!.name, url: `/methodology/metrics/${code}` })), methodology: '/methodology/backtests', watermark: run.cost_table_version === 'ZERO-COSTS' ? COSTS_EXCLUDED_WATERMARK : null };
   });
   app.get('/v1/backtests/:id/series', async (req) => {
     const u = requireUser(req);
@@ -131,6 +133,7 @@ export async function labRoutes(app: FastifyInstance, ctx: AppContext): Promise<
       { kind: 'text', text: `Benchmark: ${m.benchmark?.name} (${m.benchmark?.type}).` },
       { kind: 'subtitle', text: 'Calendar years' },
       { kind: 'table', columns: ['Year', 'Return'], widths: [250, 250], rows: (m.by_year ?? []).map((y) => [y.year, fmtReport('bt_total_return', y.return_pct)]) },
+      ...(cfg.rules ? [{ kind: 'subtitle' as const, text: 'Rules' }, { kind: 'text' as const, text: describeRules(cfg.rules as RuleSet) }] : []),
       { kind: 'subtitle', text: 'Assumptions' },
       { kind: 'text', text: `Parameters: ${JSON.stringify(cfg.params)}. Universe: ${JSON.stringify(cfg.universe)}. Period: ${JSON.stringify(cfg.period)}. Costs: ${JSON.stringify(cfg.costs)}. Liquidity: ${JSON.stringify(cfg.liquidity)}.` },
       { kind: 'text', text: 'Signals on the close; execution at the next session’s open; long only; equal weights. Methodology: /methodology/backtests.' },

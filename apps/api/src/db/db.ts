@@ -105,6 +105,8 @@ export interface OpenDbOptions {
   pgliteDir?: string;
   /** Load a PGlite data-directory dump (tests). */
   loadDataDir?: Blob;
+  /** PGlite only: don't wait for each write to reach disk (bulk loads; a crash can lose recent writes). */
+  relaxedDurability?: boolean;
   /** TLS for databaseUrl; omitted uses whatever the connection string specifies. */
   ssl?: { mode: 'disable' | 'require' | 'verify-full'; caCertPath?: string };
 }
@@ -138,6 +140,7 @@ export async function openDb(opts: OpenDbOptions): Promise<Db> {
   const lite = await PGlite.create({
     dataDir: opts.pgliteDir,
     loadDataDir: opts.loadDataDir,
+    relaxedDurability: opts.relaxedDurability,
     extensions: { pg_trgm },
     parsers: {
       [OID.int8]: toNumber,

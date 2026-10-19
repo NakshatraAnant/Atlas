@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { worthInvestigating } from '../market/investigate.js';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import { forbidden, notFound, paymentRequired, parse } from '../../lib/http.js';
@@ -222,6 +223,11 @@ export async function dataRoutes(app: FastifyInstance, ctx: AppContext): Promise
     const s = await researchSummary(ctx.db, id);
     if (!s) throw notFound();
     return { enabled: true, ...s };
+  });
+  // HOM-03: rule-based prompts for watchlist companies (rules are returned with the prompts).
+  app.get('/v1/home/worth-investigating', async (req) => {
+    const u = requireUser(req);
+    return { ...(await worthInvestigating(ctx.db, u.userId, ctx.clock())), note: 'Prompts to look closer, generated from the rules shown. They are not signals or recommendations.' };
   });
   app.get('/v1/home/what-changed', async (req) => {
     const u = requireUser(req);

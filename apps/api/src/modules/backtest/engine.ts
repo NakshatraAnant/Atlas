@@ -1,6 +1,7 @@
 import { realisedVol, rollingExtreme, rsi, sma } from '../calc/indicators.js';
 import { tradeCosts, type CostTable, type TradeCosts } from './costs.js';
 import type { TemplateSpec } from './templates.js';
+import { compileRules, type RuleSet } from './rules.js';
 
 // Deterministic backtest engine (PRD BKT-03..BKT-09). Pure function of its inputs: signals use only
 // data up to the signal close; orders fill at the next session's open; long-only, equal weights.
@@ -31,6 +32,8 @@ export interface LiquidityRule {
 export interface EngineConfig {
   template: TemplateSpec;
   params: Record<string, number>;
+  /** Rule-builder definition (template custom_rules only). */
+  rules?: RuleSet;
   calendar: string[];
   startIdx: number;
   endIdx: number;
@@ -129,6 +132,10 @@ function buildSignals(cfg: EngineConfig): Signals {
       c.lo = map(px.map((_, k) => (k >= p.exit_lookback! ? loIncl[k - 1] ?? null : null)));
     } else if (t.code === 'rsi_mean_reversion') {
       c.rsi = map(rsi(px, 14));
+    } else if (t.code === 'custom_rules') {
+      const compiled = compileRules(cfg.rules!, px);
+      c.entry = map(px.map((_, k) => { const v = compiled.entry(k); return v === null ? null : v ? 1 : 0; }));
+      c.exit = map(px.map((_, k) => { const v = compiled.exit(k); return v === null ? null : v ? 1 : 0; }));
     } else if (t.code === 'low_vol_monthly') {
       c.vol = map(realisedVol(px, p.lookback_sessions!));
     }
@@ -159,6 +166,13 @@ function buildSignals(cfg: EngineConfig): Signals {
           if (!held) return r < p.entry!;
           const heldFor = (c.pos![i] ?? 0) - (c.pos![held.entryIdx] ?? 0);
           return !(r > p.exit! || heldFor >= p.max_hold!);
+        }
+        if (t.code === 'custom_rules') {
+          if (!held) return c.entry![i] === null || c.entry![i] === undefined ? null : c.entry![i] === 1;
+          const heldFor = (c.pos![i] ?? 0) - (c.pos![held.entryIdx] ?? 0);
+          if (cfg.rules!.max_hold && heldFor >= cfg.rules!.max_hold) return false;
+          // Unknown exit state (insufficient history) keeps the position.
+          return c.exit![i] !== 1;
         }
         return null;
       },

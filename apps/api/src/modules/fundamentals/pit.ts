@@ -54,16 +54,38 @@ export function buildPit(companyId: string, periods: PeriodValues[]): CompanyFun
   };
 }
 
+/**
+ * Companies per point-in-time query. Each company contributes thousands of (period × line item)
+ * rows; one query over a large universe returned a result too big for the embedded engine's
+ * protocol buffer and aborted it ("memory access out of bounds" / "unreachable"; session 4
+ * diagnosis). Bounded batches keep every result small; callers also process one batch at a time.
+ */
+export const PIT_BATCH_COMPANIES = Math.max(1, Number(process.env.ATLAS_PIT_BATCH_COMPANIES ?? 10));
+
+/** Calls `fn` with the point-in-time fundamentals of each batch of companies, in order. */
+export async function forEachPitBatch(db: Db, companyIds: string[], fn: (pits: Map<string, CompanyFundamentalsPit>, batch: string[]) => Promise<void>, batchSize = PIT_BATCH_COMPANIES): Promise<void> {
+  const ids = [...new Set(companyIds)];
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    await fn(await loadPit(db, batch), batch);
+  }
+}
+
 export async function loadPit(db: Db, companyIds?: string[]): Promise<Map<string, CompanyFundamentalsPit>> {
-  const where = companyIds ? 'WHERE fp.company_id = ANY($1::uuid[])' : '';
+  const ids = companyIds ?? (await db.query<{ company_id: string }>(`SELECT DISTINCT company_id FROM fund.financial_periods`)).map((r) => r.company_id);
+  if (ids.length > PIT_BATCH_COMPANIES) {
+    const merged = new Map<string, CompanyFundamentalsPit>();
+    for (let i = 0; i < ids.length; i += PIT_BATCH_COMPANIES) for (const [k, v] of await loadPit(db, ids.slice(i, i + PIT_BATCH_COMPANIES))) merged.set(k, v);
+    return merged;
+  }
   const rows = await db.query<{
     company_id: string; period_id: string; basis: 'consolidated' | 'standalone'; period_type: 'Q' | 'FY'; fiscal_year: number; fiscal_quarter: number | null;
     period_start: string; period_end: string; filed_at: string; version: number; is_current: boolean; line_item_code: string | null; value: number | null; missing_reason: 'not_reported' | 'not_available' | null; quality_status: string | null;
   }>(
     `SELECT fp.company_id, fp.period_id, fp.basis, fp.period_type, fp.fiscal_year, fp.fiscal_quarter, fp.period_start, fp.period_end, fp.filed_at, fp.version, fp.is_current,
             v.line_item_code, v.value, v.missing_reason, v.quality_status
-       FROM fund.financial_periods fp LEFT JOIN fund.financial_values v USING (period_id) ${where}`,
-    companyIds ? [companyIds] : [],
+       FROM fund.financial_periods fp LEFT JOIN fund.financial_values v USING (period_id) WHERE fp.company_id = ANY($1::uuid[])`,
+    [ids],
   );
   const byPeriod = new Map<string, PeriodValues & { company_id: string }>();
   for (const r of rows) {

@@ -10,7 +10,7 @@ interface Run {
   run: { run_id: string; name: string | null; status: string; progress: number; template_code: string; template_version: number; engine_version: string; cost_table_version: string; benchmark_code: string; snapshot_id: string; config: any; results_hash: string | null; saved: boolean; error: string | null; created_at: string; runtime_ms: number | null; rerun_of: string | null;
     metrics: null | { cagr: number; total_return: number; benchmark_return: number; excess_return: number; max_drawdown: number; max_drawdown_duration: number; volatility: number; sharpe: number | null; trades: number; win_rate: number | null; avg_gain: number | null; avg_loss: number | null; exposure: number; turnover: number; total_costs: number; doubled_costs_total_return: number; final_equity: number; skipped_trades: number; by_year: { year: string; return_pct: number }[]; by_regime: { regime: string; sessions: number; return_pct: number }[]; cost_breakdown: Record<string, number>; benchmark: { name: string; type: string }; universe: { type: string; securities_considered: number; delisted_in_universe: number; delisted_held: number }; period: { from: string; to: string; sessions: number } };
     warnings: { code: string; title: string; why: string; methodology: string }[] };
-  definitions: { code: string; name: string; url: string }[]; methodology: string; watermark: string | null;
+  definitions: { code: string; name: string; url: string }[]; methodology: string; watermark: string | null; rules_text?: string | null;
 }
 
 export default function RunPage({ params }: { params: Promise<{ id: string }> }) {
@@ -61,6 +61,7 @@ export default function RunPage({ params }: { params: Promise<{ id: string }> })
       <p><a href="/app/lab">← Quant Lab</a></p>
       <h1>{run.name ?? run.template_code.replace(/_/g, ' ')} {d.watermark && <span className="wm">{d.watermark}</span>}</h1>
       <p className="mu">{formatDate(m.period.from)} – {formatDate(m.period.to)} · {m.period.sessions} sessions · benchmark {m.benchmark.name} · template v{run.template_version} · {run.engine_version} · costs {run.cost_table_version} · run {dateOrDash(run.created_at)}{run.runtime_ms ? ` in ${run.runtime_ms} ms` : ''}</p>
+      {d.rules_text && <p><strong>Rules tested:</strong> {d.rules_text}</p>}
       {run.warnings.length > 0 && <div className="warn" role="note"><strong>Read before relying on this result</strong><ul>{run.warnings.map((w) => <li key={w.code}><strong>{w.title}.</strong> {w.why} <a href={w.methodology}>Why this matters</a></li>)}</ul></div>}
       <div className="grid">{tiles.map(([l, v, code]) => <div key={l} className="card" style={{ margin: 0 }}><div className="mu"><a href={`/methodology/metrics/${code}`}>{l}</a></div><div className="big">{v}</div></div>)}</div>
       <p className="mu">With costs doubled, total return would be {pct(m.doubled_costs_total_return, 1)}. {m.skipped_trades > 0 && `${m.skipped_trades} trades were skipped by the liquidity rule.`} Universe: {m.universe.securities_considered} securities considered{m.universe.delisted_in_universe ? `, including ${m.universe.delisted_in_universe} later delisted (no survivorship bias)` : ''}.</p>

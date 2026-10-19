@@ -6,6 +6,8 @@ import { dateOrDash, formatDate } from '@/lib/format';
 
 interface Change { company_id: string; short_name: string; kind: string; title: string; at: string; href?: string }
 interface Recent { kind: string; ref_id: string; label: string; at: string }
+interface Prompt { rule: string; rule_text: string; company_id: string; short_name: string; observed: string; evidence: string[]; href: string }
+interface LearnProgress { courses: { course_id: string; title: string; lessons: number; lessons_completed: number; objectives: number; mastered: number }[]; reviews_due: number }
 interface CalEvent { event_date: string; kind: string; title: string; status: string; company_id: string | null; source: string }
 
 export default function Home() {
@@ -13,6 +15,8 @@ export default function Home() {
   const changed = useApi<{ items: Change[]; empty_state?: string }>('/v1/home/what-changed');
   const recent = useApi<{ items: Recent[] }>('/v1/home/recent');
   const cal = useApi<{ events: CalEvent[] }>('/v1/market/calendar');
+  const worth = useApi<{ date: string | null; prompts: Prompt[]; note: string }>('/v1/home/worth-investigating');
+  const learning = useApi<LearnProgress>('/v1/academy/progress');
   const lists = useApi<{ watchlists: { watchlist_id: string; name: string; items?: { company_id: string; short_name: string }[] }[] }>('/v1/watchlists');
   const hrefFor = (r: Recent) => (r.kind === 'company_view' ? `/app/companies/${r.ref_id}` : r.kind === 'backtest' ? `/app/lab/runs/${r.ref_id}` : r.kind === 'screen' ? '/app/screener' : '/app/research');
   return (
@@ -31,6 +35,15 @@ export default function Home() {
               <ul>{changed.data!.items.map((c, i) => <li key={i}><a href={c.href ?? `/app/companies/${c.company_id}`}>{c.short_name}</a>: {c.title} <span className="mu">{dateOrDash(c.at)}</span></li>)}</ul>
             )}
           </section>
+          <section className="card" aria-labelledby="wi">
+            <h2 id="wi">Worth investigating</h2>
+            {worth.loading ? <Loading lines={2} /> : worth.error ? <Problem error={worth.error} retry={worth.reload} /> : worth.data!.prompts.length === 0 ? <Empty>Nothing in your watchlist met an investigation rule{worth.data!.date ? ` on ${formatDate(worth.data!.date)}` : ''}. Rules: unusual volume, a 5% move, a new 52-week high or low, or recently filed results.</Empty> : (
+              <>
+                <ul>{worth.data!.prompts.slice(0, 8).map((p, i) => <li key={i}><a href={p.href}>{p.short_name}</a>: {p.observed} <span className="mu" title={p.rule_text}>Rule: {p.rule_text}</span></li>)}</ul>
+                <p className="mu">{worth.data!.note}</p>
+              </>
+            )}
+          </section>
           <section className="card" aria-labelledby="wl">
             <h2 id="wl">Watchlists</h2>
             {lists.loading ? <Loading lines={2} /> : lists.error ? <Problem error={lists.error} /> : lists.data!.watchlists.length === 0 ? <Empty>No watchlists yet. Open a company and choose “Add to watchlist”.</Empty> : (
@@ -41,6 +54,13 @@ export default function Home() {
             <h2 id="rc">Pick up where you left off</h2>
             {recent.loading ? <Loading lines={2} /> : recent.data?.items.length ? <ul>{recent.data.items.slice(0, 8).map((r, i) => <li key={i}><a href={hrefFor(r)}>{r.label}</a> <span className="mu">{dateOrDash(r.at)}</span></li>)}</ul> : <Empty>Your recent companies, screens and backtests appear here.</Empty>}
           </section>
+          {learning.data && learning.data.courses.length > 0 && (
+            <section className="card" aria-labelledby="lp">
+              <h2 id="lp">Learning progress</h2>
+              <ul>{learning.data.courses.map((c) => <li key={c.course_id}><a href={`/app/academy/${c.course_id}`}>{c.title}</a> <span className="mu">lessons {c.lessons_completed}/{c.lessons} · mastered {c.mastered}/{c.objectives} objectives</span></li>)}</ul>
+              {learning.data.reviews_due > 0 && <p><a href="/app/academy/review">{learning.data.reviews_due} concept{learning.data.reviews_due === 1 ? '' : 's'} due for review</a></p>}
+            </section>
+          )}
           <section className="card" aria-labelledby="cl">
             <h2 id="cl">Upcoming calendar</h2>
             {cal.loading ? <Loading lines={2} /> : cal.error ? <Problem error={cal.error} /> : cal.data!.events.length === 0 ? <Empty>No scheduled events in the next two weeks.</Empty> : (

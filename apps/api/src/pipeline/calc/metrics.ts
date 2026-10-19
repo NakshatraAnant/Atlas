@@ -4,7 +4,7 @@ import { bulkInsert } from '../../lib/bulk.js';
 import { addDays } from '../../lib/dates.js';
 import { METRIC_BY_CODE } from '../../modules/calc/definitions.js';
 import * as R from '../../modules/calc/ratios.js';
-import { lastFourQuarters, loadPit, sumItem, type PeriodValues } from '../../modules/fundamentals/pit.js';
+import { forEachPitBatch, lastFourQuarters, sumItem, type PeriodValues } from '../../modules/fundamentals/pit.js';
 
 // Fundamental, valuation, technical and ownership metrics → calc.metric_values with full input
 // references (provenance: which filed values, which versions). LATEST rows feed the screener.
@@ -167,12 +167,11 @@ export function ttmMetrics(ctx: Ctx, periods: PeriodValues[]): Map<string, { res
   return out;
 }
 
-export async function computeCompanyMetrics(db: Db, opts: { companyIds?: string[]; asOf: string; calcRunId: string; latestOnly?: boolean }): Promise<number> {
+export async function computeCompanyMetrics(db: Db, opts: { companyIds?: string[]; asOf: string; calcRunId: string; latestOnly?: boolean; pitBatch?: number }): Promise<number> {
   const companies = await db.query<{ company_id: string; sector_template: string; industry: string; sector: string; security_id: number }>(
     `SELECT c.company_id, c.sector_template, c.industry, c.sector, s.security_id FROM ref.companies c JOIN ref.securities s USING (company_id) WHERE c.coverage='full' ${opts.companyIds ? 'AND c.company_id = ANY($1::uuid[])' : ''}`,
     opts.companyIds ? [opts.companyIds] : [],
   );
-  const pits = await loadPit(db, companies.map((c) => c.company_id));
   const nowInstant = `${opts.asOf}T18:29:59.999Z`;
   const latestDay = await db.maybeOne<{ d: string }>(`SELECT max(trade_date) AS d FROM calc.security_daily WHERE trade_date <= $1`, [opts.asOf]);
   const lastDate = latestDay?.d ?? opts.asOf;
@@ -185,7 +184,9 @@ export async function computeCompanyMetrics(db: Db, opts: { companyIds?: string[
     [lastDate],
   );
   let written = 0;
-  for (const c of companies) {
+  // One batch of companies at a time: bounded queries and bounded memory (see PIT_BATCH_COMPANIES).
+  await forEachPitBatch(db, companies.map((c) => c.company_id), async (pits, batch) => {
+  for (const c of companies.filter((x) => batch.includes(x.company_id))) {
     const pit = pits.get(c.company_id);
     const out: MetricRow[] = [];
     const latestRows = new Map<string, { result: R.MetricResult; refs: Ref[]; periodEnd: string | null; at: string }>();
@@ -301,6 +302,7 @@ export async function computeCompanyMetrics(db: Db, opts: { companyIds?: string[
     await db.query(`DELETE FROM calc.metric_values WHERE entity_type='company' AND entity_id=$1 ${opts.latestOnly ? `AND period_key='LATEST'` : ''}`, [c.company_id]);
     written += await bulkInsert(db, 'calc.metric_values', rows as unknown as Record<string, unknown>[], { chunk: 3000 });
   }
+  }, opts.pitBatch);
   return written;
 }
 
