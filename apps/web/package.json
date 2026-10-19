@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@atlas/shared": "0.1.0",
-    "next": "^15.5.28",
+    "next": "^16.4.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "0.170.0"

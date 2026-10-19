@@ -35,4 +35,4 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 - The browser e2e suite (Playwright, 8 journeys plus a restart-persistence check) runs on the installed Microsoft Edge. Other browsers were not tested.
 - No automated accessibility audit (axe). Coverage is semantic markup, keyboard focus, reduced-motion support and a table fallback for the 3D lab.
 - No independent penetration test (B-SEC-01).
-- `npm audit --omit=dev` reports 2 advisories, from the postcss that Next 15 pins for build-time CSS processing of first-party styles. They are not reachable with ATLAS inputs; the fix is upgrading to Next 16 (see SECURITY_AND_PRIVACY.md). Development-only test tooling has further advisories that are not shipped.
+- `npm audit --omit=dev` reports 0 advisories since the upgrade to Next 16 (the postcss 8.4.31 that Next 15 pinned is gone; see SECURITY_AND_PRIVACY.md). Development-only test tooling (vitest / vite / esbuild / tinypool) still has advisories; it is not shipped.

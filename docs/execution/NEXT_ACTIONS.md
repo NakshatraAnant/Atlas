@@ -13,7 +13,7 @@ Ordered. Take the first unchecked item whose dependencies are met.
 ## For the agent (next session)
 
 1. [ ] When B-SB-01 is resolved: `npm run migrate` against Supabase (expect a no-op), then seed and smoke-test the app against it. Run `npm run test:postgres` against a separate empty database, never the app database.
-2. [ ] Upgrade Next 15 → 16 to clear the postcss advisories (rerun build, typecheck and e2e).
+2. [x] Upgrade Next 15 → 16 to clear the postcss advisories (done 19 Oct 2026: next 16.4.2; typecheck, build, tests and e2e pass; production audit 0).
 3. [ ] Automated accessibility checks (axe-core in the Playwright suite) and contrast verification.
 4. [ ] XLSX upload and fundamentals (not only prices) in user datasets.
 5. [ ] Admin UI for the Academy review queue and CMS (the API exists).

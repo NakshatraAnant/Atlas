@@ -28,7 +28,7 @@ _Last updated: 19 Oct 2026, end of session 4._
 | User datasets | CSV price upload: `modules/datasets/*`, migration 008, `/app/research/datasets` |
 | Testing | financial golden set (59), Playwright e2e (8 + restart), real-PostgreSQL suite via embedded-postgres, AI policy regressions |
 | AI assistant | null (never zero) evidence for missing values (ADR-019); prediction / off-topic / unknown-company policy (ADR-020) |
-| Security | fastify 5.12.5; secret scan; audit reviewed (2 accepted build-time postcss advisories via Next 15) |
+| Security | fastify 5.12.5; secret scan; Next 16.4.2; `npm audit --omit=dev` 0 advisories |
 | Docs | README, KNOWN_LIMITATIONS, TESTING_AND_ACCEPTANCE, RUNBOOK, REQUIREMENT_TRACEABILITY (per-ID audit), ACADEMY_CURRICULUM, RELEASE_READINESS |
 
 ## Database migrations

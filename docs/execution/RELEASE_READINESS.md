@@ -16,7 +16,7 @@ _As of 19 Oct 2026, end of session 4. Evidence: `TEST_RESULTS.md`._
 | Typecheck (all workspaces) | pass | `npm run typecheck` |
 | Web production build | pass | `npm run build -w @atlas/web` |
 | Secret scan | pass | `npm run check:secrets` |
-| Production dependency audit | **accepted risk** | 2 advisories in the postcss that Next 15 pins (build-time, first-party CSS only); the fix is Next 16 (SECURITY_AND_PRIVACY.md) |
+| Production dependency audit | **pass** | 0 advisories after upgrading to Next 16.4.2 (the postcss 8.4.31 advisories that Next 15 pinned are cleared; SECURITY_AND_PRIVACY.md) |
 | Embedded engine at scale | pass | 40, 120 (launcher first run) and 602 companies seed; daily catch-up tested |
 | Local hosting first run | pass | `node scripts/atlas.mjs start` on an empty `./data`: 120-company seed and start in 6 min 5 s; API and web healthy; sign-in, Home briefing and assistant checked in the browser |
 | Supabase schema parity + RLS | pass | migrations 001–008 applied; fingerprint `99a30a294b137941ea3956be016bbc16` identical; every table RLS-enabled, no permissive policies |

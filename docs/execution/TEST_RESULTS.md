@@ -2,6 +2,19 @@
 
 Newest first. Only results of commands that actually ran.
 
+## 19 Oct 2026, Next 16 upgrade (next 15.5.28 → 16.4.2)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | pass (all workspaces) |
+| `npm run build -w @atlas/web` | pass (Next 16.4.2, Turbopack; 32 static pages) |
+| `npm test` | **332 passed** (shared 53, API 279), 8 skipped (PostgreSQL suite without `TEST_DATABASE_URL`; not re-run here because the upgrade does not touch the API), 0 failed |
+| `npm run test:e2e` | 8/8 passed (Edge, 40 s) + restart check: the note survived an API restart |
+| `npm audit --omit=dev` | **0 vulnerabilities** (next now depends on postcss 8.5.23) |
+| `next start` header check | CSP, X-Content-Type-Options, Referrer-Policy, X-Frame-Options and Permissions-Policy present; no `X-Powered-By` |
+
+Code changes: the `next` version and `apps/web/tsconfig.json`, where Next 16 sets `jsx: react-jsx` and adds `.next/dev/types`. All dynamic routes already used async `params`, and there is no middleware, so the other breaking changes did not apply.
+
 ## 19 Oct 2026, session 4 (end)
 
 | Command | Result |
