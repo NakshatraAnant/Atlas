@@ -2,6 +2,29 @@
 
 Newest first. Only results of commands that actually ran.
 
+## 19 Oct 2026, after merging Next 16 into `feat/atlas-mvp` (fast-forward to 81a8e5c) and launch fixes
+
+| Command / check | Result |
+|---|---|
+| `npm ci` | pass; next 16.4.2, react 19.0.0, postcss under next 8.5.23 |
+| `npm audit --omit=dev` | **found 0 vulnerabilities** |
+| `npm run typecheck` | pass |
+| Lint | **not configured** (no lint script in any workspace) |
+| `npm test` | 332 passed (shared 53, API 279), 8 skipped (PostgreSQL suite without `TEST_DATABASE_URL`; run below), 0 failed. Run before and after the fixes. |
+| `npm run test:postgres` | 8/8 (before and after) |
+| `npm run build -w @atlas/web` | pass (Next 16.4.2, 32 static pages) |
+| `npm run test:e2e` | 8/8 + restart check (before and after) |
+| `npm run eval` | PASSED: 580 cases; golden, red team and causal 100%; numeric accuracy 1; 0 unsupported numbers; 0 content violations (synthetic data, deterministic composer) |
+| `npm run check:secrets` | pass (259 files) |
+| `node scripts/atlas.mjs start` (port 3000) | API and web healthy. `/`, `/login`, `/app`, `/app/companies`, `/app/academy`, `/app/assistant`, `/methodology`, `/status`, `/healthz` → 200 |
+| Unauthenticated `/v1/watchlists`, `/v1/notes`, `/v1/me`, `/v1/datasets`, `/v1/academy/progress` | 401; forged session cookie 401; cross-origin POST 403; login without CSRF 403 |
+| Security headers | CSP, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy; no X-Powered-By |
+| Browser (in-app, pro account) | sign-in → company search → Kaveri Foods profile (synthetic label, ratios, evidence) → add to watchlist → note created → Academy (4 courses, draft) |
+| Restart persistence | stop/start via launcher: note, watchlist entry and session survived |
+| Live cross-user isolation | free user PATCH/DELETE of pro's note → 404 (owner control → 200; note unchanged) |
+| **Defect found** | startup catch-up inside the API blocked every request for ~3.3 min (PGlite computes on the API's thread); web proxy returned 500 "socket hang up". Fixed: the launcher now runs `npm run pipeline` before starting the API (catch-up then reported "nothing to catch up", start took 22 s) |
+| Supabase (via connector, read-only) | URL https://wyknwjdcexisrempmvjr.supabase.co; auth health 200; REST rejects every ATLAS schema (PGRST106); 151 tables in 10 schemas, all RLS, 0 policies, no anon/authenticated privileges or schema usage; migrations 001–008 checksums = local; schema fingerprint 99a30a29…/2547 lines = local; triggers/functions hash = local; advisor: only INFO rls_enabled_no_policy; hosted data: 0 users, 0 companies. App connection: not tested (no `DATABASE_URL`) |
+
 ## 19 Oct 2026, Next 16 upgrade (next 15.5.28 → 16.4.2)
 
 | Command | Result |
@@ -29,7 +52,7 @@ Code changes: the `next` version and `apps/web/tsconfig.json`, where Next 16 set
 | `npm audit --omit=dev` | 2 advisories (postcss 8.4.31 pinned by Next 15; build-time only; accepted; the fix is Next 16) |
 | `node scripts/atlas.mjs start` on an empty `./data` | pass: 120 companies seeded in memory in 237 s, 6 min 5 s in total; API and web healthy. Browser: sign-in, Home briefing; the assistant refuses a prediction question and reports Tata Motors as not covered |
 | Seeds (earlier in session 4) | 40, 120 and 602 companies complete (602: disk mode, 5,820 s, peak RSS 956 MB, DB 1.7 GB) |
-| Supabase | migrations 001–008 checksums identical to local; 102 tables, 0 without RLS |
+| Supabase | migrations 001–008 checksums identical to local; 151 tables in the 10 ATLAS schemas, 0 without RLS (corrected from 102, which used an incomplete schema list) |
 
 ## 19 Oct 2026, session 3 (end)
 

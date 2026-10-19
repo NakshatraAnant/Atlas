@@ -34,5 +34,14 @@
 - Fixed a diagnostic retake repetition and an assistant crash in current Edge.
 - The audit review found that the earlier "0 production vulnerabilities" was a lockfile artefact. 2 build-time postcss advisories via Next 15 are accepted; the fix is Next 16.
 - Launcher first run on an empty `./data`: 120 companies, healthy in 6 min 5 s; checked in the browser.
-- Supabase: migrations 001–008 checksums match local; 102 tables, all RLS-enabled.
+- Supabase: migrations 001–008 checksums match local; 151 tables in the 10 ATLAS schemas, all RLS-enabled (corrected: an earlier count of 102 used an incomplete schema list).
 - Still blocked: GitHub (B-GH-01), app→Supabase password (B-SB-01).
+
+## Session 4, continued — 19 Oct 2026: Next 16 merge and local launch
+
+- Fast-forwarded `feat/atlas-mvp` to `81a8e5c` (Next 16.4.2). The diff was reviewed: only next, its SWC binaries and postcss changed in the lockfile, plus `tsconfig`. Production audit: 0 vulnerabilities.
+- Architecture confirmed: direct PostgreSQL via `DATABASE_URL` plus ATLAS's own auth. Supabase Auth and client libraries are not used and were not added. `.env.local` has no `DATABASE_URL`, so the app runs on embedded PGlite.
+- Supabase verified read-only: schema, triggers and migrations identical to local; RLS on all 151 tables; no anon/authenticated access; REST rejects ATLAS schemas.
+- Launched on http://localhost:3000. Found and fixed a startup stall (catch-up inside the API blocked requests for ~3.3 min): added the missing `pipeline` CLI and run it from the launcher before the API starts.
+- Removed the dead `traceability` script (its file never existed). Fixed research-summary wording ("little changed" / "fell") and a doubled separator in note metadata.
+- Verified in the browser and over HTTP: auth boundary, write → restart → persistence, live cross-user isolation (404).

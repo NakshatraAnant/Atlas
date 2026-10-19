@@ -384,10 +384,10 @@ export async function researchSummary(db: Db, companyId: string) {
     const om = get('operating_margin', latestQ);
     const prevKey = latestQ.replace(/FY(\d\d)$/, (_, y: string) => `FY${String(Number(y) - 1).padStart(2, '0')}`);
     const omPrev = get('operating_margin', prevKey);
-    if (g?.value !== null && g?.value !== undefined) supports.push({ type: 'calculated', text: `Revenue grew ${formatIndianNumber(g.value, 1)}% year on year in ${pretty(latestQ)}.`, evidence: [ev('revenue_growth_yoy', latestQ)] });
+    if (g?.value !== null && g?.value !== undefined) supports.push({ type: 'calculated', text: `Revenue ${g.value < 0 ? 'fell' : 'grew'} ${formatIndianNumber(Math.abs(g.value), 1)}% year on year in ${pretty(latestQ)}.`, evidence: [ev('revenue_growth_yoy', latestQ)] });
     if (om?.value !== null && om?.value !== undefined && omPrev?.value !== null && omPrev?.value !== undefined) {
       const d = om.value - omPrev.value;
-      supports.push({ type: 'calculated', text: `Operating margin was ${formatIndianNumber(om.value, 1)}% in ${pretty(latestQ)}, ${d >= 0 ? 'up' : 'down'} ${formatIndianNumber(Math.abs(d), 1)} points from ${formatIndianNumber(omPrev.value, 1)}% a year earlier.`, evidence: [ev('operating_margin', latestQ), ev('operating_margin', prevKey)] });
+      supports.push({ type: 'calculated', text: `Operating margin was ${formatIndianNumber(om.value, 1)}% in ${pretty(latestQ)}, ${Math.round(Math.abs(d) * 10) === 0 ? 'little changed' : `${d > 0 ? 'up' : 'down'} ${formatIndianNumber(Math.abs(d), 1)} points`} from ${formatIndianNumber(omPrev.value, 1)}% a year earlier.`, evidence: [ev('operating_margin', latestQ), ev('operating_margin', prevKey)] });
     }
   }
   const roe = get('roe', 'LATEST');

@@ -10,7 +10,9 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 ## Infrastructure
 - **Embedded database (PGlite) memory ceiling: fixed** (ADR-018). Seeds of 40, 120 and 602 companies complete, and the daily catch-up is covered by tests. Limits that remain:
   - A 500-company seed takes about 97 minutes (disk mode, peak RSS about 960 MB, database 1.7 GB). That size is for stress testing; the default is 120.
-  - PGlite is single-process. The API and a CLI command (seed, eval) cannot open the same data directory at the same time.
+  - PGlite is single-process. The API and a CLI command (seed, eval, pipeline) cannot open the same data directory at the same time.
+  - PGlite computes on the API's own thread. While the evening post-close cycle runs inside the API (after 18:30 IST, about 3 minutes at 120 companies on this machine), requests wait, and the web proxy may show "could not be reached". Startup catch-up avoids this by running before the API starts. A hosted PostgreSQL (`DATABASE_URL`) does not have this limitation.
+  - No lint is configured.
 - GitHub repository not created; code is committed locally only (B-GH-01).
 - The Supabase schema is applied and matches local (migrations 001–008, identical fingerprint), but the app has not connected to Supabase because it needs the database password (B-SB-01). The node-postgres driver path is tested against a real local PostgreSQL 17 (`npm run test:postgres`), not against Supabase itself.
 - No Docker route (no WSL on the dev machine). Production deployment is not part of this build.

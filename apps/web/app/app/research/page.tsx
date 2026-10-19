@@ -157,7 +157,7 @@ function Notes({ attach }: { attach: string | null }) {
         <article key={x.note_id} className="card">
           <h3>{x.title || 'Untitled'} {x.read_only && <span className="t m">read-only on your plan</span>}</h3>
           <p style={{ whiteSpace: 'pre-wrap' }}>{x.body.slice(0, 600)}{x.body.length > 600 && '…'}</p>
-          <p className="mu">{x.attached_type === 'company' && x.attached_id ? <><a href={`/app/companies/${x.attached_id}`}>Company</a> · </> : null}{x.tags.map((t) => `#${t}`).join(' ')} · updated {dateOrDash(x.updated_at)}</p>
+          <p className="mu">{x.attached_type === 'company' && x.attached_id ? <><a href={`/app/companies/${x.attached_id}`}>Company</a> · </> : null}{x.tags.length ? `${x.tags.map((t) => `#${t}`).join(' ')} · ` : ''}updated {dateOrDash(x.updated_at)}</p>
           <div className="row"><button className="link" onClick={() => setEdit(x)}>Edit</button><button className="link" onClick={async () => { if (confirm('Delete this note?')) { await api(`/v1/notes/${x.note_id}`, { method: 'DELETE' }); n.reload(); } }}>Delete</button></div>
         </article>
       ))}

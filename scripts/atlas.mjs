@@ -164,6 +164,22 @@ async function seedIfNeeded(env) {
   log('Database seeded.');
 }
 
+/**
+ * Runs missed end-of-day cycles before the API starts. The embedded database computes in-process,
+ * so a catch-up inside the API would leave it unable to answer requests for several minutes.
+ */
+function catchUp(env) {
+  if (env.DATABASE_URL || env.ATLAS_BACKGROUND_JOBS === 'false') return;
+  log('Bringing market data up to date (missed trading days, if any). Progress: .atlas/logs/pipeline.log');
+  mkdirSync(LOGS, { recursive: true });
+  const out = openSync(join(LOGS, 'pipeline.log'), 'a');
+  const r = spawnSync(process.execPath, [TSX(), 'src/cli/pipeline.ts'], { cwd: API_DIR, env: { ...process.env, ...env }, stdio: ['ignore', out, out], windowsHide: true });
+  closeSync(out);
+  // Not fatal: the API's own scheduler retries, it just answers slowly while it does.
+  if (r.status !== 0) log('Catch-up did not finish; the API will retry it in the background. See .atlas/logs/pipeline.log');
+  else log('Market data is up to date.');
+}
+
 function webBuilt() {
   return existsSync(join(WEB_DIR, '.next', 'BUILD_ID'));
 }
@@ -184,6 +200,7 @@ async function start() {
     run('npm', ['run', 'build', '-w', '@atlas/web'], ROOT, { ATLAS_API_URL: env.ATLAS_API_URL });
   }
   await seedIfNeeded(env);
+  catchUp(env);
   rmSync(join(RUN, 'api.stop'), { force: true });
   launch('api', [TSX(), 'src/server.ts'], API_DIR, env);
   await waitFor(`http://${HOST}:${apiPort}/readyz`, 'API', 120_000, 'api');

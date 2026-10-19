@@ -19,7 +19,6 @@
     "dev:api": "npm run dev -w @atlas/api",
     "dev:web": "npm run dev -w @atlas/web",
     "eval": "npm run eval -w @atlas/api",
-    "traceability": "node scripts/gen-traceability.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "test:postgres": "node scripts/test-postgres.mjs",
     "test:e2e": "node scripts/e2e.mjs"
