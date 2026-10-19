@@ -73,8 +73,14 @@ export function resolveCompanies(question: string, rows: CatalogEntry[]): { matc
   if (partial.length > 1) return { matched: [], ambiguous: partial, unknown: null };
   // A company-like proper noun that is not in the catalogue (hallucination bait).
   const m = /\b((?:[A-Z][a-zA-Z&]+\s){0,3}[A-Z][a-zA-Z&]+)(?:['’]s|\s+(?:Ltd|Limited|Industries|Corp|Corporation|Enterprises|Holdings|Technologies|Bank)\b)/.exec(question);
-  const STOP = new Set(['ATLAS', 'What', 'How', 'Why', 'Is', 'Explain', 'Compare', 'Show', 'Tell', 'Demo', 'Did', 'Does', 'India', 'Indian', 'RBI', 'Should', 'Which']);
+  const STOP = new Set(['ATLAS', 'What', 'How', 'Why', 'Is', 'Explain', 'Compare', 'Show', 'Tell', 'Demo', 'Did', 'Does', 'India', 'Indian', 'RBI', 'Should', 'Which', 'Nifty', 'Sensex', 'NSE', 'BSE', 'SEBI', 'FY', 'Q1', 'Q2', 'Q3', 'Q4', 'IT', 'FMCG', 'Banks', 'Auto', 'Materials', 'Retail', 'Chemicals', 'Insurance', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Today', 'Broad', 'Market', 'Index', 'Largecap', 'Smallcap']);
   if (m && !m[1]!.split(' ').every((w) => STOP.has(w))) return { matched: [], ambiguous: [], unknown: m[1]! };
+  // "ROCE of Tata Motors?" — a proper noun after of/for/about/on that is not in the catalogue.
+  const m2 = /\b(?:of|for|about|on)\s+((?:[A-Z][a-zA-Z&.]+\s?){1,4})(?=[?.!,]|\s*$)/.exec(question);
+  if (m2) {
+    const name = m2[1]!.trim();
+    if (!name.split(' ').every((w) => STOP.has(w))) return { matched: [], ambiguous: [], unknown: name };
+  }
   return { matched: [], ambiguous: [], unknown: null };
 }
 
@@ -161,7 +167,7 @@ function builder(): Builder {
     claims,
     claim(f, type) {
       const id = `cl_${claims.length + 1}`;
-      claims.push({ id, value: f.value ?? 0, label: `${f.label}${f.period ? `, ${prettyPeriod(f.period)}` : ''}`, unit: f.unit, evidenceId: f.evidence_id, type, display: f.value === null ? MISSING_TEXT[f.missing ?? 'not_available']! : fmtValue(f.value, f.unit) });
+      claims.push({ id, value: f.value, label: `${f.label}${f.period ? `, ${prettyPeriod(f.period)}` : ''}`, unit: f.unit, evidenceId: f.evidence_id, type, display: f.value === null ? MISSING_TEXT[f.missing ?? 'not_available']! : fmtValue(f.value, f.unit) });
       return id;
     },
     claimRaw(value, display, label, evidenceId, type, unit) {
@@ -222,7 +228,10 @@ export async function answerQuestion(db: Db, rights: RightsMatrix, gateway: Mode
   if (unknown && !matched.length) {
     const hits = await tools.search_companies(unknown);
     const close = hits.filter((h) => h.score > 0.45);
-    if (close.length === 1 && close[0]!.coverage === 'full') matched = [cat.find((c) => c.company_id === close[0]!.company_id)!];
+    // Auto-correct only an obvious typo (strong match); a loose look-alike is offered as a suggestion,
+    // never silently substituted (answering about another company would misattribute figures).
+    const strong = close.filter((h) => h.score >= 0.7);
+    if (strong.length === 1 && strong[0]!.coverage === 'full') matched = [cat.find((c) => c.company_id === strong[0]!.company_id)!];
     else {
       const r = base('not_found', 'research', `ATLAS has no record of a listed company called “${unknown}”. Nothing is estimated for companies outside its data.${close.length ? ` Similar names: ${close.map((c) => c.short_name).join(', ')}.` : ''}`, { options: close.map((c) => ({ company_id: c.company_id, short_name: c.short_name })) });
       r.sections.uncertainty = ['The name did not match any company, symbol, ISIN or former name in the coverage list.'];
@@ -455,7 +464,7 @@ export async function answerQuestion(db: Db, rights: RightsMatrix, gateway: Mode
         const id = fig(fact, 'calculated');
         if (fact.value === null) {
           const why = fact.missing === 'not_meaningful' && !def.templates.includes(company.template as never) ? 'not meaningful for this sector (financial-sector template)' : MISSING_TEXT[fact.missing ?? 'not_available'];
-          say(`${company.short_name}’s ${def.name.toLowerCase()} for ${prettyPeriod(fact.period ?? 'LATEST')} is ${why}.`, 'calculated', []);
+          say(`${company.short_name}’s ${def.name.toLowerCase()}${fact.period && fact.period !== 'LATEST' ? ` for ${prettyPeriod(fact.period)}` : ' (latest)'} is ${why}.`, 'calculated', []);
         } else {
           say(`${company.short_name}’s ${def.name.toLowerCase()} is ${fmtValue(fact.value, def.unit)} (${prettyPeriod(fact.period ?? 'LATEST')}${fact.as_of ? `, data as of ${fact.as_of}` : ''}).`, 'calculated', [id]);
         }

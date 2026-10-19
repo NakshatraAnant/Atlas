@@ -71,7 +71,7 @@ function loadLocalEnv() {
     ATLAS_API_URL: `http://${HOST}:${apiPort}`,
     ATLAS_RUN_DIR: RUN,
   };
-  if (env.NODE_ENV === 'production') fail('Local hosting runs in development mode with synthetic data. Production needs the deployment guide (docs/deployment/PRODUCTION_DEPLOYMENT_GUIDE.md).');
+  if (env.NODE_ENV === 'production') fail('Local hosting runs in development mode with synthetic data. Production deployment is not part of this build; see docs/RUNBOOK.md and docs/KNOWN_LIMITATIONS.md.');
   return { env, apiPort, webPort };
 }
 

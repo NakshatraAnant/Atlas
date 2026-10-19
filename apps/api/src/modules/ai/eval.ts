@@ -107,7 +107,7 @@ export function scoreCase(c: EvalCase, r: AnswerResult): string[] {
       if (want === null) {
         if (cited.some((x) => x.value !== null && Number.isFinite(x.value))) f.push('cited a value where the data has none');
       } else if (r.kind === 'answer') {
-        const hit = cited.some((x) => Math.abs(x.value - want) <= Math.max(1e-6, Math.abs(want) * 1e-6));
+        const hit = cited.some((x) => x.value !== null && Math.abs(x.value - want) <= Math.max(1e-6, Math.abs(want) * 1e-6));
         if (!hit) f.push(`expected ${metric} = ${want}; cited ${cited.map((x) => x.value).join(', ') || 'nothing'}`);
       }
     }

@@ -25,6 +25,10 @@ const ADVICE: RegExp[] = [
   /\b(?:allocat\w*|rebalance\s+my|my\s+portfolio)\b/i,
   /\b(?:stop[- ]?loss|entry\s+point|exit\s+point|when\s+to\s+(?:buy|sell|exit|enter))\b/i,
   /\b(?:undervalued|overvalued|cheap|expensive)\s*\?/i,
+  /\b(?:undervalued|overvalued|cheap|expensive)\b.{0,40}\b(?:invest|buy|sell|enough|now)\b/i,
+  /\b(?:worth|good|safe)\s+(?:to\s+)?(?:invest(?:ing)?\s+in|buy(?:ing)?|own(?:ing)?)\b/i,
+  // Any question about future price direction, with any company name ("Will Kaveri Foods go up next month?").
+  /\b(?:will|would|is\s+going\s+to|going\s+to)\b.{1,80}?\b(?:go(?:es)?\s+up|go(?:es)?\s+down|rise|fall|double|triple|crash|rally|reach|hit|touch|recover|outperform|underperform|bounce|surge|tank|move\s+(?:up|down))\b/i,
   /\bis\s+(?:now|today|this)\s+(?:the|a)\s+(?:right|good|best)\s+time\b/i,
   /\b(?:add\s+on\s+dips|book\s+profits?|average\s+(?:down|out))\b/i,
   /\b(?:intraday|f&o|options?)\s+(?:tip|call|trade|strategy)\b/i,
@@ -49,6 +53,8 @@ const INJECTION: RegExp[] = [
 ];
 
 const ABUSIVE = /\b(?:idiot|stupid\s+bot|f+u+c+k|shit|bastard|chutiya|bhenchod|madarchod)\b/i;
+// Subjects ATLAS never covers: these win even when generic finance words appear ("what is the forex rate").
+const OFF_TOPIC_STRONG = /\b(?:forex|exchange\s+rate|currency\s+rate|usd\s*\/?\s*inr|bitcoin|crypto(?:currency)?|ethereum|weather|recipe|cricket\s+score|football\s+score|movie|song|poem|joke|gold\s+price|silver\s+price|petrol\s+price|lottery)\b/i;
 const OFF_TOPIC = /\b(?:recipe|weather|football\s+score|cricket\s+score|movie|song|poem|joke|write\s+(?:me\s+)?(?:an?\s+)?(?:essay|story|code)|translate|homework|bitcoin|crypto(?:currency)?|forex|gold\s+price|mutual\s+fund\s+nav|us\s+stocks?|nasdaq|tesla|apple\s+stock)\b/i;
 const FINANCE_HINT = /\b(?:revenue|profit|margin|roce|roe|roa|debt|equity|cash|ratio|p\/?e|valuation|growth|quarter|fy\d|results?|sector|market|index|breadth|briefing|announcement|filing|shareholding|promoter|pledge|backtest|strategy|drawdown|sharpe|metric|define|what\s+is|explain|how\s+(?:did|has|is)|compare|peers?|ebitda|eps|dividend|volatility|rsi|moving\s+average|nim|npa|capital\s+adequacy|stock|share|company)\b/i;
 
@@ -60,6 +66,7 @@ export function classify(question: string): PolicyResult {
   if (advice.length) return { intent: 'advice', reasons: [...reasons, 'advice-seeking pattern'] };
   if (reasons.length) return { intent: 'injection', reasons };
   if (ABUSIVE.test(q)) return { intent: 'abusive', reasons: ['abusive language'] };
+  if (OFF_TOPIC_STRONG.test(q)) return { intent: 'off_topic', reasons: ['outside Indian listed equities research'] };
   if (OFF_TOPIC.test(q) && !FINANCE_HINT.test(q)) return { intent: 'off_topic', reasons: ['outside Indian listed equities research'] };
   return { intent: 'research', reasons: [] };
 }

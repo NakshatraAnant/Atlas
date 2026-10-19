@@ -71,7 +71,7 @@ export async function ask(ctx: AppContext, user: { userId: string; experienceLev
     [conv!.conversation_id, JSON.stringify(result), result.intent, result.versions.model, result.versions.prompt, JSON.stringify({ tools: result.versions.tools, pipeline: result.versions.pipeline }), result.usage.input_tokens, result.usage.output_tokens, result.usage.cost_inr, latency, result.check.status],
   );
   for (const c of result.claims) {
-    await ctx.db.query(`INSERT INTO ai.claims (message_id, claim_type, text, value, unit, evidence, check_result) VALUES ($1,$2,$3,$4,$5,$6,'pass')`, [msg.message_id, c.type, c.label, c.value, c.unit ?? null, JSON.stringify([c.evidenceId])]);
+    await ctx.db.query(`INSERT INTO ai.claims (message_id, claim_type, text, value, unit, evidence, check_result) VALUES ($1,$2,$3,$4,$5,$6,$7)`, [msg.message_id, c.type, c.label, c.value, c.unit ?? null, JSON.stringify([c.evidenceId]), c.value === null ? 'not_numeric' : 'pass']);
   }
   for (const t of toolCalls) {
     await ctx.db.query(`INSERT INTO ai.tool_calls (message_id, tool, tool_version, input, output, fields_sent_to_model, fields_withheld, latency_ms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [msg.message_id, t.tool, TOOL_VERSION, JSON.stringify(t.input), JSON.stringify(t.output ?? null), t.fieldsSent, t.fieldsWithheld, t.ms]);

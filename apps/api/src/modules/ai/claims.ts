@@ -3,7 +3,8 @@
 
 export interface Claim {
   id: string;
-  value: number;
+  /** null when the data has no value (not reported, not available, not meaningful): never matches text. */
+  value: number | null;
   label: string;
   unit?: string;
   evidenceId: string;
@@ -93,7 +94,7 @@ export function checkClaims(text: string, claims: Claim[], allowedConstants: num
   const matched: CheckOutcome['matched'] = [];
   const unmatched: string[] = [];
   for (const n of nums) {
-    const c = claims.find((cl) => numberMatches(n, cl.value));
+    const c = claims.find((cl) => cl.value !== null && numberMatches(n, cl.value));
     if (c) matched.push({ raw: n.raw, claimId: c.id });
     else if (allowedConstants.some((k) => numberMatches(n, k))) matched.push({ raw: n.raw, claimId: 'constant' });
     else unmatched.push(n.raw);
