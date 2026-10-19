@@ -40,7 +40,10 @@ export default function Assistant() {
     const pre = p.get('q');
     if (pre) setQ(pre);
   }, []);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), [turns]);
+  // Block body: scrollIntoView returns a Promise in current browsers, and an effect must not return one.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'end' });
+  }, [turns]);
 
   const ask = async (question: string, companyOverride?: string) => {
     if (!question.trim() || busy) return;

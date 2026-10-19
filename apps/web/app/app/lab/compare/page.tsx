@@ -6,7 +6,9 @@ interface Cmp { runs: { run_id: string; name: string | null; template: string; m
 
 export default function Compare() {
   const [ids, setIds] = useState<string | null>(null);
-  useEffect(() => setIds(new URLSearchParams(location.search).get('ids') ?? ''), []);
+  useEffect(() => {
+    setIds(new URLSearchParams(location.search).get('ids') ?? '');
+  }, []);
   const c = useApi<Cmp>(ids ? `/v1/backtests/compare/${ids}` : null, [ids]);
   if (ids === '') return <p className="err">Choose two to four runs to compare in the Quant Lab.</p>;
   if (c.loading || !c.data) return c.error ? <Problem error={c.error} /> : <Loading />;

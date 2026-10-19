@@ -10,7 +10,8 @@ test('sign-in, Home panels and the market briefing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Worth investigating' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What changed in your companies' })).toBeVisible();
   await page.goto('/app/market');
-  await expect(page.locator('main')).toContainText(/advances|Advances/);
+  await expect(page.locator('main')).toContainText(/\d+ up · \d+ down/);
+  await expect(page.locator('main')).toContainText(/Stale|End of day/);
   w.assertClean();
 });
 
@@ -28,11 +29,13 @@ test('company search → profile → evidence → watchlist → note', async ({ 
   await expect(page.locator('.drawer')).toContainText(/Source|source/);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Add to watchlist' }).click();
-  await expect(page.locator('body')).toContainText(/watchlist/i);
+  await expect(page.locator('.toast')).toContainText(/Added to/);
   // Research note persists through the API (verified after a restart by scripts/e2e.mjs).
   const res = await page.request.post('/v1/notes', { data: { title: 'E2E persisted note', body: 'Created by the browser end-to-end suite.' }, headers: { 'x-csrf-token': (await page.context().cookies()).find((c) => c.name === 'atlas_csrf')?.value ?? '' } });
   expect(res.status()).toBe(200);
-  await page.goto('/app/research');
+  await page.goto('/app/research?tab=watchlists');
+  await expect(page.locator('main')).toContainText('Kaveri Foods');
+  await page.goto('/app/research?tab=notes');
   await expect(page.locator('main')).toContainText('E2E persisted note');
   w.assertClean();
 });
