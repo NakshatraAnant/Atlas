@@ -77,13 +77,23 @@ function maskAllowed(text: string): string {
 export interface CheckOptions {
   /** When true, causal phrases are accepted because the caller linked timing/causal evidence. */
   causalEvidenceLinked?: boolean;
+  /**
+   * Educational material (Academy lessons and assessments) must name market mechanics ("buy and
+   * sell orders") and quote claims in order to debunk them ("risk-free", "will double"). In this
+   * mode only reader-directed advice, recommendations, ratings and urgency are blocked; hype,
+   * forecast and causal wording are left to the human seven-point content review.
+   */
+  mode?: 'product' | 'education';
 }
+
+const EDUCATION_SKIP = new Set(['REC-VERB', 'TGT-PRICE', 'TGT-WILL', 'TGT-UPSIDE', 'HYPE', 'CAUSE']);
 
 export function checkContent(text: string, opts: CheckOptions = {}): ContentViolation[] {
   const masked = maskAllowed(text);
   const out: ContentViolation[] = [];
   for (const rule of RULES) {
     if (rule.category === 'causal_certainty' && opts.causalEvidenceLinked) continue;
+    if (opts.mode === 'education' && EDUCATION_SKIP.has(rule.id)) continue;
     rule.pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = rule.pattern.exec(masked)) !== null) {

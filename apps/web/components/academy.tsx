@@ -2,6 +2,7 @@
 
 import { ownership, percentPath, spread, submitOrder, vwap, type Book, type Trade } from '@atlas/shared';
 import { useId, useMemo, useState } from 'react';
+import { COURSE_LABS } from './academy-labs';
 
 // Academy building blocks: answer inputs, the learning-loop stepper and the interactive labs.
 // Labs run on the tested simulations in @atlas/shared and describe themselves in text, so the
@@ -83,6 +84,8 @@ export function Lab({ widget }: { widget: string }) {
   if (widget === 'ownership_split') return <OwnershipLab />;
   if (widget === 'order_book') return <OrderBookLab />;
   if (widget === 'percent_path') return <PercentPathLab />;
+  const L = COURSE_LABS[widget];
+  if (L) return <L />;
   return <p className="mu">This interactive is not available.</p>;
 }
 

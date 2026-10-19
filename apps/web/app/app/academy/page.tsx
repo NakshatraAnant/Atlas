@@ -18,6 +18,7 @@ export default function AcademyHome() {
         <p className="eyebrow">ATLAS Academy</p>
         <h1>Learn to read markets the way ATLAS does: with evidence.</h1>
         <p className="mu" style={{ maxWidth: 640 }}>Four courses, from how a share works to defending a valuation. Each starts with a five-question readiness check so you begin at the right place. {courses.data!.not_a_qualification}</p>
+        <p><a className="btn s" href="/app/academy/games">Practice games</a></p>
         {p && p.reviews_due > 0 && <p><a className="btn" href="/app/academy/review">Review {p.reviews_due} due concept{p.reviews_due === 1 ? '' : 's'}</a></p>}
       </header>
       <ol className="course-grid">

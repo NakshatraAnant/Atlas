@@ -101,6 +101,11 @@ export default function CoursePage({ params }: { params: Promise<{ course: strin
           ))}
         </ol>
       </section>
+      <section className="card" aria-labelledby="cap-h">
+        <h2 id="cap-h">Capstone and completion</h2>
+        <p>Finish with a practical assignment inside ATLAS, assessed against a published rubric. A completion record lists exactly what you completed and demonstrated.</p>
+        <p><a className="btn s" href={`/app/academy/${course}/capstone`}>Open the capstone</a> <a className="btn s" href="/app/academy/games">Practice games</a></p>
+      </section>
       <p className="disc">{c.completion_statement}</p>
     </div>
   );

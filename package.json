@@ -20,7 +20,8 @@
     "dev:web": "npm run dev -w @atlas/web",
     "eval": "npm run eval -w @atlas/api",
     "traceability": "node scripts/gen-traceability.mjs",
-    "check:secrets": "node scripts/check-secrets.mjs"
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "test:postgres": "node scripts/test-postgres.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

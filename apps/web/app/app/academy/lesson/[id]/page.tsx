@@ -7,6 +7,7 @@ import { Loading, Problem, useApi } from '@/components/ui';
 type Block =
   | { stage: 'discover'; kind: 'text'; title: string; body: string[] }
   | { stage: 'observe'; kind: 'interactive'; title: string; widget: string; intro: string; alt_text: string }
+  | { stage: 'observe'; kind: 'atlas_task'; title: string; href: string; steps: string[]; alt_text: string }
   | { stage: 'predict'; kind: 'prediction'; prompt: string; options: string[]; answer: number; reveal: string }
   | { stage: 'investigate'; kind: 'worked_example'; title: string; steps: string[] }
   | { stage: 'decide'; kind: 'guided_practice'; prompt: string; hint: string; answer_text: string }
@@ -85,6 +86,14 @@ function BlockView({ b }: { b: Block }) {
       return <>{b.body.map((p) => <p key={p}>{p}</p>)}</>;
     case 'interactive':
       return <><p>{b.intro}</p><Lab widget={b.widget} /><p className="sr-only">{b.alt_text}</p></>;
+    case 'atlas_task':
+      return (
+        <div className="atlas-task">
+          <p>Practise in ATLAS itself. Open the page below in a new tab, work through the steps, then come back.</p>
+          <ol>{b.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+          <p><a className="btn s" href={b.href} target="_blank" rel="noopener">Open {b.href} in a new tab</a></p>
+        </div>
+      );
     case 'prediction':
       return (
         <fieldset className="qcard"><legend><strong>{b.prompt}</strong></legend>

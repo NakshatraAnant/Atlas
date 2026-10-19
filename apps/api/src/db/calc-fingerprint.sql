@@ -10,4 +10,6 @@ SELECT
   (SELECT md5(string_agg(concat_ws('|', m.entity_type, coalesce(s.isin, m.entity_id), m.metric_code, m.period_key, m.basis, m.definition_version, m.value, m.missing_reason, m.unit, m.as_of_date, m.period_end, m.available_at, m.quality_status), E'
 ' ORDER BY m.entity_type, coalesce(s.isin, m.entity_id), m.metric_code, m.period_key, m.basis, m.definition_version)) FROM calc.metric_values m LEFT JOIN ref.securities s ON m.entity_type = 'company' AND s.company_id::text = m.entity_id) AS metric_md5,
   (SELECT count(*)::int FROM calc.market_daily) AS market_rows,
-  (SELECT md5(string_agg(concat_ws('|', universe_code, trade_date, traded, advances, declines, pct_above_50dma, pct_above_200dma, new_highs, new_lows, turnover_cr, realised_vol_20d, regime::text), E'\n' ORDER BY universe_code, trade_date)) FROM calc.market_daily) AS market_md5;
+  (SELECT md5(string_agg(concat_ws('|', universe_code, trade_date, traded, advances, declines, pct_above_50dma, pct_above_200dma, new_highs, new_lows, turnover_cr, realised_vol_20d, regime::text), E'\n' ORDER BY universe_code, trade_date)) FROM calc.market_daily) AS market_md5,
+  (SELECT md5(string_agg(concat_ws('|', trade_date, sector, ret_equal, ret_cap, constituents, advances, declines, classification_version), E'
+' ORDER BY trade_date, sector)) FROM calc.sector_daily) AS sector_md5;

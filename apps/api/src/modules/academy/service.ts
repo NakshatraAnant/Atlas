@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Db } from '../../db/db.js';
+import { CAPSTONES, type SourceCapstone } from './content/capstones.js';
 import { CURRICULUM, type SourceCourse, type SourceQuestion } from './curriculum.js';
 import type { BankQuestion, Correct, QType, ReadinessRules } from './engine.js';
 
@@ -21,10 +22,11 @@ export interface SyncReport {
   new_course_versions: number;
   new_lesson_versions: number;
   new_question_versions: number;
+  new_capstone_versions: number;
 }
 
-export async function syncCurriculum(db: Db, curriculum: SourceCourse[] = CURRICULUM): Promise<SyncReport> {
-  const report: SyncReport = { courses: 0, new_course_versions: 0, new_lesson_versions: 0, new_question_versions: 0 };
+export async function syncCurriculum(db: Db, curriculum: SourceCourse[] = CURRICULUM, capstones: Record<string, SourceCapstone> = CAPSTONES): Promise<SyncReport> {
+  const report: SyncReport = { courses: 0, new_course_versions: 0, new_lesson_versions: 0, new_question_versions: 0, new_capstone_versions: 0 };
   await db.tx(async (t) => {
     for (const c of curriculum) {
       report.courses++;
@@ -73,6 +75,17 @@ export async function syncCurriculum(db: Db, curriculum: SourceCourse[] = CURRIC
         }
       }
       for (const q of c.diagnostic) report.new_question_versions += await syncQuestion(t, c.id, 'diagnostic', q, null);
+      const cap = capstones[c.id];
+      if (cap) {
+        const fields = { title: cap.title, brief: cap.brief, deliverables: cap.deliverables, rubric: cap.rubric, artefact_kinds: cap.artefact_kinds };
+        const prev = await t.maybeOne<Record<string, unknown> & { version: number }>(`SELECT version, title, brief, deliverables, rubric, artefact_kinds FROM acad.capstones WHERE course_id=$1 ORDER BY version DESC LIMIT 1`, [c.id]);
+        const { version: pv, ...prevFields } = prev ?? { version: 0 };
+        if (!prev || canon(prevFields) !== canon(fields)) {
+          await t.query(`INSERT INTO acad.capstones (course_id, version, title, brief, deliverables, rubric, artefact_kinds, status) VALUES ($1,$2,$3,$4,$5,$6,$7,'in_review')`, [c.id, pv + 1, cap.title, cap.brief, JSON.stringify(cap.deliverables), JSON.stringify(cap.rubric), cap.artefact_kinds]);
+          await t.query(`UPDATE acad.capstones SET status='retired' WHERE course_id=$1 AND version<$2 AND status <> 'retired'`, [c.id, pv + 1]);
+          report.new_capstone_versions++;
+        }
+      }
     }
   });
   return report;

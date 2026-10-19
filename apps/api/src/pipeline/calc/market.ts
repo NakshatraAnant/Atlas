@@ -33,20 +33,29 @@ type DailyRow = { trade_date: string; security_id: number; ret_1d: number | null
 
 /** Calendar days of history replayed before `fromDate` so carried state (previous-day values, 20-session turnover) matches a full run. */
 export const MARKET_WARMUP_DAYS = 60;
-const WINDOW_DAYS = 366;
+/**
+ * Rows per window query. The embedded engine aborts on very large single results (session 4: a
+ * 366-day window of a 500-company universe, ~126k wide rows, crashed it), so the window length is
+ * derived from the universe size instead of being fixed.
+ */
+export const QUERY_ROW_BUDGET = Math.max(1000, Number(process.env.ATLAS_QUERY_ROW_BUDGET ?? 20_000));
+/** Calendar days per window for a universe of n securities (≈252 trading days a year), between 7 and 366. */
+export const windowDaysFor = (n: number): number => Math.max(7, Math.min(366, Math.floor((QUERY_ROW_BUDGET / Math.max(1, n)) * (365 / 252))));
 const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
-export async function computeMarketDaily(db: Db, opts: { fromDate?: string; calcRunId: string }): Promise<number> {
+export async function computeMarketDaily(db: Db, opts: { fromDate?: string; calcRunId: string; windowDays?: number }): Promise<number> {
   // Rows are read one window of dates at a time: a single query over the full history of a large
   // universe exhausts the embedded database's memory, and incremental runs only need recent state.
   const span = await db.one<{ lo: string | null; hi: string | null }>(`SELECT min(trade_date) AS lo, max(trade_date) AS hi FROM calc.security_daily`);
+  const universe = await db.one<{ n: number }>(`SELECT count(*)::int AS n FROM ref.securities s JOIN ref.companies c USING (company_id) WHERE c.coverage='full'`);
+  const WINDOW_DAYS = opts.windowDays ?? windowDaysFor(universe.n);
   const loadWindow = (from: string, to: string) =>
     db.query<DailyRow>(
       `SELECT d.trade_date, d.security_id, d.ret_1d, d.adj_close, d.sma_50, d.sma_200, d.high_52w, d.low_52w, d.market_cap_cr, p.traded_value, c.sector, c.classification_version
          FROM calc.security_daily d
          JOIN market.price_eod p ON p.security_id=d.security_id AND p.trade_date=d.trade_date AND p.exchange_code='NSE'
          JOIN ref.securities s ON s.security_id=d.security_id JOIN ref.companies c USING (company_id)
-        WHERE c.coverage='full' AND d.trade_date >= $1 AND d.trade_date < $2 ORDER BY d.trade_date`,
+        WHERE c.coverage='full' AND d.trade_date >= $1 AND d.trade_date < $2 ORDER BY d.trade_date, d.security_id`, // fixed order: float sums must not depend on row order
       [from, to],
     );
   const prevHigh = new Map<number, number>();

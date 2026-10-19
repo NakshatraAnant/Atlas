@@ -79,7 +79,7 @@ describe.skipIf(!url)('PostgreSQL integration (node-postgres driver)', () => {
 
     it('loads the same reference universe and calculations as the embedded fixture', async () => {
       const counts = await pgDb.one<{ companies: number; prices: number; metrics: number; briefings: number }>(
-        `SELECT (SELECT count(*)::int FROM ref.companies) AS companies,
+        `SELECT (SELECT count(*)::int FROM ref.companies WHERE coverage='full') AS companies,
                 (SELECT count(*)::int FROM market.price_eod) AS prices,
                 (SELECT count(*)::int FROM calc.metric_values) AS metrics,
                 (SELECT count(*)::int FROM calc.briefings WHERE status = 'published') AS briefings`,

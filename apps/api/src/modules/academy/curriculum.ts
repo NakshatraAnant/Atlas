@@ -6,6 +6,10 @@
 // Examples use hypothetical companies and round numbers; nothing describes a real security.
 
 import type { Correct, QType, ReadinessRules } from './engine.js';
+import { ED_MODULE_1, ED_MODULE_2, ED_MODULE_3, ED_MODULE_4 } from './content/equity-detective.js';
+import { MA_MODULE_1, MA_MODULE_2, MA_MODULE_3 } from './content/market-architect.js';
+import { MD_MODULE_2, MD_MODULE_3, MD_MODULE_4 } from './content/market-decoder.js';
+import { SE_MODULE_1, SE_MODULE_2, SE_MODULE_3 } from './content/signal-engineer.js';
 
 export interface SourceQuestion {
   id: string;
@@ -23,9 +27,14 @@ export interface SourceQuestion {
   objective?: string;
 }
 
+export const WIDGETS = ['order_book', 'percent_path', 'ownership_split', 'diversification', 'compound_growth', 'real_return', 'index_weighting', 'statement_flow', 'dupont', 'ev_bridge', 'drawdown', 'overfit', 'cost_drag', 'dcf', 'dcf_surface_3d', 'portfolio_risk', 'multiple_testing'] as const;
+export type Widget = (typeof WIDGETS)[number];
+
 export type Block =
   | { stage: 'discover'; kind: 'text'; title: string; body: string[] }
-  | { stage: 'observe'; kind: 'interactive'; title: string; widget: 'order_book' | 'percent_path' | 'ownership_split'; intro: string; alt_text: string }
+  | { stage: 'observe'; kind: 'interactive'; title: string; widget: Widget; intro: string; alt_text: string }
+  /** A guided exercise inside the ATLAS product itself (practical use of real screens on permitted data). */
+  | { stage: 'observe'; kind: 'atlas_task'; title: string; href: string; steps: string[]; alt_text: string }
   | { stage: 'predict'; kind: 'prediction'; prompt: string; options: string[]; answer: number; reveal: string }
   | { stage: 'investigate'; kind: 'worked_example'; title: string; steps: string[] }
   | { stage: 'decide'; kind: 'guided_practice'; prompt: string; hint: string; answer_text: string }
@@ -82,6 +91,9 @@ const marketDecoder: SourceCourse = {
     { id: 'md-o4', statement: 'Distinguish risk from certainty and explain why past returns do not guarantee future returns.', skill: 'risk_vs_certainty' },
     { id: 'md-o5', statement: 'Explain how diversification reduces the impact of a single company failing.', skill: 'diversification' },
     { id: 'md-o6', statement: 'Compare nominal and real (inflation-adjusted) returns.', skill: 'inflation' },
+    { id: 'md-o7', statement: 'Calculate compound growth and estimate doubling times.', skill: 'compounding' },
+    { id: 'md-o8', statement: 'Explain how index weighting determines index returns.', skill: 'index' },
+    { id: 'md-o9', statement: 'Read market breadth and an evidence-linked daily briefing.', skill: 'market_reading' },
   ],
   modules: [
     {
@@ -183,9 +195,9 @@ const marketDecoder: SourceCourse = {
         },
       ],
     },
-    { id: 'md-m2', title: 'Risk and return', summary: 'Volatility, diversification, and why higher potential return comes with more uncertainty.', lessons: [] },
-    { id: 'md-m3', title: 'Money over time', summary: 'Compounding, inflation and real returns.', lessons: [] },
-    { id: 'md-m4', title: 'Reading the market', summary: 'Indices, sectors, breadth and the daily briefing.', lessons: [] },
+    { id: 'md-m2', title: 'Risk and return', summary: 'Volatility, diversification, and why higher potential return comes with more uncertainty.', lessons: MD_MODULE_2 },
+    { id: 'md-m3', title: 'Money over time', summary: 'Compounding, inflation and real returns.', lessons: MD_MODULE_3 },
+    { id: 'md-m4', title: 'Reading the market', summary: 'Indices, sectors, breadth and the daily briefing.', lessons: MD_MODULE_4 },
   ],
   diagnostic: [
     { id: 'md-d01', skill: 'percentages', difficulty: 1, qtype: 'numeric', critical: true, stem: 'A share price rises from ₹200 to ₹250. What is the percentage increase?', correct: { value: 25, abs_tol: 0.05, unit: '%' }, explanation: '(250 − 200) ÷ 200 = 25%.', misconception: 'Dividing by the new price (50 ÷ 250 = 20%).' },
@@ -221,12 +233,13 @@ const equityDetective: SourceCourse = {
     { id: 'ed-o3', statement: 'Calculate and interpret margins, ROE and ROCE.', skill: 'ratios' },
     { id: 'ed-o4', statement: 'Assess leverage and its effect on risk.', skill: 'leverage' },
     { id: 'ed-o5', statement: 'Use P/E and EV/EBITDA with their limitations.', skill: 'valuation' },
+    { id: 'ed-o6', statement: 'Interpret financial quality flags as questions to investigate.', skill: 'quality' },
   ],
   modules: [
-    { id: 'ed-m1', title: 'Three statements, one business', summary: 'How the statements link and what each one hides.', lessons: [] },
-    { id: 'ed-m2', title: 'Profit is an opinion, cash is a fact', summary: 'Working capital, accruals and cash conversion.', lessons: [] },
-    { id: 'ed-m3', title: 'Returns on capital', summary: 'Margins, ROE, ROCE and what drives them.', lessons: [] },
-    { id: 'ed-m4', title: 'What is it worth?', summary: 'Relative valuation, enterprise value and its traps.', lessons: [] },
+    { id: 'ed-m1', title: 'Three statements, one business', summary: 'How the statements link and what each one hides.', lessons: ED_MODULE_1 },
+    { id: 'ed-m2', title: 'Profit is an opinion, cash is a fact', summary: 'Working capital, accruals and cash conversion.', lessons: ED_MODULE_2 },
+    { id: 'ed-m3', title: 'Returns on capital', summary: 'Margins, ROE, ROCE and what drives them.', lessons: ED_MODULE_3 },
+    { id: 'ed-m4', title: 'What is it worth?', summary: 'Relative valuation, enterprise value and its traps.', lessons: ED_MODULE_4 },
   ],
   diagnostic: [
     { id: 'ed-d01', skill: 'statements', difficulty: 1, qtype: 'single_choice', critical: true, stem: 'Which statement shows a company\'s assets, liabilities and equity at a point in time?', options: ['Profit and loss statement', 'Balance sheet', 'Cash-flow statement', 'Directors\' report'], correct: { index: 1 }, explanation: 'The balance sheet is a snapshot at a date; the P&L and cash-flow statements cover a period.', misconception: 'Mixing up period statements with the point-in-time balance sheet.' },
@@ -260,11 +273,12 @@ const signalEngineer: SourceCourse = {
     { id: 'se-o1', statement: 'Compute returns, volatility and drawdown from a price series.', skill: 'returns_stats' },
     { id: 'se-o2', statement: 'Recognise look-ahead, survivorship and data-snooping biases.', skill: 'bias' },
     { id: 'se-o3', statement: 'Design an out-of-sample test with costs and a fair benchmark.', skill: 'experiment_design' },
+    { id: 'se-o4', statement: 'Reason with probability and expected value without confusing averages with certainty.', skill: 'probability' },
   ],
   modules: [
-    { id: 'se-m1', title: 'Returns and randomness', summary: 'Probability, compounding, volatility and drawdown.', lessons: [] },
-    { id: 'se-m2', title: 'How backtests lie', summary: 'Look-ahead, survivorship and over-fitting.', lessons: [] },
-    { id: 'se-m3', title: 'Running a fair experiment', summary: 'Hypotheses, out-of-sample tests, costs and benchmarks in the Quant Lab.', lessons: [] },
+    { id: 'se-m1', title: 'Returns and randomness', summary: 'Probability, compounding, volatility and drawdown.', lessons: SE_MODULE_1 },
+    { id: 'se-m2', title: 'How backtests lie', summary: 'Look-ahead, survivorship and over-fitting.', lessons: SE_MODULE_2 },
+    { id: 'se-m3', title: 'Running a fair experiment', summary: 'Hypotheses, out-of-sample tests, costs and benchmarks in the Quant Lab.', lessons: SE_MODULE_3 },
   ],
   diagnostic: [
     { id: 'se-d01', skill: 'probability', difficulty: 1, qtype: 'single_choice', critical: true, stem: 'A fair coin has landed heads five times in a row. What is the probability the next toss is heads?', options: ['Less than 1/2, tails is due', 'Exactly 1/2', 'More than 1/2, heads is on a streak', 'It cannot be known'], correct: { index: 1 }, explanation: 'Independent tosses have no memory: the probability stays 1/2.', misconception: 'The gambler\'s fallacy.' },
@@ -298,11 +312,12 @@ const marketArchitect: SourceCourse = {
     { id: 'ma-o1', statement: 'Build and stress-test a discounted cash-flow valuation.', skill: 'dcf' },
     { id: 'ma-o2', statement: 'Measure and manage portfolio risk, including correlation effects.', skill: 'portfolio_risk' },
     { id: 'ma-o3', statement: 'Validate models out of sample and control for multiple testing.', skill: 'model_validation' },
+    { id: 'ma-o4', statement: 'Write falsifiable, evidence-linked research that separates facts, calculations and interpretations.', skill: 'research_communication' },
   ],
   modules: [
-    { id: 'ma-m1', title: 'Valuation under uncertainty', summary: 'DCF, terminal value, scenarios and sensitivity.', lessons: [] },
-    { id: 'ma-m2', title: 'Portfolios under pressure', summary: 'Correlation, concentration, drawdowns and stress tests.', lessons: [] },
-    { id: 'ma-m3', title: 'Research you can defend', summary: 'Validation, multiple testing and honest limitations.', lessons: [] },
+    { id: 'ma-m1', title: 'Valuation under uncertainty', summary: 'DCF, terminal value, scenarios and sensitivity.', lessons: MA_MODULE_1 },
+    { id: 'ma-m2', title: 'Portfolios under pressure', summary: 'Correlation, concentration, drawdowns and stress tests.', lessons: MA_MODULE_2 },
+    { id: 'ma-m3', title: 'Research you can defend', summary: 'Validation, multiple testing and honest limitations.', lessons: MA_MODULE_3 },
   ],
   diagnostic: [
     { id: 'ma-d01', skill: 'dcf', difficulty: 3, qtype: 'numeric', critical: true, stem: 'Free cash flow next year is ₹100 crore and grows 4% a year forever. The discount rate is 12%. Using the growing-perpetuity formula, what is the value in crore?', correct: { value: 1250, abs_tol: 0.5, unit: '₹ crore' }, explanation: '100 ÷ (0.12 − 0.04) = ₹1,250 crore.', misconception: 'Using this year\'s cash flow or adding growth to the discount rate.' },

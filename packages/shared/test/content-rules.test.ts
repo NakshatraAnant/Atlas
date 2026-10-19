@@ -39,3 +39,13 @@ describe('content rules (CPL-02, PRD §10.2)', () => {
     expect(isContentClean(t, { causalEvidenceLinked: true })).toBe(true);
   });
 });
+
+describe('education mode', () => {
+  it('allows mechanics vocabulary and debunked claims, but still blocks advice to the reader', () => {
+    expect(checkContent('Buy and sell orders meet in the order book; sellers wait at the ask.', { mode: 'education' })).toEqual([]);
+    expect(checkContent('Which is false? "This fund is risk-free and will double."', { mode: 'education' })).toEqual([]);
+    expect(checkContent('You should buy this share now.', { mode: 'education' }).map((v) => v.rule)).toContain('REC-ADVISE');
+    expect(checkContent('We recommend accumulating on dips. Act now!', { mode: 'education' }).map((v) => v.rule)).toEqual(expect.arrayContaining(['REC-WE-RECOMMEND', 'URGENCY']));
+    expect(checkContent('Buy and sell orders meet.').map((v) => v.rule)).toContain('REC-VERB'); // product mode unchanged
+  });
+});

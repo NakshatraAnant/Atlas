@@ -31,6 +31,8 @@ jobs:
         run: npm run typecheck
       - name: Unit, pipeline, policy and integration tests
         run: npm test
+      - name: Real PostgreSQL 17 integration tests (embedded server)
+        run: npm run test:postgres
       - name: Web production build
         run: npm run build -w @atlas/web
       - name: Dependency audit (production, high and above)
