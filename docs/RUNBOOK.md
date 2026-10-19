@@ -9,7 +9,7 @@ npm install
 node scripts/atlas.mjs start
 ```
 
-Then open http://localhost:3000. Development accounts are listed in `apps/api/src/seed.ts`.
+Then open http://localhost:3000 (or the `WEB_PORT` set in `.env.local`). The first start seeds 120 synthetic companies into `./data` (several minutes). Development accounts are listed in `apps/api/src/seed.ts`. `node scripts/atlas.mjs status | stop | logs | backup | restore` manage it.
 
 During development, two terminals instead:
 
@@ -21,7 +21,7 @@ npm run dev:api
 npm run dev:web
 ```
 
-Known issue: with background jobs on, the daily catch-up can crash the embedded database (see `KNOWN_LIMITATIONS.md`). Workaround: set `ATLAS_BACKGROUND_JOBS=false` for the API process.
+With background jobs on, the API catches up missed trading days in order at start (tested in `catchup.test.ts`). Set `ATLAS_BACKGROUND_JOBS=false` to turn this off.
 
 ## Seed or rebuild the local database
 
@@ -31,7 +31,26 @@ The database lives in `apps/api/data/pglite` (git-ignored). To rebuild it, move 
 npm run seed
 ```
 
-The default universe is 40 synthetic companies (plus a few extra listings), verified in session 3 (155 s). 120 crashed the embedded engine (`memory access out of bounds`); see KNOWN_LIMITATIONS.md.
+Seed settings (environment variables):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `SYNTHETIC_COMPANIES` | 120 | Size of the synthetic universe for a new seed. The API reads the size from the seeded database. |
+| `ATLAS_SEED_MODE` | `auto` | `memory` builds in memory and copies to disk (fast, needs about 3× the DB size in memory); `disk` builds in place; `auto` uses disk above 150 companies. |
+| `ATLAS_PIT_BATCH_COMPANIES` | 10 | Companies per point-in-time fundamentals batch in the calculation stage. |
+| `ATLAS_QUERY_ROW_BUDGET` | 20000 | Row budget for one market-window query. |
+| `ATLAS_PIPELINE_TRACE` | off | `1` logs memory, database size and WAL per pipeline stage. |
+
+Measured on this machine: 40 companies about 3 minutes; 120 companies (memory mode) a few minutes; 602 companies (disk mode) 97 minutes, peak RSS about 960 MB, database 1.7 GB.
+
+## Tests
+
+```bash
+npm test                 # unit + API integration (PGlite)
+npm run test:postgres    # real PostgreSQL 17 (node-postgres)
+npm run test:e2e         # browser journeys on Microsoft Edge
+npm run eval             # AI evaluation (stop the API first: PGlite is single-process)
+```
 
 ## Hosted database (Supabase `project-atlas`)
 

@@ -3,67 +3,61 @@
 **Read this first when resuming.** Then `git status`, `git log --oneline -10`, `npm install`, `npm test`.
 Do not trust any "passed" claim below until the tests rerun on your machine.
 
-_Last updated: 19 Oct 2026, end of session 3._
+_Last updated: 19 Oct 2026, end of session 4._
 
 ## Current position
 
 | Item | State |
 |---|---|
-| Current phase | Phase 5 (Academy foundation) **done for module 1**; next: fix the embedded-DB memory ceiling, then Phase 6 |
-| Next task | See `NEXT_ACTIONS.md` item 1 |
+| Current phase | Phases 0–9 done for the local, synthetic-data build; see `PHASE_STATUS.md` and `RELEASE_READINESS.md` |
+| Next task | See `NEXT_ACTIONS.md` |
 | Git branch | `feat/atlas-mvp` (local only; no remote, B-GH-01) |
-| Last verified commit | the commit that adds this file (see `git log -1`); previous: `8e80570` |
-| Local startup | **Verified 19 Oct 2026** with a fresh 40-company seed: API + web dev servers, sign-in, Academy catalogue → course → readiness check → result → enrol → lesson with order-book lab → quiz → mastery. Background-job catch-up at 40 companies not yet exercised. |
-| Supabase | `project-atlas`, ref `wyknwjdcexisrempmvjr`, `ap-south-1`, free plan, ACTIVE_HEALTHY. Migrations 001–006 applied; fingerprint `cf903493041bedc1db60c4847c37d52e` (2438 lines) identical to local. No data yet: app connection needs the DB password (B-SB-01). |
-| GitHub | Not created (B-GH-01). |
+| Last verified commit | see `git log -1` (session 4 commits: d56bd1d → the commit that adds this file) |
+| Local startup | Verified in session 4: `node scripts/atlas.mjs start` on an empty `./data` seeds 120 companies and starts API + web (see TEST_RESULTS.md) |
+| Supabase | `project-atlas`, ref `wyknwjdcexisrempmvjr`, `ap-south-1`, free plan. Migrations 001–008 applied; fingerprint `99a30a294b137941ea3956be016bbc16` (2547 lines) identical to local. Every table RLS-enabled, no permissive policies. No app data yet: the app connection needs the DB password (B-SB-01). |
+| GitHub | Not created (B-GH-01). Exact commands are in `BLOCKERS.md`. |
 
-## Verified this session (automated tests that ran)
-
-- `npm test`: **217 passed** (36 shared + 181 API), **8 skipped** (real-PostgreSQL suite, B-PG-01), 0 failed.
-- `npm run typecheck` (all workspaces): pass. `npm run build -w @atlas/web`: pass (5 Academy routes).
-- `npm run check:secrets`: pass.
-- Supabase security advisor: INFO-only (intended deny-by-default RLS).
-
-## Built this session
+## Built in session 4
 
 | Area | Files |
 |---|---|
-| Supabase + deny-by-default RLS | migrations 004, 005; `test/rls.test.ts`; `src/db/fingerprint.sql`; `scripts/schema-fingerprint.mts` |
-| DB TLS config | `DATABASE_SSL`, `DATABASE_CA_CERT` in `config.ts`, `db.ts` |
-| Real-PostgreSQL test suite (opt-in) | `test/postgres.integration.test.ts` |
-| Academy schema | migration 006 (`acad` schema) |
-| Academy engine, curriculum, sync, API | `src/modules/academy/{engine,curriculum,service,routes}.ts` |
-| Academy tests | `test/academy-engine.test.ts` (16), `test/academy.test.ts` (14) |
-| Lab simulations | `packages/shared/src/learning-sims.ts` + tests (9) |
-| Academy web | `apps/web/app/app/academy/**`, `components/academy.tsx`, styles in `globals.css` |
-| Docs | `docs/{ARCHITECTURE,SECURITY_AND_PRIVACY,DATA_RIGHTS_AND_PROVIDERS,ACADEMY_CURRICULUM,TESTING_AND_ACCEPTANCE,RUNBOOK,KNOWN_LIMITATIONS,REQUIREMENT_TRACEABILITY,DECISIONS,PROJECT_STATUS}.md`, execution ledger |
+| Root fix for the embedded-engine crash (ADR-018) | `modules/fundamentals/pit.ts` (batched PIT), `pipeline/calc/{daily,metrics,market}.ts`, `cli/seed.ts` (disk mode), `db/db.ts`, `pipeline/context.ts` (trace) |
+| Daily catch-up | `test/catchup.test.ts` |
+| PRD gaps | HOM-03 `modules/market/investigate.ts`; BKT-02 rule builder `modules/backtest/rules.ts` + `components/rule-builder.tsx`; ADM-06 CMS `modules/content/cms.ts` |
+| Academy completion | four courses (29 lessons, 87 quiz questions, 17 labs incl. 3D DCF surface), 7 games, 4 capstones, completion records; migration 007 |
+| User datasets | CSV price upload: `modules/datasets/*`, migration 008, `/app/research/datasets` |
+| Testing | financial golden set (59), Playwright e2e (8 + restart), real-PostgreSQL suite via embedded-postgres, AI policy regressions |
+| AI assistant | null (never zero) evidence for missing values (ADR-019); prediction / off-topic / unknown-company policy (ADR-020) |
+| Security | fastify 5.12.5; secret scan; audit reviewed (2 accepted build-time postcss advisories via Next 15) |
+| Docs | README, KNOWN_LIMITATIONS, TESTING_AND_ACCEPTANCE, RUNBOOK, REQUIREMENT_TRACEABILITY (per-ID audit), ACADEMY_CURRICULUM, RELEASE_READINESS |
 
 ## Database migrations
 
 | Migration | Local | Supabase |
 |---|---|---|
-| 001_schema, 002_reference_extras, 003_billing_notices | applied | applied |
-| 004_rls_deny_by_default | applied | applied |
-| 005_supabase_hardening | applied | applied |
-| 006_academy | applied | applied |
+| 001–006 | applied | applied |
+| 007_academy_capstones_games | applied | applied |
+| 008_user_datasets | applied | applied |
 
-## Defects found this session
+## Defects found and fixed in session 4
 
-| Defect | Status |
-|---|---|
-| Curriculum sync not idempotent (jsonb key order) | fixed, tested |
-| Full 120-company seed crashes PGlite (WASM memory) in the calc stage; daily catch-up crashed an older 268 MB DB | mitigated (default 40, ADR-017); root fix open |
-| Earlier local DB had no users (its seed had crashed before user creation) | moved to `backups/api-data-before-session3-2026-10-19`, reseeded |
+- PGlite crash at 120+ companies (unbounded PIT load; in-memory seed hitting the 4 GB WASM ceiling; unbounded market window).
+- Sector aggregate float-order nondeterminism (≤ 1e-9).
+- Diagnostic retake could repeat a just-seen question.
+- Completion endpoint omitted the record; Build-the-Business game solvable at defaults.
+- Assistant page crashed in current Edge (`useEffect` returning a Promise).
+- Assistant evidence recorded `0` for missing metric values; prediction questions with company names were answered.
+- Fastify/cookie typing regression. Corrected an earlier audit claim (postcss under Next was missing from the lockfile, not fixed).
 
 ## Environment variables (names only; see `.env.example`)
 
-`NODE_ENV, DATABASE_URL, DATABASE_SSL, DATABASE_CA_CERT, PGLITE_DIR, API_PORT, WEB_ORIGIN, APP_SECRET, OBJECT_STORE_DIR, EMAIL_TRANSPORT, AI_PROVIDER, ANTHROPIC_API_KEY, AI_MODEL, AI_COST_BUDGET_INR_PER_ANSWER, PAYMENT_GATEWAY, RAZORPAY_*, SANDBOX_WEBHOOK_SECRET, GST_RATE, SUPPLIER_STATE_CODE, SUPPLIER_GSTIN, GOOGLE_CLIENT_*, ALLOW_SYNTHETIC_DATA, ACADEMY_SHOW_DRAFTS, LOG_LEVEL, TRUST_PROXY, RATE_LIMIT_MULTIPLIER, SYNTHETIC_COMPANIES, ATLAS_BACKGROUND_JOBS, TEST_DATABASE_URL (tests only)`
+`NODE_ENV, DATABASE_URL, DATABASE_SSL, DATABASE_CA_CERT, PGLITE_DIR, API_PORT, WEB_PORT, WEB_ORIGIN, APP_SECRET, OBJECT_STORE_DIR, EMAIL_TRANSPORT, AI_PROVIDER, ANTHROPIC_API_KEY, AI_MODEL, AI_COST_BUDGET_INR_PER_ANSWER, PAYMENT_GATEWAY, RAZORPAY_*, SANDBOX_WEBHOOK_SECRET, GST_RATE, SUPPLIER_STATE_CODE, SUPPLIER_GSTIN, GOOGLE_CLIENT_*, ALLOW_SYNTHETIC_DATA, ACADEMY_SHOW_DRAFTS, LOG_LEVEL, TRUST_PROXY, RATE_LIMIT_MULTIPLIER, SYNTHETIC_COMPANIES, ATLAS_SEED_MODE, ATLAS_PIT_BATCH_COMPANIES, ATLAS_QUERY_ROW_BUDGET, ATLAS_PIPELINE_TRACE, ATLAS_BACKGROUND_JOBS, TEST_DATABASE_URL (tests only)`
 
 ## Outstanding security issues
 
-- node-postgres path untested (B-PG-01). Per-route rate limits not directly tested. No pen test (B-SEC-01).
+- No independent pen test (B-SEC-01). Per-route rate limits are not directly tested. Dev-only tooling advisories (vitest/vite/esbuild chain) remain; they are not shipped.
 
 ## Outstanding data-rights issues
 
-- No licensed data; provider scorecard is a template with no verified entries (`docs/DATA_RIGHTS_AND_PROVIDERS.md`).
-- Academy content is AI-drafted and unreviewed (shown as draft locally; production refuses to serve it).
+- No licensed data; the provider scorecard is a template with no verified entries (`docs/DATA_RIGHTS_AND_PROVIDERS.md`).
+- Academy content is AI-drafted and unreviewed. It is shown as draft locally, and production refuses to serve it.

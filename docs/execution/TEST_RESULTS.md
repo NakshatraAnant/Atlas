@@ -2,6 +2,22 @@
 
 Newest first. Only results of commands that actually ran.
 
+## 19 Oct 2026, session 4 (end)
+
+| Command | Result |
+|---|---|
+| `npm test` | **332 passed** (shared 53, API 279), 8 skipped (PostgreSQL suite without `TEST_DATABASE_URL`; it runs below, and the skips are not counted), 0 failed |
+| `npm run test:postgres` | 8/8 passed (PostgreSQL 17, node-postgres) |
+| `npm run test:e2e` | 8/8 passed (Edge, 44 s) + restart check: the note survived an API restart |
+| `npm run eval` | PASSED: 580 cases; golden 100%, red team 100%, causal 100%, numeric accuracy 1, 0 unsupported numbers, 0 content violations (before the session-4 fixes: golden 94.3%, red team 83.2%) |
+| `npm run typecheck` | pass (all workspaces) |
+| `npm run build -w @atlas/web` | pass |
+| `npm run check:secrets` | pass (257 tracked files) |
+| `npm audit --omit=dev` | 2 advisories (postcss 8.4.31 pinned by Next 15; build-time only; accepted; the fix is Next 16) |
+| `node scripts/atlas.mjs start` on an empty `./data` | pass: 120 companies seeded in memory in 237 s, 6 min 5 s in total; API and web healthy. Browser: sign-in, Home briefing; the assistant refuses a prediction question and reports Tata Motors as not covered |
+| Seeds (earlier in session 4) | 40, 120 and 602 companies complete (602: disk mode, 5,820 s, peak RSS 956 MB, DB 1.7 GB) |
+| Supabase | migrations 001–008 checksums identical to local; 102 tables, 0 without RLS |
+
 ## 19 Oct 2026, session 3 (end)
 
 | Command | Result |

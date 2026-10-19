@@ -22,3 +22,17 @@
 - Academy foundation: migration 006, engine, curriculum (4 courses, 48 diagnostic questions, MARKET DECODER module 1), API, web, labs. Found and fixed a non-idempotent curriculum sync.
 - Local verification exposed that the default 120-company seed crashes PGlite (and has likely never completed); defaulted to 40 (ADR-017), reseeded, verified the Academy journey in the browser.
 - 217 tests pass, 8 skipped. Web build passes.
+
+## Session 4 — 19 Oct 2026
+
+- Root-caused and fixed the PGlite crash (ADR-018): batched point-in-time loading, a market-window row budget, a disk seed mode above 150 companies. Seeds of 40, 120 and 602 companies complete; catch-up is tested.
+- Closed PRD gaps: HOM-03 (worth investigating), BKT-02 (rule builder), ADM-06 (content management).
+- Completed the Academy: 4 courses, 29 lessons, 17 labs including a 3D DCF surface, 7 games, 4 capstones and completion records (migration 007).
+- Added user CSV price datasets (migration 008).
+- Testing: financial golden set (59/59), Playwright e2e on Edge (8/8 plus restart), real PostgreSQL 17 via embedded-postgres (8/8; B-PG-01 resolved).
+- AI evaluation: fixed prediction/off-topic/unknown-company policy and a fabricated-zero evidence bug (ADR-019/020). 580 cases pass the gate.
+- Fixed a diagnostic retake repetition and an assistant crash in current Edge.
+- The audit review found that the earlier "0 production vulnerabilities" was a lockfile artefact. 2 build-time postcss advisories via Next 15 are accepted; the fix is Next 16.
+- Launcher first run on an empty `./data`: 120 companies, healthy in 6 min 5 s; checked in the browser.
+- Supabase: migrations 001–008 checksums match local; 102 tables, all RLS-enabled.
+- Still blocked: GitHub (B-GH-01), app→Supabase password (B-SB-01).

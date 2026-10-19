@@ -28,10 +28,10 @@ The browser talks only to the ATLAS API (via the Next.js same-origin rewrite). T
 ## Not done / open
 
 - No independent penetration test (B-SEC-01).
-- File upload validation beyond support screenshots: no general upload feature exists yet.
-- `npm audit` last run in CI (session 2); not re-run in session 3.
+- User CSV dataset upload (session 4): size and row limits, strict column mapping, numeric and date validation, owner-scoped storage (datasets.test.ts). No XLSX or PDF parsing.
+- `npm audit --omit=dev` (19 Oct 2026, session 4): **2 advisories, both from the postcss 8.4.31 that Next 15.5.28 pins exactly** (GHSA-qx2v-qp2m-jg93, GHSA-6g55-p6wh-862q, GHSA-fxqj-rqcc-2cmp, GHSA-r28c-9q8g-f849). That postcss runs only at build time on ATLAS's own stylesheets; the advisories need attacker-controlled CSS or source maps, which ATLAS never processes. Accepted for local use. The fix is Next 16 (a breaking upgrade), tracked in NEXT_ACTIONS. npm does not apply the root `postcss` override to this workspace dependency. An earlier "0 production vulnerabilities" result (commit 2f9b29c) was an artefact: the lockfile was missing Next's postcss entry at that point. Development-only advisories (vitest / vite / esbuild / tinypool chain) are not shipped.
 - Resource limits for expensive computations exist for backtests (queue, plan limits) but are not load-tested.
-- The real-PostgreSQL driver path has not been exercised by tests (B-PG-01).
+- The real-PostgreSQL driver path is tested against a local PostgreSQL 17 (`npm run test:postgres`, 8/8), not against Supabase itself (B-SB-01).
 
 ## Privacy
 
