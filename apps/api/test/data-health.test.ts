@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import type { AppContext } from '../src/context.js';
-import { PROVIDER_ASSESSMENTS } from '../src/modules/data/providers.js';
+import { PROVIDER_ASSESSMENTS } from '../src/modules/datahealth/providers.js';
 import { DEV_PASSWORD } from '../src/seed.js';
 import { Client } from './http.js';
 import { fixtureContext } from './fixture.js';

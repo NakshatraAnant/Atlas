@@ -9,7 +9,7 @@
 
 ## Official public sources: terms read on 20 Oct 2026
 
-Before building an automated Nifty 50 / end-of-day / filings engine, the published terms of the official sites were read in a browser. The result is recorded in `apps/api/src/modules/data/providers.ts` and shown on **Data health** (`/app/data-health`).
+Before building an automated Nifty 50 / end-of-day / filings engine, the published terms of the official sites were read in a browser. The result is recorded in `apps/api/src/modules/datahealth/providers.ts` and shown on **Data health** (`/app/data-health`).
 
 | Source | Terms | Automated retrieval | Outcome |
 |---|---|---|---|
