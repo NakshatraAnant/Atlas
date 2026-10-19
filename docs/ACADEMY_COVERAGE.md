@@ -2,15 +2,15 @@
 
 Required topic lists (agreed Academy expansion, 20 Oct 2026) mapped to the lessons that exist in `apps/api/src/modules/academy`. **Covered** means a lesson teaches the topic with an exercise and a graded quiz. **Partial** means the topic is touched inside another lesson but not taught in full. **Missing** means no lesson yet. All content is an AI-assisted draft in expert review; nothing here is expert-approved.
 
-Totals, after batch 1 (20 Oct 2026):
+Totals, after batch 2 (20 Oct 2026; batch 1 added MARKET DECODER module 5, batch 2 added EQUITY DETECTIVE module 5):
 
 | Course | Required topics | Covered | Partial | Missing | Lessons |
 |---|---|---|---|---|---|
 | MARKET DECODER | 17 | 11 | 3 | 3 | 14 |
-| EQUITY DETECTIVE | 21 | 8 | 5 | 8 | 8 |
+| EQUITY DETECTIVE | 21 | 15 | 5 | 1 | 15 |
 | SIGNAL ENGINEER | 27 | 9 | 4 | 14 | 6 |
 | MARKET ARCHITECT | 22 | 7 | 2 | 13 | 6 |
-| **All** | **87** | **35** | **14** | **38** | **34** |
+| **All** | **87** | **42** | **14** | **31** | **41** |
 
 Every course has a capstone with a rubric (`content/capstones.ts`). No course has a separate final assessment yet; the readiness check and lesson quizzes are the only graded instruments.
 
@@ -40,25 +40,25 @@ Every course has a capstone with a rubric (`content/capstones.ts`). No course ha
 
 | # | Required topic | Status | Where |
 |---|---|---|---|
-| 1 | Business models and industry structure | Missing | — |
-| 2 | Reading annual reports | Missing | — |
-| 3 | Standalone versus consolidated statements | Missing | (product shows both bases) |
-| 4 | Revenue quality and growth drivers | Missing | — |
+| 1 | Business models and industry structure | Covered (batch 2) | ed-l9 |
+| 2 | Reading annual reports | Covered (batch 2) | ed-l10 |
+| 3 | Standalone versus consolidated statements | Covered (batch 2) | ed-l11 |
+| 4 | Revenue quality and growth drivers | Covered (batch 2) | ed-l12 |
 | 5 | Gross profit, EBITDA, EBIT and net profit | Covered | ed-l1 |
-| 6 | Operating leverage and margins | Partial | ed-l5; Build the Business game |
+| 6 | Operating leverage and margins | Partial | ed-l5, ed-l9 (operating leverage example); Build the Business game |
 | 7 | Balance-sheet analysis | Covered | ed-l2 |
 | 8 | Working capital and cash-conversion cycles | Covered | ed-l3 |
 | 9 | Operating cash flow versus reported earnings | Covered | ed-l3, ed-l4 |
-| 10 | Free cash flow and capital expenditure | Missing | — |
+| 10 | Free cash flow and capital expenditure | Covered (batch 2) | ed-l13 |
 | 11 | ROE and ROIC | Covered | ed-l5, ed-l6 (ROCE) |
 | 12 | Debt, interest coverage and resilience | Partial | ed-l6 |
 | 13 | Earnings quality and warning signs | Covered | ed-l4 |
-| 14 | Ratio interpretation and limitations | Partial | ed-l5–ed-l8 |
-| 15 | Peer comparison and sector context | Missing | — |
+| 14 | Ratio interpretation and limitations | Partial | ed-l5–ed-l8, ed-l14 |
+| 15 | Peer comparison and sector context | Covered (batch 2) | ed-l14 |
 | 16 | P/E, P/B, EV/EBITDA | Covered | ed-l7, ed-l8 |
 | 17 | Growth, valuation and expectations | Partial | ed-l7 (earnings yield) |
 | 18 | Basic scenario and sensitivity analysis | Missing (in MARKET ARCHITECT ma-l2) | — |
-| 19 | Corporate actions and comparisons | Missing | — |
+| 19 | Corporate actions and comparisons | Covered (batch 2) | ed-l15 |
 | 20 | Evidence-backed company research report | Partial | capstone |
 | 21 | Final assessment and capstone | Covered (capstone); final assessment missing | capstones.ts |
 

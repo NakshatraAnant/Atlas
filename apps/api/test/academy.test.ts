@@ -41,7 +41,7 @@ describe('Academy catalogue (curriculum from the database)', () => {
     expect(r.status).toBe(200);
     expect(r.json.courses.map((c: any) => c.title)).toEqual(['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT']);
     expect(r.json.courses.every((c: any) => c.draft === true)).toBe(true);
-    expect(r.json.courses.map((c: any) => c.lessons)).toEqual([14, 8, 6, 6]);
+    expect(r.json.courses.map((c: any) => c.lessons)).toEqual([14, 15, 6, 6]);
     expect(r.json.not_a_qualification).toMatch(/not a professional qualification/);
   });
   it('course detail explains prerequisites and the five-question check', async () => {

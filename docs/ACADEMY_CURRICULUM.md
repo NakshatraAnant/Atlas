@@ -19,11 +19,11 @@ Editing rule: change the source file and restart. Changed courses, lessons and q
 | # | Course | Audience | Modules | Lessons authored | Diagnostic bank |
 |---|---|---|---|---|---|
 | 1 | ATLAS: MARKET DECODER | Beginners | 5 | 14 lessons (42 quiz questions), 14 objectives | 12 |
-| 2 | ATLAS: EQUITY DETECTIVE | Company analysis | 4 | 8 lessons (24), 6 objectives | 12 |
+| 2 | ATLAS: EQUITY DETECTIVE | Company analysis | 5 | 15 lessons (45), 13 objectives | 12 |
 | 3 | ATLAS: SIGNAL ENGINEER | Testing ideas with data | 3 | 6 lessons (18), 4 objectives | 12 |
 | 4 | ATLAS: MARKET ARCHITECT | Valuation, portfolio risk, validation | 3 | 6 lessons (18), 4 objectives | 12 |
 
-Every module has at least two complete lessons (34 lessons, 102 quiz questions, 48 diagnostic questions). Coverage of the required topic lists: `docs/ACADEMY_COVERAGE.md`. Content source files: `apps/api/src/modules/academy/curriculum.ts` (module 1) and `content/{market-decoder,equity-detective,signal-engineer,market-architect,capstones}.ts`. Integrity is enforced by `test/academy-content.test.ts` (seven stages, objectives taught and assessed, answer keys valid, no advice language in education mode).
+Every module has at least two complete lessons (41 lessons, 123 quiz questions, 48 diagnostic questions). Coverage of the required topic lists: `docs/ACADEMY_COVERAGE.md`. Content source files: `apps/api/src/modules/academy/curriculum.ts` (module 1) and `content/{market-decoder,market-decoder-plumbing,equity-detective,equity-detective-context,signal-engineer,market-architect,capstones}.ts`. Integrity is enforced by `test/academy-content.test.ts` (seven stages, objectives taught and assessed, answer keys valid, no advice language in education mode).
 
 ## Placement diagnostic
 
