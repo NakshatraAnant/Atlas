@@ -28,11 +28,17 @@ export default function LessonPlayer({ params }: { params: Promise<{ id: string 
   const [i, setI] = useState(0);
   const [reached, setReached] = useState(0);
   const [inQuiz, setInQuiz] = useState(false);
+  const [resumed, setResumed] = useState<number | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (l.data?.progress) {
       const b = Math.min(l.data.progress.last_block, l.data.blocks.length - 1);
       setReached(l.data.progress.completed_at ? l.data.blocks.length - 1 : b);
+      // Resume an unfinished lesson at the stage the learner reached; a finished one opens at the start.
+      if (!l.data.progress.completed_at && b > 0) {
+        setI(b);
+        setResumed(b);
+      }
     }
   }, [l.data]);
   if (l.loading) return <Loading lines={8} label="Loading lesson" />;
@@ -54,6 +60,7 @@ export default function LessonPlayer({ params }: { params: Promise<{ id: string 
       <h1>{d.title}</h1>
       <p className="mu">{d.minutes} min · {d.objectives.map((o) => o.statement).join(' ')}</p>
       {d.draft && <DraftBanner what="This lesson" />}
+      {resumed !== null && i === resumed && !inQuiz && <p className="okbox" role="status">Resumed where you left off (stage {resumed + 1} of {d.blocks.length}). <button className="link" onClick={() => go(0)}>Start from the beginning</button></p>}
       {d.prerequisites.some((p) => !p.completed) && <p className="mu">Builds on: {d.prerequisites.map((p, k) => <span key={p.lesson_id}>{k > 0 && ', '}<a href={`/app/academy/lesson/${p.lesson_id}`}>{p.title}</a>{p.completed ? ' ✓' : ''}</span>)}. You can continue without it.</p>}
       <StageStepper current={inQuiz ? -1 : i} maxReached={reached} onPick={go} />
       {!inQuiz ? (

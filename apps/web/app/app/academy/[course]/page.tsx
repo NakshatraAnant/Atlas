@@ -5,7 +5,7 @@ import { DraftBanner } from '@/components/academy';
 import { Loading, Problem, useApi } from '@/components/ui';
 
 interface Detail {
-  course_id: string; title: string; tagline: string; description: string; audience: string; prerequisites: string; completion_statement: string; draft: boolean;
+  course_id: string; title: string; tagline: string; description: string; audience: string; prerequisites: string; completion_statement: string; draft: boolean; available?: boolean; unavailable_reason?: string;
   preceding_course: { course_id: string; title: string } | null;
   diagnostic: { questions: number; minutes: number; max_attempts_per_week: number; rules: { high_min: number; low_max: number } };
   objectives: { objective_id: string; statement: string }[];
@@ -14,7 +14,7 @@ interface Detail {
     enrolment: { entry_route: string; enrolled_at: string } | null;
     attempts: { attempt_id: string; submitted_at: string | null; readiness: string | null }[];
     diagnostic: { remaining: number; next_allowed_at: string | null };
-    progress: { lesson_id: string; completed_at: string | null }[];
+    progress: { lesson_id: string; completed_at: string | null; last_block?: number }[];
     mastery: { objective_id: string; state: string; estimate: number; evidence_count: number }[];
   };
 }
@@ -27,6 +27,25 @@ export default function CoursePage({ params }: { params: Promise<{ course: strin
   if (d.loading) return <Loading lines={8} label="Loading course" />;
   if (d.error) return <Problem error={d.error} retry={d.reload} />;
   const c = d.data!;
+  if (c.available === false) {
+    return (
+      <div className="academy">
+        <p><a href="/app/academy">← Academy</a></p>
+        <header className="ac-hero">
+          <p className="eyebrow">{c.title}</p>
+          <h1>{c.tagline}</h1>
+          <p style={{ maxWidth: 680 }}>{c.description}</p>
+          <p className="mu">For: {c.audience}</p>
+        </header>
+        <p className="warn" role="note">{c.unavailable_reason}</p>
+        <section aria-labelledby="mods">
+          <h2 id="mods">What the course will cover</h2>
+          <ol className="modules">{c.modules.map((m) => <li key={m.module_id} className="card"><h3>Module {m.position}: {m.title}</h3><p className="mu">{m.summary}</p></li>)}</ol>
+        </section>
+        <p className="disc">{c.completion_statement}</p>
+      </div>
+    );
+  }
   const L = c.learner;
   const lastDone = L?.attempts.find((a) => a.submitted_at);
   const enrol = async (ack: boolean) => {
@@ -41,6 +60,10 @@ export default function CoursePage({ params }: { params: Promise<{ course: strin
     }
   };
   const done = (id: string) => !!L?.progress.find((p) => p.lesson_id === id && p.completed_at);
+  // Resume: the first lesson in course order that is not completed (lessons already started come first).
+  const ordered = c.modules.flatMap((m) => m.lessons);
+  const started = ordered.find((l) => !done(l.lesson_id) && L?.progress.some((p) => p.lesson_id === l.lesson_id));
+  const next = started ?? ordered.find((l) => !done(l.lesson_id));
   return (
     <div className="academy">
       <p><a href="/app/academy">← Academy</a></p>
@@ -49,6 +72,8 @@ export default function CoursePage({ params }: { params: Promise<{ course: strin
         <h1>{c.tagline}</h1>
         <p style={{ maxWidth: 680 }}>{c.description}</p>
         <p className="mu">For: {c.audience}</p>
+        {L?.enrolment && next && <p><a className="btn" href={`/app/academy/lesson/${next.lesson_id}`}>{started ? 'Resume' : 'Next lesson'}: {next.title}</a></p>}
+        {L?.enrolment && !next && ordered.length > 0 && <p className="okbox">All lessons completed. Next: the capstone below.</p>}
       </header>
       {c.draft && <DraftBanner what="This course" />}
       <div className="grid2">

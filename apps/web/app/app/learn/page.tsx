@@ -9,7 +9,8 @@ export default function Learn() {
   const done = d.path.lessons.filter((l) => l.progress?.completed_at).length;
   return (
     <>
-      <h1>Learn</h1>
+      <h1>Quick lessons</h1>
+      <p className="card" role="note">Looking for the courses? <a href="/app/academy">ATLAS Academy</a> has four structured courses with readiness checks, labs, quizzes and capstones. The short lessons below are quick concept notes linked from the research screens.</p>
       <p className="mu">Short lessons on reading companies and markets, each linked to the screens where the idea is used. Lessons teach concepts; they do not recommend securities.</p>
       <section className="card">
         <h2>{d.path.title}</h2>

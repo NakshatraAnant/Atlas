@@ -102,6 +102,11 @@ export async function runRetention(ctx: AppContext): Promise<Record<string, numb
       for (const tbl of ['app.watchlist_items WHERE watchlist_id IN (SELECT watchlist_id FROM app.watchlists WHERE user_id=$1)', 'app.watchlists WHERE user_id=$1', 'app.notes WHERE user_id=$1', 'app.workspaces WHERE user_id=$1', 'app.saved_screens WHERE user_id=$1', 'app.hypotheses WHERE user_id=$1', 'app.research_history WHERE user_id=$1', 'app.learning_progress WHERE user_id=$1', 'app.peer_sets WHERE user_id=$1', 'app.last_visits WHERE user_id=$1', 'app.company_views WHERE user_id=$1', 'app.notifications WHERE user_id=$1']) {
         await t.query(`DELETE FROM ${tbl}`, [e.user_id]);
       }
+      // Academy learning records are personal data too (answers, progress, ledger). Enrolments go before
+      // the diagnostic attempts they reference.
+      for (const tbl of ['acad.enrolments', 'acad.quiz_attempts', 'acad.lesson_progress', 'acad.objective_mastery', 'acad.review_schedule', 'acad.capstone_submissions', 'acad.completion_records', 'acad.game_scores', 'acad.learning_events', 'acad.achievement_unlocks', 'acad.learner_settings', 'acad.diagnostic_attempts']) {
+        await t.query(`DELETE FROM ${tbl} WHERE user_id=$1`, [e.user_id]);
+      }
       await t.query(`UPDATE app.analytics_events SET user_id=NULL, anon_id='erased' WHERE user_id=$1`, [e.user_id]);
       await t.query(`UPDATE app.account_deletions SET erased_at=now() WHERE user_id=$1`, [e.user_id]);
     });

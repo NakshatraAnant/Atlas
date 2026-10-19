@@ -54,11 +54,18 @@ export default function Home() {
             <h2 id="rc">Pick up where you left off</h2>
             {recent.loading ? <Loading lines={2} /> : recent.data?.items.length ? <ul>{recent.data.items.slice(0, 8).map((r, i) => <li key={i}><a href={hrefFor(r)}>{r.label}</a> <span className="mu">{dateOrDash(r.at)}</span></li>)}</ul> : <Empty>Your recent companies, screens and backtests appear here.</Empty>}
           </section>
-          {learning.data && learning.data.courses.length > 0 && (
+          {learning.data && learning.data.courses.length > 0 ? (
             <section className="card" aria-labelledby="lp">
               <h2 id="lp">Learning progress</h2>
               <ul>{learning.data.courses.map((c) => <li key={c.course_id}><a href={`/app/academy/${c.course_id}`}>{c.title}</a> <span className="mu">lessons {c.lessons_completed}/{c.lessons} · mastered {c.mastered}/{c.objectives} objectives</span></li>)}</ul>
               {learning.data.reviews_due > 0 && <p><a href="/app/academy/review">{learning.data.reviews_due} concept{learning.data.reviews_due === 1 ? '' : 's'} due for review</a></p>}
+              <p><a href="/app/academy">All courses</a></p>
+            </section>
+          ) : (
+            <section className="card" aria-labelledby="lp">
+              <h2 id="lp">ATLAS Academy</h2>
+              <p>Four courses, from how the market works (MARKET DECODER) to defending a research dossier (MARKET ARCHITECT). Each starts with a five-question readiness check.</p>
+              <p><a className="btn" href="/app/academy">Browse the courses</a></p>
             </section>
           )}
           <section className="card" aria-labelledby="cl">

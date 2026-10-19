@@ -8,7 +8,7 @@ test('Academy: readiness check, enrolment, lesson lab, quiz and mastery', async 
   const w = watchErrors(page);
   await signIn(page, 'free@atlas.test', '/app/academy');
   await expect(page.getByRole('heading', { name: 'MARKET DECODER' })).toBeVisible();
-  await page.getByRole('link', { name: /MARKET DECODER/ }).click();
+  await page.locator('a.course-link', { hasText: 'MARKET DECODER' }).click();
   await expect(page.locator('main')).toContainText('Before you start');
   await page.getByRole('link', { name: /readiness check/i }).click();
   await expect(page.getByRole('heading', { name: 'Readiness check' })).toBeVisible();
@@ -65,5 +65,43 @@ test('Academy: a game, the 3D/table DCF lab and the capstone page work', async (
   await page.goto('/app/academy/market-architect/capstone');
   await expect(page.getByRole('heading', { name: 'Defend a valuation range' })).toBeVisible();
   await expect(page.locator('main')).toContainText('Course completion');
+  w.assertClean();
+});
+
+test('Academy is discoverable, every course opens, and a lesson resumes after refresh with XP recorded', async ({ page }) => {
+  const w = watchErrors(page);
+  await signIn(page, 'pro@atlas.test', '/app');
+  // Discoverable from Home and from the primary navigation (second item).
+  await expect(page.getByRole('heading', { name: /ATLAS Academy|Learning progress/ })).toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'Sections' });
+  await expect(nav.getByRole('link').nth(1)).toHaveText('Academy');
+  await nav.getByRole('link', { name: 'Academy', exact: true }).click();
+  await page.waitForURL('**/app/academy');
+  for (const name of ['MARKET DECODER', 'EQUITY DETECTIVE', 'SIGNAL ENGINEER', 'MARKET ARCHITECT']) await expect(page.getByRole('heading', { name })).toBeVisible();
+  await expect(page.locator('main')).toContainText(/Preview mode|expert review/);
+  // Every course detail opens directly and survives a reload.
+  for (const id of ['market-decoder', 'equity-detective', 'signal-engineer', 'market-architect']) {
+    await page.goto(`/app/academy/${id}`);
+    await expect(page.getByRole('heading', { name: 'Modules' })).toBeVisible();
+  }
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Modules' })).toBeVisible();
+  // Advance two stages, refresh, and resume at the same stage.
+  await page.goto('/app/academy/lesson/md-l4');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  const stageHeading = await page.locator('main h2').first().textContent();
+  await page.reload();
+  await expect(page.locator('main')).toContainText('Resumed where you left off (stage 3');
+  await expect(page.locator('main h2').first()).toHaveText(stageHeading!);
+  // Browser back/forward keep working.
+  await page.goBack();
+  await page.goForward();
+  await expect(page.locator('main')).toContainText('Resumed where you left off');
+  // Progress page: level, XP rules and achievements are shown from the server ledger.
+  await page.goto('/app/academy/progress');
+  await expect(page.getByRole('heading', { name: /^Level \d+/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'How XP is earned' })).toBeVisible();
+  await expect(page.locator('main')).toContainText('First Concept Mastered');
   w.assertClean();
 });

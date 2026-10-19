@@ -7,9 +7,9 @@ import { Disclosure, useApi } from './ui';
 import { useApp } from './providers';
 
 const APP_NAV: [string, string][] = [
-  ['/app', 'Home'], ['/app/market', 'Market'], ['/app/companies', 'Companies'], ['/app/assistant', 'Assistant'], ['/app/screener', 'Screener'], ['/app/lab', 'Quant Lab'], ['/app/research', 'My research'], ['/app/academy', 'Academy'], ['/app/learn', 'Learn'],
+  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/market', 'Market'], ['/app/companies', 'Companies'], ['/app/assistant', 'Assistant'], ['/app/screener', 'Screener'], ['/app/lab', 'Quant Lab'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'],
 ];
-const PUBLIC_NAV: [string, string][] = [['/', 'Overview'], ['/briefing-sample', 'Sample briefing'], ['/pricing', 'Pricing'], ['/methodology', 'Methodology'], ['/help', 'Help']];
+const PUBLIC_NAV: [string, string][] = [['/', 'Overview'], ['/app/academy', 'Academy'], ['/briefing-sample', 'Sample briefing'], ['/pricing', 'Pricing'], ['/methodology', 'Methodology'], ['/help', 'Help']];
 
 export function Shell({ children }: { children: ReactNode }) {
   const path = usePathname() ?? '/';

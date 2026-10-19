@@ -43,6 +43,9 @@ interface LessonRow {
   course_id: string;
 }
 
+/** Statuses a course can be listed with (retired versions are never listed). */
+const LISTED_STATUSES = ['draft', 'in_review', 'published'];
+
 export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   const db = ctx.db;
   const statuses = visibleStatuses(ctx.cfg.academyShowDrafts);
@@ -62,11 +65,19 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
     );
 
   // ───── Catalogue ─────
+  // Every current course is always listed so learners can find the Academy even before content is
+  // published. Whether its lessons can be opened is decided here, on the server (available).
   app.get('/v1/academy/courses', async (req) => {
-    const courses = await currentCourses(db, statuses);
+    const courses = await currentCourses(db, LISTED_STATUSES);
     const counts = await db.query<{ course_id: string; modules: number; lessons: number }>(
       `SELECT m.course_id, count(DISTINCT m.module_id)::int AS modules, count(DISTINCT l.lesson_id) FILTER (WHERE l.status = ANY($1))::int AS lessons
          FROM acad.modules m LEFT JOIN acad.lessons l USING (module_id) GROUP BY m.course_id`,
+      [statuses],
+    );
+    const minutes = await db.query<{ course_id: string; minutes: number }>(
+      `SELECT course_id, coalesce(sum(minutes), 0)::int AS minutes FROM (
+         SELECT DISTINCT ON (l.lesson_id) m.course_id, l.minutes FROM acad.lessons l JOIN acad.modules m USING (module_id)
+          WHERE l.status = ANY($1) ORDER BY l.lesson_id, l.version DESC) x GROUP BY course_id`,
       [statuses],
     );
     const enrolments = req.user ? await db.query<{ course_id: string; entry_route: string; enrolled_at: string }>(`SELECT course_id, entry_route, enrolled_at FROM acad.enrolments WHERE user_id=$1`, [req.user.userId]) : [];
@@ -76,16 +87,35 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
     return {
       courses: courses.map((c) => ({
         course_id: c.course_id, version: c.version, title: c.title, tagline: c.tagline, description: c.description, audience: c.audience, position: c.position,
-        draft: isDraft(c.status), modules: counts.find((x) => x.course_id === c.course_id)?.modules ?? 0, lessons: counts.find((x) => x.course_id === c.course_id)?.lessons ?? 0,
+        draft: isDraft(c.status), status: c.status, available: statuses.includes(c.status),
+        modules: counts.find((x) => x.course_id === c.course_id)?.modules ?? 0,
+        lessons: statuses.includes(c.status) ? (counts.find((x) => x.course_id === c.course_id)?.lessons ?? 0) : 0,
+        minutes: statuses.includes(c.status) ? (minutes.find((x) => x.course_id === c.course_id)?.minutes ?? 0) : 0,
         enrolment: enrolments.find((e) => e.course_id === c.course_id) ?? null,
         last_diagnostic: lastDiag.find((d) => d.course_id === c.course_id) ?? null,
       })),
       not_a_qualification: 'Academy courses are education, not a professional qualification or investment advice.',
+      preview_mode: ctx.cfg.academyShowDrafts,
+      review_note: ctx.cfg.academyShowDrafts
+        ? 'Preview mode: this local environment shows content that is still in expert review. It is labelled draft and is not expert-approved.'
+        : 'Courses open once their lessons pass the seven-point expert review. Until then they are listed here but cannot be started.',
     };
   });
 
   app.get('/v1/academy/courses/:id', async (req) => {
     const { id } = parse(courseParam, req.params);
+    const listed = (await currentCourses(db, LISTED_STATUSES)).find((x) => x.course_id === id);
+    if (!listed) throw notFound('No such course.');
+    if (!statuses.includes(listed.status)) {
+      const outline = await db.query<{ module_id: string; position: number; title: string; summary: string }>(`SELECT module_id, position, title, summary FROM acad.modules WHERE course_id=$1 ORDER BY position`, [id]);
+      return {
+        course_id: listed.course_id, version: listed.version, title: listed.title, tagline: listed.tagline, description: listed.description, audience: listed.audience, prerequisites: listed.prerequisites,
+        completion_statement: listed.completion_statement, draft: true, status: listed.status, available: false,
+        unavailable_reason: 'This course is in expert review. Its lessons open once they pass the seven-point review.',
+        modules: outline.map((m) => ({ ...m, lessons: [] })), objectives: [], learner: null, preceding_course: null,
+        diagnostic: { questions: listed.readiness_rules.questions, minutes: DIAGNOSTIC_MINUTES, max_attempts_per_week: listed.readiness_rules.max_attempts_per_week, rules: listed.readiness_rules },
+      };
+    }
     const c = await course(id);
     const modules = await db.query<{ module_id: string; position: number; title: string; summary: string }>(`SELECT module_id, position, title, summary FROM acad.modules WHERE course_id=$1 ORDER BY position`, [id]);
     const lessons = await db.query<{ lesson_id: string; module_id: string; position: number; title: string; minutes: number; status: string; objective_ids: string[] }>(
@@ -107,7 +137,7 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
     }
     return {
       course_id: c.course_id, version: c.version, title: c.title, tagline: c.tagline, description: c.description, audience: c.audience, prerequisites: c.prerequisites,
-      completion_statement: c.completion_statement, draft: isDraft(c.status),
+      completion_statement: c.completion_statement, draft: isDraft(c.status), status: c.status, available: true,
       preceding_course: preceding ? { course_id: preceding.course_id, title: preceding.title } : null,
       diagnostic: { questions: c.readiness_rules.questions, minutes: DIAGNOSTIC_MINUTES, max_attempts_per_week: c.readiness_rules.max_attempts_per_week, rules: c.readiness_rules },
       objectives,

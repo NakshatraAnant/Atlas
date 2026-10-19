@@ -31,6 +31,7 @@ a { color: var(--ac); } a:hover { text-decoration: underline; }
 .nav { display: flex; gap: 2px; overflow-x: auto; background: var(--sf); border-bottom: 1px solid var(--ln); padding: 0 12px; }
 .nav a { color: var(--mu); text-decoration: none; border-bottom: 3px solid transparent; font-weight: 500; font-size: 14px; padding: 11px 12px; white-space: nowrap; }
 .nav a[aria-current='page'] { color: var(--ink); border-color: var(--ac); }
+@media (max-width: 760px) { .nav { flex-wrap: wrap; overflow-x: visible; padding: 4px 8px; } .nav a { padding: 8px 10px; } }
 main { max-width: 1140px; margin: 0 auto; padding: 16px; }
 .foot { max-width: 1140px; margin: 0 auto; padding: 16px; color: var(--mu); font-size: 12px; }
 .foot nav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -105,6 +106,10 @@ textarea { width: 100%; }
 .course-link:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow); }
 .course-link h2 { margin: 0; letter-spacing: .02em; }
 .course-link p { margin: 0; }
+.course-link .level { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--cc); }
+.course.locked .course-link { border-top-style: dashed; }
+.course.locked .course-link h2 { color: var(--mu); }
+.ac-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .course .num { font: 600 13px var(--font); color: var(--cc); letter-spacing: .1em; }
 .course .mini { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--mu); margin-top: auto; padding-top: 6px; }
 .course .t { align-self: flex-start; margin-top: auto; }
@@ -166,3 +171,17 @@ textarea { width: 100%; }
 .game-data th, .game-data td { text-align: left; padding: 2px 10px 2px 0; }
 @media (prefers-reduced-motion: reduce) { .hbar i { transition: none; } }
 @media (max-width: 560px) { .hbar { grid-template-columns: 1fr; } .rb-cond { flex-direction: column; align-items: stretch; } }
+/* Learning progress */
+.next-action .big { font-size: 18px; font-weight: 600; margin: 4px 0; }
+.lcal { list-style: none; padding: 0; margin: 8px 0; display: grid; grid-template-columns: repeat(7, minmax(0, 34px)); gap: 4px; }
+.lcal li { height: 30px; border-radius: 6px; border: 1px solid var(--ln); background: var(--sf); display: grid; place-items: center; color: var(--ac); font-size: 12px; }
+.lcal li.a { background: color-mix(in srgb, var(--ac) 22%, var(--sf)); border-color: var(--ac); }
+.lcal li.f { opacity: .4; }
+.missions { list-style: none; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.missions li.done { border-color: var(--ok, var(--ac)); }
+.missions h3 { margin: 0 0 4px; font-size: 16px; }
+.badges { list-style: none; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.badges li { display: flex; flex-direction: column; gap: 3px; padding: 12px; border: 1px dashed var(--ln); border-radius: var(--r); background: var(--sf); }
+.badges li.on { border-style: solid; border-color: var(--ac); }
+.badges .glyph { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--ln); color: var(--mu); }
+.badges li.on .glyph { background: var(--ac); color: var(--bg); }
