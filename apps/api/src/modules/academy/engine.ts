@@ -66,20 +66,24 @@ export function seedFrom(text: string): number {
 export function selectDiagnostic(bank: BankQuestion[], n: number, seen: Set<string>, seed: number): BankQuestion[] {
   const r = rng(seed);
   const shuffled = [...bank].map((q) => ({ q, k: r() })).sort((a, b) => a.k - b.k).map((x) => x.q);
-  const ordered = [...shuffled.filter((q) => !seen.has(q.question_id)), ...shuffled.filter((q) => seen.has(q.question_id))];
+  const unseen = shuffled.filter((q) => !seen.has(q.question_id));
+  const seenQs = shuffled.filter((q) => seen.has(q.question_id));
   const picked: BankQuestion[] = [];
   const skills = new Set<string>();
-  for (const q of ordered) {
-    if (picked.length === n) break;
-    if (!skills.has(q.skill)) {
+  // Priority: unseen questions on new skills → any unseen → seen on new skills → any seen.
+  // Avoiding recently seen questions outranks skill spread (a retake must not repeat when the bank allows).
+  const pass = (pool: BankQuestion[], distinct: boolean) => {
+    for (const q of pool) {
+      if (picked.length === n) return;
+      if (picked.includes(q) || (distinct && skills.has(q.skill))) continue;
       picked.push(q);
       skills.add(q.skill);
     }
-  }
-  for (const q of ordered) {
-    if (picked.length === n) break;
-    if (!picked.includes(q)) picked.push(q);
-  }
+  };
+  pass(unseen, true);
+  pass(unseen, false);
+  pass(seenQs, true);
+  pass(seenQs, false);
   // Present easiest first: it lowers anxiety without changing what is measured.
   return picked.sort((a, b) => a.difficulty - b.difficulty || a.question_id.localeCompare(b.question_id));
 }

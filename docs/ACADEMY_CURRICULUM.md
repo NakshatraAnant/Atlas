@@ -18,12 +18,12 @@ Editing rule: change the source file and restart. Changed courses, lessons and q
 
 | # | Course | Audience | Modules | Lessons authored | Diagnostic bank |
 |---|---|---|---|---|---|
-| 1 | ATLAS: MARKET DECODER | Beginners | 4 | Module 1: 3 lessons, 9 quiz questions | 12 |
-| 2 | ATLAS: EQUITY DETECTIVE | Company analysis | 4 | none yet | 12 |
-| 3 | ATLAS: SIGNAL ENGINEER | Testing ideas with data | 3 | none yet | 12 |
-| 4 | ATLAS: MARKET ARCHITECT | Valuation, portfolio risk, validation | 3 | none yet | 12 |
+| 1 | ATLAS: MARKET DECODER | Beginners | 4 | 9 lessons (27 quiz questions), 9 objectives | 12 |
+| 2 | ATLAS: EQUITY DETECTIVE | Company analysis | 4 | 8 lessons (24), 6 objectives | 12 |
+| 3 | ATLAS: SIGNAL ENGINEER | Testing ideas with data | 3 | 6 lessons (18), 4 objectives | 12 |
+| 4 | ATLAS: MARKET ARCHITECT | Valuation, portfolio risk, validation | 3 | 6 lessons (18), 4 objectives | 12 |
 
-Modules without lessons are shown as "Lessons in preparation". Phase 6 adds lessons in dependency order once the lesson engine has been validated with learners.
+Every module has at least two complete lessons (29 lessons, 87 quiz questions, 48 diagnostic questions). Content source files: `apps/api/src/modules/academy/curriculum.ts` (module 1) and `content/{market-decoder,equity-detective,signal-engineer,market-architect,capstones}.ts`. Integrity is enforced by `test/academy-content.test.ts` (seven stages, objectives taught and assessed, answer keys valid, no advice language in education mode).
 
 ## Placement diagnostic
 
@@ -46,7 +46,7 @@ Each lesson follows DISCOVER → OBSERVE → PREDICT → INVESTIGATE → DECIDE 
 | Stage | Block | Notes |
 |---|---|---|
 | Discover | text | Original explanation |
-| Observe | interactive lab | `ownership_split`, `order_book`, `percent_path`; logic in `packages/shared/src/learning-sims.ts` (tested), with a text alternative |
+| Observe | interactive lab or ATLAS task | 17 labs (order book, ownership, percent path, diversification, compounding, real return, index weighting, profit-to-cash, DuPont/ROCE, EV bridge, drawdown, overfitting, cost drag, DCF, 3D DCF sensitivity surface with accessible table fallback, two-asset risk, multiple testing) driven by tested simulations in `packages/shared/src/learning-sims*.ts`; or a guided task inside the real ATLAS screens |
 | Predict | prediction | Learner commits before the reveal |
 | Investigate | worked example | Numbers verified by the simulation tests |
 | Decide | guided practice | Hint, then answer |
@@ -86,6 +86,27 @@ Engagement analytics events (`academy_diagnostic_started/completed`, `academy_en
 
 Every course carries: "This record shows which learning objectives you practised and the assessments you completed in the ATLAS Academy. It is not a professional qualification, licence or certification, and it says nothing about future investment results."
 
-## Not built yet (tracked in NEXT_ACTIONS)
+## Capstones and completion records
 
-Lessons for modules 2+ and courses 2–4; games (Statement Surgeon, Valuation Lab, Market Replay, Bias Trap, Portfolio Under Pressure, Evidence Challenge, Build the Business); capstones and rubrics; completion records; 3D scenes; admin editing UI (content is edited in the source file today); question-level publication.
+- One capstone per course (`content/capstones.ts`), completed inside ATLAS: linked artefacts (notes, backtests, hypotheses) must belong to the learner. Four-criterion rubric, self-assessed; an admin can add an audited review.
+- Completion record (`acad.completion_records`) only when: all lessons completed, ≥ 80% of objectives mastered, capstone submitted. It freezes what was assessed (lessons, each objective with its estimate, capstone status, content review status) and carries the not-a-qualification statement.
+
+## Games (practice; scored on correctness only; no streaks, leaderboards or chance)
+
+| Game | Course | Objective | Mechanic |
+|---|---|---|---|
+| Statement Surgeon | EQUITY DETECTIVE | ed-o1 | classify line items into statements / cash-flow activities |
+| Build the Business | EQUITY DETECTIVE | ed-o3 | tune price and investment to hit EBIT margin and ROCE targets |
+| Bias Trap | SIGNAL ENGINEER | se-o2 | name the bias in a backtest description |
+| Market Replay | MARKET DECODER | md-o9 | judge headlines against synthetic session data |
+| Evidence Challenge | MARKET ARCHITECT | ma-o4 | classify claims as fact, calculation, interpretation or unsupported |
+| Valuation Lab | MARKET ARCHITECT | ma-o1 | reverse DCF: find the growth today's value implies |
+| Portfolio Under Pressure | MARKET ARCHITECT | ma-o2 | weights meeting a return target and a stress-loss limit |
+
+Every tune round is proven solvable by a brute-force test; classify answers are never sent before submission. Game scores do not affect mastery or completion.
+
+## Still not built
+
+- An admin editor for Academy content (content is edited in the source files; review and publication are in the admin API).
+- Independent expert review of all content (required before any `published` status).
+- Validation of the mastery parameters with real learners.

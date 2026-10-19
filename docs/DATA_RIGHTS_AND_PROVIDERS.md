@@ -25,12 +25,20 @@
 - The most specific match wins (exact field over `prefix.*` over `*`).
 - AI tool calls record `fields_sent_to_model` and `fields_withheld` (`ai.tool_calls`); exports record `fields_omitted` (`app.exports`).
 
-Gaps still open: commercial-use and redistribution are not separate columns yet (today they fall under `display`/`public_web`/`export`); there are no licence-expiry alerts to admins; there is no per-dataset "development only" flag beyond licence status.
+Gaps still open: commercial-use and redistribution are not separate columns yet; licence-expiry alerts to admins are not built; official-filing ingestion (exchange announcements as a real source) awaits a reviewed terms decision. Earlier note: (today they fall under `display`/`public_web`/`export`); there are no licence-expiry alerts to admins; there is no per-dataset "development only" flag beyond licence status.
+
+## User-provided datasets (built, session 4)
+
+- `/app/research/datasets`: upload a CSV (≤ 2 MB, ≤ 20,000 rows) of daily prices, confirm the suggested column mapping, and attest that you are entitled to use the data.
+- Validation (row-level, nothing coerced): real calendar dates in documented formats and not in the future; positive prices; non-negative whole-number volume; OHLC integrity; no duplicate dates. Rejected rows are listed with reasons and never stored. Database constraints repeat the OHLC and positivity checks.
+- Storage and use: `app.user_datasets` and `app.user_dataset_prices` (migration 008), private to the uploader (404 for anyone else), soft-deleted rows removed on delete, an exact-duplicate upload is refused. Labelled "User-provided data. ATLAS has not verified it" on every response. Never mixed with reference data, never shown to other users, never sent to an external AI model.
+- Analysis is deterministic (total return, CAGR for periods of one year or more, annualised volatility, maximum drawdown, SMA 50/200) on unadjusted closes, with those caveats stated.
+- Tests: `apps/api/test/datasets.test.ts`.
 
 ## Source hierarchy (what ATLAS may use, in order)
 
 1. Official public disclosures (exchange filings, annual reports): ingest only with documented terms for storage and display; link to source documents.
-2. User-provided datasets the user is entitled to use (CSV/XLSX upload: **not built yet**).
+2. User-provided datasets the user is entitled to use: **built** for daily price CSVs (see below). XLSX: save as CSV first.
 3. Deterministic synthetic data for development and education (built).
 4. Third-party APIs whose terms permit the intended use (none evaluated yet).
 5. Commercial providers, once customer validation justifies the cost (budget in the financial model: ₹20.25 lakh/year base case).

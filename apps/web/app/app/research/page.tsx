@@ -19,6 +19,7 @@ export default function Research() {
   return (
     <>
       <h1>My research</h1>
+      <p><a href="/app/research/datasets">Your own data: upload and analyse prices you are entitled to use</a></p>
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
       {tab === 'watchlists' && <Watchlists />}
       {tab === 'alerts' && <Alerts />}

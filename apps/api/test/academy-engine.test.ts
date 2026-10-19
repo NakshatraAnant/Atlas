@@ -135,3 +135,14 @@ describe('mastery and spaced review', () => {
     expect(nextReview(4, false, now)).toEqual({ box: 1, due_at: '2026-10-20T00:00:00.000Z' });
   });
 });
+
+describe('retake selection regression (session 4)', () => {
+  it('never repeats a recently seen question when enough unseen ones exist, even if that loses a skill', () => {
+    // One question on a unique skill plus many on other skills; the unique one was just seen.
+    const qb = [q('only-vol', 'volatility'), ...['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((s, i) => q(`x${i}`, s))];
+    for (let seed = 1; seed <= 200; seed++) {
+      const r = selectDiagnostic(qb, 5, new Set(['only-vol']), seed);
+      expect(r.map((x) => x.question_id)).not.toContain('only-vol');
+    }
+  });
+});
