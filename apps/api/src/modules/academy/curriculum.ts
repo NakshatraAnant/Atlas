@@ -7,6 +7,7 @@
 
 import type { Correct, QType, ReadinessRules } from './engine.js';
 import { ED_MODULE_1, ED_MODULE_2, ED_MODULE_3, ED_MODULE_4 } from './content/equity-detective.js';
+import { ED_MODULE_5, ED_MODULE_5_OBJECTIVES } from './content/equity-detective-context.js';
 import { MA_MODULE_1, MA_MODULE_2, MA_MODULE_3 } from './content/market-architect.js';
 import { MD_MODULE_2, MD_MODULE_3, MD_MODULE_4 } from './content/market-decoder.js';
 import { MD_MODULE_5, MD_MODULE_5_OBJECTIVES } from './content/market-decoder-plumbing.js';
@@ -237,12 +238,14 @@ const equityDetective: SourceCourse = {
     { id: 'ed-o4', statement: 'Assess leverage and its effect on risk.', skill: 'leverage' },
     { id: 'ed-o5', statement: 'Use P/E and EV/EBITDA with their limitations.', skill: 'valuation' },
     { id: 'ed-o6', statement: 'Interpret financial quality flags as questions to investigate.', skill: 'quality' },
+    ...ED_MODULE_5_OBJECTIVES,
   ],
   modules: [
     { id: 'ed-m1', title: 'Three statements, one business', summary: 'How the statements link and what each one hides.', lessons: ED_MODULE_1 },
     { id: 'ed-m2', title: 'Profit is an opinion, cash is a fact', summary: 'Working capital, accruals and cash conversion.', lessons: ED_MODULE_2 },
     { id: 'ed-m3', title: 'Returns on capital', summary: 'Margins, ROE, ROCE and what drives them.', lessons: ED_MODULE_3 },
     { id: 'ed-m4', title: 'What is it worth?', summary: 'Relative valuation, enterprise value and its traps.', lessons: ED_MODULE_4 },
+    { id: 'ed-m5', title: 'The business behind the numbers', summary: 'Business models and industry structure, annual reports, standalone and consolidated statements, revenue quality, free cash flow, peer comparison and corporate actions.', lessons: ED_MODULE_5 },
   ],
   diagnostic: [
     { id: 'ed-d01', skill: 'statements', difficulty: 1, qtype: 'single_choice', critical: true, stem: 'Which statement shows a company\'s assets, liabilities and equity at a point in time?', options: ['Profit and loss statement', 'Balance sheet', 'Cash-flow statement', 'Directors\' report'], correct: { index: 1 }, explanation: 'The balance sheet is a snapshot at a date; the P&L and cash-flow statements cover a period.', misconception: 'Mixing up period statements with the point-in-time balance sheet.' },
