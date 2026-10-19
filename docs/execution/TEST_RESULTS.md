@@ -2,6 +2,22 @@
 
 Newest first. Only results of commands that actually ran.
 
+## 20 Oct 2026: Academy discovery, learning engine, data health, MARKET DECODER module 5
+
+| Command / check | Result |
+|---|---|
+| `npm run typecheck` | pass |
+| `npm test` | **356 passed** (shared 53, API 303), 8 skipped (PostgreSQL suite; run below), 0 failed. New: academy-discovery (5), learning-engine (11), data-health (3); content integrity 40 (now incl. module 5) |
+| `npm run test:postgres` | 8/8 |
+| `npm run test:e2e` | **9/9** + restart check. New: Academy discoverable from Home and nav (2nd item), all four course routes open and survive reload, lesson resumes at the stage reached after refresh and back/forward, progress page shows level, XP rules and achievements |
+| `npm run eval` | PASSED: 580 cases, 100% golden/red-team/causal, 0 unsupported numbers |
+| `npm audit --omit=dev` | 0 vulnerabilities |
+| `npm run check:secrets` | pass (266 files) |
+| Import check | all 703 relative imports in tracked files resolve to tracked files (after fixing a module hidden by the `data/` ignore rule) |
+| Browser (in-app) | Academy 2nd in nav; next-action card; preview-mode note; course cards with level, lessons, hours, status; enrol → lesson → advanced to stage 3 → refresh → **restarted at stage 1 (defect, fixed)** → now resumes; Data health shows 120 synthetic companies, 3,91,597 price rows over 3,520 trading days, 0 missing days, provider assessments; module 5 lesson with guided ATLAS task |
+| Supabase | migration 009 applied (additive: 3 tables, RLS on, no anon/authenticated privileges) with the local checksum; fingerprint local = hosted `6e8838fbcbff8733fa67a13d3093932e` / 2580 lines; 154 tables, 0 without RLS; advisor INFO only |
+| Real-data sources | NSE and NSE Indices terms read in a browser: automated collection prohibited / needs written consent → no ingestion built against them |
+
 ## 19 Oct 2026, after merging Next 16 into `feat/atlas-mvp` (fast-forward to 81a8e5c) and launch fixes
 
 | Command / check | Result |

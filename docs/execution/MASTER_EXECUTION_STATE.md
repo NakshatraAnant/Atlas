@@ -38,6 +38,7 @@ _Last updated: 19 Oct 2026, end of session 4._
 | 001–006 | applied | applied |
 | 007_academy_capstones_games | applied | applied |
 | 008_user_datasets | applied | applied |
+| 009_learning_engine | applied | applied (20 Oct 2026; fingerprint 6e8838fb… / 2580 lines on both) |
 
 ## Defects found and fixed in session 4
 

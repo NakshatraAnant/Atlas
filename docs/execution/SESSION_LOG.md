@@ -45,3 +45,13 @@
 - Launched on http://localhost:3000. Found and fixed a startup stall (catch-up inside the API blocked requests for ~3.3 min): added the missing `pipeline` CLI and run it from the launcher before the API starts.
 - Removed the dead `traceability` script (its file never existed). Fixed research-summary wording ("little changed" / "fell") and a doubled separator in note metadata.
 - Verified in the browser and over HTTP: auth boundary, write → restart → persistence, live cross-user isolation (404).
+
+## Session 5 — 20 Oct 2026: Academy discovery, learning engine, data rights
+
+- Course invisibility diagnosed. There were five compounding discovery defects: a "Learn" decoy item, Academy 8th of 9 in the nav and off-screen on phones, no Home or landing entry for new users, and an empty page with drafts hidden. All fixed without publishing unreviewed content. Regression tests in both modes.
+- Learning engine (migration 009): server-derived, idempotent XP ledger; levels; fair streaks with a rest day and timezone; missions; 15 evidence-based achievements; rule-based next action; progress page. Account erasure now removes Academy records.
+- Fixed: a lesson always restarted at stage 1 after refresh.
+- Data rights: NSE and NSE Indices terms prohibit automated collection or require written consent, so no scraper was built. Data health page and provider-rights registry added; real data needs a licence.
+- MARKET DECODER module 5 (5 lessons); 87-topic coverage report.
+- Fixed: the `data/` ignore rule had hidden a new source folder from git.
+- Supabase: 009 applied additively; parity re-proven.

@@ -3,6 +3,7 @@
 Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end of session 4).
 
 ## Data
+- **Automated real-data ingestion is blocked by source terms, not by code.** NSE's website terms prohibit automated collection and electronic storage of content; NSE Indices requires written consent; BSE's terms could not be read. A licence (pending entries in the registry) or written consent is required. See `DATA_RIGHTS_AND_PROVIDERS.md` and Data health.
 - All market and company data is synthetic. No real Indian market data is licensed or ingested (B-DATA-01).
 - User CSV upload (price series) works with column mapping, validation and provenance (`/app/research/datasets`). XLSX and document (PDF) extraction are not built.
 - Point-in-time fundamentals exist for the synthetic data; real point-in-time history would depend on the provider.
@@ -26,6 +27,9 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 - The evaluation suite (`npm run eval`) covers 580 generated cases. It does not replace human review of answer quality.
 
 ## Academy
+- Required-topic coverage is partial: 35 of 87 topics covered, 14 partial, 38 missing (`ACADEMY_COVERAGE.md`). No separate final assessments yet.
+- Gamification: XP, levels, streaks, missions and achievements are built; leaderboards, reminders and a planning calendar are not (no opt-in community; no consented notifications).
+- With drafts hidden (production default), courses are listed but cannot be opened until lessons pass expert review.
 - Four courses, 29 lessons, 87 quiz questions, 48 diagnostic questions, 7 games and 4 capstones are authored. The full 14-module plan in `ACADEMY_CURRICULUM.md` has at least two lessons per module, not complete module depth.
 - All Academy content is AI-drafted and **unreviewed**. It is shown locally behind a "Draft, pending expert review" label, and production refuses to serve it. Nothing is presented as expert-approved.
 - Mastery parameters (α = 0.5, threshold 0.8, 3 answers) are unvalidated guesses.
