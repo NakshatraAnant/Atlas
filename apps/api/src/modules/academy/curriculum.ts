@@ -28,7 +28,7 @@ export interface SourceQuestion {
   objective?: string;
 }
 
-export const WIDGETS = ['order_book', 'percent_path', 'ownership_split', 'diversification', 'compound_growth', 'real_return', 'index_weighting', 'statement_flow', 'dupont', 'ev_bridge', 'drawdown', 'overfit', 'cost_drag', 'dcf', 'dcf_surface_3d', 'portfolio_risk', 'multiple_testing'] as const;
+export const WIDGETS = ['order_book', 'percent_path', 'ownership_split', 'diversification', 'compound_growth', 'real_return', 'index_weighting', 'statement_flow', 'dupont', 'ev_bridge', 'drawdown', 'overfit', 'cost_drag', 'dcf', 'dcf_surface_3d', 'portfolio_risk', 'multiple_testing', 'statements_3d'] as const;
 export type Widget = (typeof WIDGETS)[number];
 
 export type Block =

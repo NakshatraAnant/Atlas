@@ -4,6 +4,7 @@ import {
   compound, costDragPct, dcf, dcfSensitivity, doublingYears, dupont, equalWeightVol, evBridge, indexReturns, maxDrawdown, multipleTesting, operatingCashFlow, overfitDemo, realReturnPct, roce, twoAssetVol,
 } from '@atlas/shared';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ThreeStatementsScene } from './statements3d';
 
 // Interactive labs for the four Academy courses. Every number comes from the tested simulations in
 // @atlas/shared; every lab states its result in text (aria-live) so it works without the visual.
@@ -425,4 +426,5 @@ export const COURSE_LABS: Record<string, () => ReactNode> = {
   statement_flow: StatementFlowLab, dupont: DupontLab, ev_bridge: EvBridgeLab,
   drawdown: DrawdownLab, overfit: OverfitLab, cost_drag: CostDragLab,
   dcf: DcfLab, dcf_surface_3d: DcfSurface3D, portfolio_risk: PortfolioRiskLab, multiple_testing: MultipleTestingLab,
+  statements_3d: ThreeStatementsScene,
 };

@@ -216,3 +216,18 @@ textarea { width: 100%; }
 .tick.flash-dn { background: color-mix(in srgb, var(--rd) 28%, transparent); }
 .tick.is-stale { opacity: .7; }
 @media (prefers-reduced-motion: reduce) { .tick { transition: none; } }
+/* 3D learning scenes */
+.scene3d { margin: 10px 0 0; }
+.scene3d-host { position: relative; width: 100%; min-height: 120px; border: 1px solid var(--ln); border-radius: var(--r); background: radial-gradient(ellipse at 50% 20%, #22324d 0%, #0d1524 75%); overflow: hidden; cursor: grab; touch-action: none; }
+.scene3d-host:active { cursor: grabbing; }
+.scene3d-host:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.scene3d-labels { position: absolute; inset: 0; pointer-events: none; }
+.scene3d-label { position: absolute; left: 0; top: 0; white-space: nowrap; font: 600 11px var(--font); color: #e6eaf1; background: rgba(13, 21, 36, .78); padding: 1px 5px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+.scene3d-label.dim { opacity: .45; }
+.scene3d-label.title { font-size: 13px; background: none; color: #cfe0f5; letter-spacing: .02em; }
+.scene3d-label.scale { font-weight: 400; background: none; color: #93a3ba; }
+.statements3d .sliders { border: 1px solid var(--ln); border-radius: var(--r); padding: 10px 12px; display: grid; gap: 6px; }
+.statements3d .sliders input[type=range] { width: 100%; }
+.statements3d .explain { border-left: 3px solid var(--ac); padding: 6px 10px; background: color-mix(in srgb, var(--ac) 8%, transparent); border-radius: 0 6px 6px 0; }
+.wrapseg { flex-wrap: wrap; display: flex; }
+.grid3 { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 10px; }
