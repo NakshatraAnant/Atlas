@@ -7,7 +7,7 @@ import { Disclosure, useApi } from './ui';
 import { useApp } from './providers';
 
 const APP_NAV: [string, string][] = [
-  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/market', 'Market'], ['/app/companies', 'Companies'], ['/app/assistant', 'Assistant'], ['/app/screener', 'Screener'], ['/app/lab', 'Quant Lab'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
+  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/terminal', 'Terminal'], ['/app/market', 'Market'], ['/app/companies', 'Companies'], ['/app/assistant', 'Assistant'], ['/app/screener', 'Screener'], ['/app/lab', 'Quant Lab'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
 ];
 const PUBLIC_NAV: [string, string][] = [['/', 'Overview'], ['/app/academy', 'Academy'], ['/briefing-sample', 'Sample briefing'], ['/pricing', 'Pricing'], ['/methodology', 'Methodology'], ['/help', 'Help']];
 

@@ -17,6 +17,7 @@ export interface Series {
 
 export function LineChart({ series, title, yLabel, xLabel = 'Date', height = 220, note, format = (v: number) => formatIndianNumber(v, 2) }: { series: Series[]; title: string; yLabel: string; xLabel?: string; height?: number; note?: string; format?: (v: number) => string }) {
   const [table, setTable] = useState(false);
+  const [hover, setHover] = useState<number | null>(null);
   const W = 720;
   const H = height;
   const pad = { l: 64, r: 12, t: 12, b: 32 };
@@ -50,7 +51,14 @@ export function LineChart({ series, title, yLabel, xLabel = 'Date', height = 220
           </table>
         </div>
       ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${yLabel} against ${xLabel.toLowerCase()}. Use “Show as table” for the values.`}>
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}. ${yLabel} against ${xLabel.toLowerCase()}. Use “Show as table” for the values.`}
+          onMouseLeave={() => setHover(null)}
+          onMouseMove={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            const vx = ((e.clientX - r.left) / r.width) * W;
+            const i = Math.round(((vx - pad.l) / (W - pad.l - pad.r)) * Math.max(1, xs.length - 1));
+            setHover(i < 0 || i >= xs.length ? null : i);
+          }}>
           {ticks.map((t) => <g key={t}><line x1={pad.l} x2={W - pad.r} y1={Y(t)} y2={Y(t)} stroke="var(--ln)" /><text x={pad.l - 6} y={Y(t) + 4} fontSize="11" textAnchor="end" fill="var(--mu)">{format(t)}</text></g>)}
           {xt.map((i) => <text key={i} x={X(i)} y={H - 10} fontSize="11" textAnchor={i === 0 ? 'start' : i === xs.length - 1 ? 'end' : 'middle'} fill="var(--mu)">{xs[i]}</text>)}
           <text x={12} y={H / 2} fontSize="11" fill="var(--mu)" transform={`rotate(-90 12 ${H / 2})`} textAnchor="middle">{yLabel}</text>
@@ -65,6 +73,19 @@ export function LineChart({ series, title, yLabel, xLabel = 'Date', height = 220
             });
             return <path key={s.name} d={d} fill="none" stroke={colorOf(s, si)} strokeWidth={1.6} strokeDasharray={s.dashed ? '4 3' : undefined} />;
           })}
+          {hover !== null && (() => {
+            const vals = series.map((s, si) => ({ s, si, y: s.points[hover]?.y ?? null }));
+            const bx = X(hover) > W - 200 ? X(hover) - 186 : X(hover) + 10;
+            return (
+              <g pointerEvents="none">
+                <line x1={X(hover)} x2={X(hover)} y1={pad.t} y2={H - pad.b} stroke="var(--mu)" strokeDasharray="3 3" />
+                {vals.map((v) => v.y !== null && <circle key={v.s.name} cx={X(hover)} cy={Y(v.y)} r={4} fill={colorOf(v.s, v.si)} stroke="var(--sf)" strokeWidth={2} />)}
+                <rect x={bx} y={pad.t} width={176} height={20 + vals.length * 16} rx={6} fill="var(--sf)" stroke="var(--ln)" />
+                <text x={bx + 8} y={pad.t + 15} fontSize="11" fill="var(--mu)">{xs[hover]}</text>
+                {vals.map((v, k) => <text key={v.s.name} x={bx + 8} y={pad.t + 31 + k * 16} fontSize="12" fill="var(--ink)">{v.s.name}: {v.y === null ? '—' : format(v.y)}</text>)}
+              </g>
+            );
+          })()}
         </svg>
       )}
       <div className="legend">{series.map((s, i) => <span key={s.name}><i style={{ background: colorOf(s, i) }} />{s.name}</span>)}{note && <span>{note}</span>}</div>

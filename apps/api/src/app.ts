@@ -13,6 +13,7 @@ import { academyExtraRoutes } from './modules/academy/extraRoutes.js';
 import { learningRoutes } from './modules/academy/learningRoutes.js';
 import { datasetRoutes } from './modules/datasets/routes.js';
 import { dataHealthRoutes } from './modules/datahealth/healthRoutes.js';
+import { terminalRoutes } from './modules/research/terminal.js';
 import { contentRoutes } from './modules/content/routes.js';
 import { dataRoutes } from './modules/research/dataRoutes.js';
 import { labRoutes } from './modules/research/labRoutes.js';
@@ -188,6 +189,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
   await learningRoutes(app, ctx);
   await datasetRoutes(app, ctx);
   await dataHealthRoutes(app, ctx);
+  await terminalRoutes(app, ctx);
   await adminRoutes(app, ctx);
   return app;
 }
