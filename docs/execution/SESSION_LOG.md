@@ -70,4 +70,5 @@
 - Videos: finished the pipeline. Output moved from public static files to `apps/api/media/academy-videos`, served by `GET /v1/academy/videos/:id/:file` behind sign-in and the lesson's review-status gate, with byte ranges for seeking. Added a render timeout (the step that froze now fails loudly), a 700 kbps VBR target (42.7 MB → 12.8 MB with crisp text), a rupee-label fix, and `scripts/video/verify.mts` (playback check in Edge). Rendered and verified four flagship videos, one per course.
 - Lesson player shows the lesson's video with captions on, a transcript link, review status and a fallback to the transcript if playback fails.
 - Tests added: `videos.test.ts` (7), `config.test.ts` (5: production refuses synthetic data and drafts, previously untested), e2e video journey.
-- Not done: `feat/academy-equity-detective-batch2` merges cleanly but was left for your decision; real data still blocked by source terms (B-DATA-01).
+- Not done: real data still blocked by source terms (B-DATA-01).
+- On your go-ahead, integrated `feat/academy-equity-detective-batch2`: cherry-picked `89c2dfb` as `554aa69` (no conflicts). EQUITY DETECTIVE now has 15 lessons (41 in total). typecheck, 58 + 328 tests, e2e 12/12 and the running app re-verified.

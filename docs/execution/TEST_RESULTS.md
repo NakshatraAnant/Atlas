@@ -132,3 +132,12 @@ Local hosting, verified against the running app (`node scripts/atlas.mjs start` 
 - Signed-out request for `/v1/academy/videos/md-intro/video` through the web origin → 401.
 - In the browser pane: signed in as `plus@atlas.test`; lessons se-l1 and md-l1 show their video; it played, seeked to 60 s (206 responses through the Next proxy), captions showing with the cue matching the narration, audio decoded, no media error. At 375 px width: no horizontal scroll; video 314 px wide.
 - `atlas stop` → "API stopped cleanly"; `start` and `restart` brought it back healthy; the browser session survived both restarts.
+
+### After integrating batch2 (`554aa69`, EQUITY DETECTIVE module 5)
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | pass |
+| `npm test` | shared 58 passed; API **328 passed, 8 skipped**, 0 failed (+7 from the new lessons' content checks) |
+| `npm run test:e2e` | 12 passed + restart check passed |
+| Running app (existing `./data`, no reseed) | catalogue lessons 14 / 15 / 6 / 6; `Module 5: The business behind the numbers` listed; ed-l9 and ed-l15 open (7 stages, 3 questions, draft) |
