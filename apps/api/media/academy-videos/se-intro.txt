@@ -1,0 +1,12 @@
+Testing ideas without fooling yourself (ATLAS Academy, ATLAS: SIGNAL ENGINEER)
+
+Learning objective: Describe what a fair historical test needs, and recognise look-ahead bias, survivorship bias, overfitting and multiple testing.
+
+Signal Engineer is about testing ideas with historical data, and about the ways that testing can fool you.
+Quantitative research starts with clean data: prices adjusted for splits and bonuses, correct dates, and a clear definition of every return. A daily return is today’s close divided by yesterday’s close, minus one.
+Three traps catch most first attempts. Look-ahead bias uses information that was not available on the date of the decision. Survivorship bias tests only companies that still exist today. And overfitting tunes the rules until history looks perfect.
+Test enough random ideas and some will look good by chance. At a five percent significance level, the chance that at least one of twenty unrelated tests looks significant is about sixty-four percent.
+So design the test before you look. Keep data that the rules never saw, include transaction costs, and compare with a fair benchmark.
+In the course you will measure returns, volatility and drawdowns, design out-of-sample tests in the Quant Lab, and learn to report results honestly. A backtest describes the past under stated assumptions. It is not a forecast, and this course is not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

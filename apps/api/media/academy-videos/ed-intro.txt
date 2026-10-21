@@ -1,0 +1,13 @@
+A company-analysis workflow (ATLAS Academy, ATLAS: EQUITY DETECTIVE)
+
+Learning objective: Follow profit, cash and the balance sheet of a company as one consistent story, and turn ratios into questions.
+
+Equity Detective teaches a practical workflow for reading a company from its financial statements. Here is the workflow in brief, using a fictional company.
+Start with the profit and loss statement. Our fictional company has revenue of one thousand crore. After operating costs, EBITDA is one hundred and eighty crore. Subtract depreciation, interest and tax, and net profit is about seventy crore.
+Next, follow the cash. Operating cash flow adds back depreciation, which used no cash this year, and subtracts money tied up in working capital. That gives about one hundred crore. After eighty crore of capital expenditure, free cash flow is under twenty crore.
+Then the balance sheet. Assets always equal liabilities plus equity. Profit that is not paid out as dividends is added to equity, and the cash-flow statement explains every rupee of change in cash.
+Ratios turn these numbers into questions. An EBITDA margin of eighteen percent, cash conversion of about one hundred and forty-three percent, and debt of half the equity. Each ratio is a prompt to investigate, not a verdict.
+Ask whether profit is turning into cash, what drives growth, how much debt there is and at what cost, and how the company compares with its peers.
+In the course you will practise this with interactive labs, including a three-dimensional model of the three statements, and finish with an evidence-backed research report. This is education, not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

@@ -1,3 +1,4 @@
+import { createReadStream, statSync } from 'node:fs';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
@@ -11,6 +12,7 @@ import {
   type BankQuestion, type MasteryState, type ReadinessRules, type Response,
 } from './engine.js';
 import { currentCourses, diagnosticBank, lessonQuiz, questionsByRefs, visibleStatuses, type CourseVersionRow } from './service.js';
+import { loadVideos, parseRange, VIDEO_FILES, videoPath, type VideoFile } from './videos.js';
 
 // ATLAS Academy API. Authorisation: every learner record is read and written with the session
 // user's id in the WHERE clause, so another user's attempt id returns 404 (tested). Correct
@@ -50,6 +52,7 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
   const db = ctx.db;
   const statuses = visibleStatuses(ctx.cfg.academyShowDrafts);
   const isDraft = (status: string) => status !== 'published';
+  const videos = loadVideos();
 
   const course = async (id: string): Promise<CourseVersionRow> => {
     const c = (await currentCourses(db, statuses)).find((x) => x.course_id === id);
@@ -267,7 +270,28 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
       lesson_id: l.lesson_id, version: l.version, course: { course_id: c.course_id, title: c.title }, title: l.title, minutes: l.minutes, draft: isDraft(l.status),
       objectives, prerequisites: prereqs, blocks: l.blocks, references: l.references_list, mastery_rule: l.mastery_rule,
       quiz: quiz.map(publicQuestion), progress,
+      videos: videos.filter((v) => v.lesson_id === l.lesson_id).map((v) => ({
+        id: v.id, title: v.title, objective: v.objective, duration_s: v.duration_s, width: v.width, height: v.height, status: v.status,
+        src: `/v1/academy/videos/${v.id}/video`, poster: `/v1/academy/videos/${v.id}/poster`, captions: `/v1/academy/videos/${v.id}/captions`, transcript: `/v1/academy/videos/${v.id}/transcript`,
+      })),
     };
+  });
+
+  // Video files: same gate as the lesson (signed in, lesson visible at this review status). Range
+  // requests are honoured so the player can seek.
+  app.get('/v1/academy/videos/:id/:file', async (req, reply) => {
+    requireUser(req);
+    const { id, file } = parse(z.object({ id: z.string().regex(/^[a-z0-9-]{2,40}$/), file: z.enum(['video', 'poster', 'captions', 'transcript']) }), req.params);
+    const v = videos.find((x) => x.id === id);
+    if (!v || !(await latestLesson(v.lesson_id))) throw notFound();
+    const path = videoPath(v, file as VideoFile);
+    if (!path) throw notFound();
+    const size = statSync(path).size;
+    reply.header('content-type', VIDEO_FILES[file as VideoFile].type).header('x-content-type-options', 'nosniff').header('cache-control', 'private, max-age=3600').header('accept-ranges', 'bytes');
+    const range = parseRange(req.headers.range, size);
+    if (range === 'invalid') return reply.code(416).header('content-range', `bytes */${size}`).send();
+    if (!range) return reply.header('content-length', size).send(createReadStream(path));
+    return reply.code(206).header('content-range', `bytes ${range.start}-${range.end}/${size}`).header('content-length', range.end - range.start + 1).send(createReadStream(path, range));
   });
 
   app.post('/v1/academy/lessons/:id/progress', async (req) => {

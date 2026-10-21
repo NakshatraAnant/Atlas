@@ -21,14 +21,17 @@
     "eval": "npm run eval -w @atlas/api",
     "check:secrets": "node scripts/check-secrets.mjs",
     "test:postgres": "node scripts/test-postgres.mjs",
-    "test:e2e": "node scripts/e2e.mjs"
+    "test:e2e": "node scripts/e2e.mjs",
+    "video:render": "tsx scripts/video/render.mts",
+    "video:verify": "tsx scripts/video/verify.mts"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1",
     "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "vitest": "2.1.9"
+    "vitest": "2.1.9",
+    "webm-muxer": "5.1.4"
   },
   "overrides": {
     "postcss": "8.5.28"

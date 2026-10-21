@@ -19,7 +19,9 @@ interface Lesson {
   objectives: { objective_id: string; statement: string }[]; prerequisites: { lesson_id: string; title: string; completed: boolean }[];
   blocks: Block[]; references: { title: string; url?: string; note: string }[]; mastery_rule: string; quiz: PublicQuestion[];
   progress: { last_block: number; completed_at: string | null } | null;
+  videos?: LessonVideo[];
 }
+interface LessonVideo { id: string; title: string; objective: string; duration_s: number; width: number; height: number; status: string; src: string; poster: string; captions: string; transcript: string }
 interface QuizResult { score: number; correct: number; of: number; outcomes: { question_id: string; correct: boolean; correct_answer: any; explanation: string; misconception: string | null }[]; mastery: { objective_id: string; state: string; estimate: number; evidence_count: number; next_review_at: string }[] }
 
 export default function LessonPlayer({ params }: { params: Promise<{ id: string }> }) {
@@ -62,6 +64,7 @@ export default function LessonPlayer({ params }: { params: Promise<{ id: string 
       {d.draft && <DraftBanner what="This lesson" />}
       {resumed !== null && i === resumed && !inQuiz && <p className="okbox" role="status">Resumed where you left off (stage {resumed + 1} of {d.blocks.length}). <button className="link" onClick={() => go(0)}>Start from the beginning</button></p>}
       {d.prerequisites.some((p) => !p.completed) && <p className="mu">Builds on: {d.prerequisites.map((p, k) => <span key={p.lesson_id}>{k > 0 && ', '}<a href={`/app/academy/lesson/${p.lesson_id}`}>{p.title}</a>{p.completed ? ' ✓' : ''}</span>)}. You can continue without it.</p>}
+      {(d.videos ?? []).map((v) => <VideoPanel key={v.id} v={v} />)}
       <StageStepper current={inQuiz ? -1 : i} maxReached={reached} onPick={go} />
       {!inQuiz ? (
         <section className="stage card" key={i} aria-labelledby="stage-h">
@@ -79,6 +82,25 @@ export default function LessonPlayer({ params }: { params: Promise<{ id: string 
         <details className="card"><summary>References</summary><ul>{d.references.map((r) => <li key={r.title}>{r.url ? <a href={r.url} rel="noopener noreferrer" target="_blank">{r.title}</a> : r.title} <span className="mu">{r.note}</span></li>)}</ul></details>
       )}
     </div>
+  );
+}
+
+function VideoPanel({ v }: { v: LessonVideo }) {
+  const [failed, setFailed] = useState(false);
+  const mins = `${Math.floor(v.duration_s / 60)}:${String(Math.round(v.duration_s % 60)).padStart(2, '0')}`;
+  return (
+    <section className="card lesson-video" aria-labelledby={`video-${v.id}`}>
+      <h2 id={`video-${v.id}`} style={{ fontSize: 18, marginTop: 0 }}>Watch: {v.title} <span className="mu">({mins})</span></h2>
+      {failed ? (
+        <p className="warn" role="alert">This video could not be played in your browser. The <a href={v.transcript} target="_blank" rel="noopener">full transcript</a> covers the same content.</p>
+      ) : (
+        <video controls preload="metadata" poster={v.poster} width={v.width} height={v.height} onError={() => setFailed(true)} data-testid="lesson-video">
+          <source src={v.src} type="video/webm" onError={() => setFailed(true)} />
+          <track kind="captions" src={v.captions} srcLang="en" label="English" default />
+        </video>
+      )}
+      <p className="mu">{v.objective} Captions are on by default. <a href={v.transcript} target="_blank" rel="noopener">Read the transcript</a>. Narrated by a computer voice; {v.status === 'published' ? 'reviewed' : 'awaiting expert review'}. Education, not investment advice.</p>
+    </section>
   );
 }
 

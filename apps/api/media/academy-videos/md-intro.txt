@@ -1,0 +1,13 @@
+How the Indian share market works (ATLAS Academy, ATLAS: MARKET DECODER)
+
+Learning objective: Explain what a share is, how a trade settles in India, and why a share price and the business behind it are different things.
+
+Welcome to Market Decoder. In the next two minutes you will see what a share is, how a trade happens in India, and why a share price and a business are not the same thing.
+A share is a small piece of ownership in a company. If a company has one crore shares and you own one thousand, you own one hundredth of one percent of it. You share in what the business earns and what it is worth, for better or worse.
+In India you place an order through a registered broker. The exchange, NSE or BSE, matches it with an opposite order. A clearing corporation guarantees that both sides settle, and the shares arrive in your demat account at a depository, NSDL or CDSL, one working day later. This is called T plus one settlement.
+A share price is what buyers and sellers agree at a moment in time. The business underneath is described by its revenue, profit, cash flow and debt, which are reported every quarter. The two can move apart for long periods, which is why ATLAS shows both, with the date of every number.
+Prices also move in ways that are easy to misread. If a share rises twenty percent and then falls twenty percent, you do not get back to where you started. One hundred rupees becomes one hundred and twenty, then ninety-six. Returns compound; they do not simply add up.
+A structured research routine helps. Identify the security precisely, by its symbol and ISIN. Read the latest results. Check the date and source of every figure. And write down what evidence would change your mind.
+Market Decoder takes you through each of these steps with exercises and quizzes. This course is education, not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

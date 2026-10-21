@@ -1,0 +1,12 @@
+Building a research view you can defend (ATLAS Academy, ATLAS: MARKET ARCHITECT)
+
+Learning objective: Combine evidence, a valuation range, risks and a monitoring plan into one research view, and state what would prove it wrong.
+
+Market Architect brings everything together: evidence, valuation, risk and clear communication, into a research view you can defend.
+Start with a precise question. Gather evidence. Turn it into a range of values, not a single number. Weigh the risks. And state your conclusion together with what you will monitor.
+A valuation depends on its assumptions. For a fictional company with next year’s free cash flow of one hundred crore, growing at four percent a year forever, the value is about one thousand six hundred and sixty-seven crore at a ten percent discount rate, one thousand two hundred and fifty at twelve percent, and one thousand at fourteen.
+Write the thesis, the strongest counter-thesis, and the specific evidence that would invalidate your view. Then decide in advance what you will monitor.
+Risk also lives at the portfolio level. With thirty percent volatility per share and an average correlation of zero point three, spreading across twenty shares cuts volatility to about seventeen percent, but never below about sixteen. Correlation sets a floor.
+In the course you will build and stress-test a discounted cash-flow model, measure portfolio risk, validate models, and present an integrated research dossier. A defensible view states its assumptions, its range, and what would prove it wrong. This is education, not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

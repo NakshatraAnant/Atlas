@@ -64,6 +64,7 @@ caption { text-align: left; color: var(--mu); font-size: 13px; padding-bottom: 6
 .warn { border-left: 3px solid var(--wn); background: color-mix(in srgb, var(--wn) 10%, transparent); padding: 8px 10px; margin: 8px 0; border-radius: 0 6px 6px 0; }
 .err { border-left: 3px solid var(--rd); background: color-mix(in srgb, var(--rd) 10%, transparent); padding: 8px 10px; margin: 8px 0; border-radius: 0 6px 6px 0; }
 .okbox { border-left: 3px solid var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); padding: 8px 10px; margin: 8px 0; border-radius: 0 6px 6px 0; }
+.lesson-video video { width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0d1524; border-radius: 8px; display: block; }
 .wm { color: var(--rd); font-weight: 600; }
 input, select, textarea { font: inherit; background: var(--sf); color: var(--ink); border: 1px solid var(--ln); border-radius: 6px; padding: 6px 8px; max-width: 100%; }
 textarea { width: 100%; }
