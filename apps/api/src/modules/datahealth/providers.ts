@@ -21,7 +21,7 @@ export interface ProviderAssessment {
   next_step: string;
 }
 
-export const PROVIDER_ASSESSMENT_VERSION = 'providers-2026-10-20';
+export const PROVIDER_ASSESSMENT_VERSION = 'providers-2026-10-21';
 
 export const PROVIDER_ASSESSMENTS: ProviderAssessment[] = [
   {
@@ -35,7 +35,7 @@ export const PROVIDER_ASSESSMENTS: ProviderAssessment[] = [
     local_retention: 'prohibited',
     commercial_display: 'requires_licence',
     redistribution: 'prohibited',
-    finding: 'The terms of use prohibit systematic or automated data collection (scraping, data mining, extraction, harvesting) and the copying or electronic storage of website content.',
+    finding: 'The terms of use prohibit systematic or automated data collection (scraping, data mining, extraction, harvesting) and the copying or electronic storage of website content. The NSE Data Sharing & Usage Policy (read 21 Oct 2026) says market data is provided through NSE Data & Analytics under agreements that set out permitted use, and that researchers request data through NSE’s Economic Policy Research Department.',
     atlas_action: 'Not fetched. No scheduled job, scraper or downloader targets this site.',
     next_step: 'License end-of-day and corporate data from NSE Data & Analytics or an NSE-authorised vendor, then add a provider adapter for that feed.',
   },
@@ -65,9 +65,24 @@ export const PROVIDER_ASSESSMENTS: ProviderAssessment[] = [
     local_retention: 'unverified',
     commercial_display: 'unverified',
     redistribution: 'unverified',
-    finding: 'The terms page did not render its text in the browser used for the assessment, so its rules could not be read.',
+    finding: 'The terms could not be read: on 20 Oct the page did not render its text; on 21 Oct the terms URL returned a 404 (BSE has changed its URLs) and no terms link was found on the homepage.',
     atlas_action: 'Not fetched. Rights are treated as unknown, which means not permitted.',
     next_step: 'Read the BSE terms (or ask BSE) before any use; prefer a licensed vendor feed.',
+  },
+  {
+    provider_id: 'sebi-corporate-filings',
+    provider: 'SEBI — corporate filings directory (sebi.gov.in)',
+    datasets: ['links to exchange filing pages'],
+    site: 'https://www.sebi.gov.in/curation/corporate_filings.html',
+    terms_url: 'https://www.sebi.gov.in/website-policy.html#terms',
+    assessed_on: '2026-10-21',
+    automated_retrieval: 'unverified',
+    local_retention: 'unverified',
+    commercial_display: 'unverified',
+    redistribution: 'unverified',
+    finding: 'The page is a directory of links to the NSE and BSE filing pages; it does not host the filings or a data feed itself.',
+    atlas_action: 'Not fetched. It is not a separate data source; the filings it points to are governed by the NSE and BSE terms.',
+    next_step: 'Use the licensed exchange or vendor feed for filings.',
   },
   {
     provider_id: 'user-supplied',

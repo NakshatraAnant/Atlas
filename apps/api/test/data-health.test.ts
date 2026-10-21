@@ -48,7 +48,7 @@ describe('data health (/v1/data/health)', () => {
     await c.login('free@atlas.test', DEV_PASSWORD);
     const h = (await c.get('/v1/data/health')).json;
     expect(h.providers.assessments.map((p: any) => p.provider_id)).toEqual(PROVIDER_ASSESSMENTS.map((p) => p.provider_id));
-    for (const id of ['nse-website', 'nse-indices-website', 'bse-website']) {
+    for (const id of ['nse-website', 'nse-indices-website', 'bse-website', 'sebi-corporate-filings']) {
       const p = h.providers.assessments.find((x: any) => x.provider_id === id);
       expect(p.automated_retrieval).not.toBe('permitted');
       expect(p.terms_url).toMatch(/^https:\/\//);
