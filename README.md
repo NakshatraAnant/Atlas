@@ -62,6 +62,8 @@ npm run dev:web
 | Production build | `npm run build` |
 | Secret scan | `npm run check:secrets` |
 | AI evaluation suite | `npm run eval` |
+| Render Academy videos (offline narration + Edge encoder; ~1–2 min each) | `npm run video:render [md-intro …]` |
+| Check video playback in Edge (duration, audio, captions, frames) | `npm run video:verify` |
 | Rebuild the dev database | move `apps/api/data` into `backups/`, then `npm run seed` |
 
 Large synthetic universes: `SYNTHETIC_COMPANIES=500 npm run seed` builds on disk with bounded memory (see `docs/RUNBOOK.md`).
@@ -78,6 +80,8 @@ Copy `.env.example` to `.env.local` (git-ignored) and change what you need. With
 | `apps/web` | Next.js web app |
 | `packages/shared` | Formatting, content rules, plans, tested learning simulations |
 | `e2e` | Playwright browser tests |
+| `apps/api/media/academy-videos` | Rendered lesson videos, posters, captions, transcripts (served only through the API, behind the lesson gate) |
+| `scripts/video` | Video scripts, renderer and playback check |
 | `scripts` | Local hosting, seeding, fingerprints, test runners, secret scan |
 | `docs` | Architecture, security, data rights, curriculum, runbook, limitations, execution ledger |
 

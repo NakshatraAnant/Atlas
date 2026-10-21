@@ -109,3 +109,26 @@ Other checks:
 ## 18 Oct 2026, session 2 (from commit messages; not re-verified)
 
 - "all 147 API tests pass" (commit 5a493ed).
+
+## 22 Oct 2026, session 7
+
+Windows 11, Node 24.16.0, Microsoft Edge (Playwright channel `msedge`).
+
+| Check | Command | Result |
+|---|---|---|
+| Baseline before any change | `npm run typecheck`; `npm test` | pass; shared 58 passed; API 309 passed, 8 skipped |
+| Type checking (after changes) | `npm run typecheck` | pass (all workspaces) |
+| Unit, pipeline, policy, golden and API tests | `npm test` | shared **58 passed**; API **321 passed, 8 skipped** (real-PostgreSQL suite: no `TEST_DATABASE_URL`; skips are not passes), 0 failed |
+| New: video helpers, files, access gate | `apps/api/test/videos.test.ts` | 7 passed |
+| New: production refuses synthetic data and drafts | `apps/api/test/config.test.ts` | 5 passed |
+| Browser end-to-end (includes `next build`) | `npm run test:e2e` | **12 passed** (new: lesson video plays with captions and transcript) + restart check passed |
+| Video render | `npm run video:render` | 4 videos rendered (md 131.9 s, ed 119.7 s, se 93.9 s, ma 107.2 s; 9.3–12.8 MB) |
+| Video playback | `npm run video:verify` | 4/4 OK in Edge: duration matches, 1280×720, video and audio decoded, 19–30 caption cues |
+| Secret scan | `npm run check:secrets` | pass (282 tracked files) |
+| Real-PostgreSQL suite | `npm run test:postgres` | **not run** this session |
+
+Local hosting, verified against the running app (`node scripts/atlas.mjs start` on the existing `./data`, no reseed):
+- `atlas status`: API healthy, readiness `{"status":"ready","database":"ok","data":"loaded","synthetic_data":true}`; web healthy at http://localhost:3000.
+- Signed-out request for `/v1/academy/videos/md-intro/video` through the web origin → 401.
+- In the browser pane: signed in as `plus@atlas.test`; lessons se-l1 and md-l1 show their video; it played, seeked to 60 s (206 responses through the Next proxy), captions showing with the cue matching the narration, audio decoded, no media error. At 375 px width: no horizontal scroll; video 314 px wide.
+- `atlas stop` → "API stopped cleanly"; `start` and `restart` brought it back healthy; the browser session survived both restarts.

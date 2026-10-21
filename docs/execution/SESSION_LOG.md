@@ -55,3 +55,19 @@
 - MARKET DECODER module 5 (5 lessons); 87-topic coverage report.
 - Fixed: the `data/` ignore rule had hidden a new source folder from git.
 - Supabase: 009 applied additively; parity re-proven.
+
+## Session 6 — 21 Oct 2026 (reconstructed from its transcript and commits)
+
+- Re-read official source terms (NSE data policy, SEBI directory, BSE terms URL 404); wrote the non-real data inventory; labelled the landing example figure (`8237129`).
+- Built the end-of-day market terminal on stored records with real-change ticking only (`c27bc1e`).
+- Built the reusable 3D scene runtime and the "Three statements in motion" scene for ed-l2 (`3c6455e`).
+- Started the video pipeline (scripts, offline narration, Edge/WebCodecs encoder). The session froze during the first trial render; nothing was committed for video.
+
+## Session 7 — 22 Oct 2026: recovery, videos, verification
+
+- Recovered the session 6 brief and stopping point read-only from the local transcript. Checkpoint in `backups/recovery-2026-10-22/` (all-branch bundle, uncommitted patch, untracked files, full `data/` copy). Full audit: `docs/execution/RECOVERY_2026-10-22.md`.
+- Baseline before changes: typecheck pass; 58 shared + 309 API tests pass, 8 skipped (real-PostgreSQL suite).
+- Videos: finished the pipeline. Output moved from public static files to `apps/api/media/academy-videos`, served by `GET /v1/academy/videos/:id/:file` behind sign-in and the lesson's review-status gate, with byte ranges for seeking. Added a render timeout (the step that froze now fails loudly), a 700 kbps VBR target (42.7 MB → 12.8 MB with crisp text), a rupee-label fix, and `scripts/video/verify.mts` (playback check in Edge). Rendered and verified four flagship videos, one per course.
+- Lesson player shows the lesson's video with captions on, a transcript link, review status and a fallback to the transcript if playback fails.
+- Tests added: `videos.test.ts` (7), `config.test.ts` (5: production refuses synthetic data and drafts, previously untested), e2e video journey.
+- Not done: `feat/academy-equity-detective-batch2` merges cleanly but was left for your decision; real data still blocked by source terms (B-DATA-01).

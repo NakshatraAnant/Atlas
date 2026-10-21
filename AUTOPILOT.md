@@ -6,7 +6,7 @@ This file is the entry point for any agent or engineer resuming work on ATLAS.
 
 | What | Where |
 |---|---|
-| **Current state (start here)** | `docs/execution/MASTER_EXECUTION_STATE.md` |
+| **Current state (start here)** | `docs/execution/RECOVERY_2026-10-22.md`, then `docs/execution/MASTER_EXECUTION_STATE.md` |
 | Next actions | `docs/execution/NEXT_ACTIONS.md` |
 | Phase status | `docs/execution/PHASE_STATUS.md` |
 | Test results (only runs that happened) | `docs/execution/TEST_RESULTS.md` |

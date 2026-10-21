@@ -3,7 +3,7 @@
 **Read this first when resuming.** Then `git status`, `git log --oneline -10`, `npm install`, `npm test`.
 Do not trust any "passed" claim below until the tests rerun on your machine.
 
-_Last updated: 19 Oct 2026, end of session 4._
+_Last updated: 22 Oct 2026, session 7 (recovery). Latest audit: `RECOVERY_2026-10-22.md`._
 
 ## Current position
 

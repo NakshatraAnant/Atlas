@@ -175,7 +175,7 @@ async function main() {
       const sha = createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 16);
       const entry = {
         id: v.id, course_id: v.course_id, lesson_id: v.lesson_id, title: v.title, objective: v.objective,
-        duration_s: Math.round(total * 10) / 10, width: 1280, height: 720, fps: 30, codecs: 'VP9 + Opus (WebM)', bytes: webm.length,
+        duration_s: Math.floor(((res.frames - 1) / 30) * 10) / 10, // the encoded length, as players report it width: 1280, height: 720, fps: 30, codecs: 'VP9 + Opus (WebM)', bytes: webm.length,
         voice: VOICE, script_sha: sha, status: 'in_review', rendered_at: new Date().toISOString(),
       };
       const k = meta.findIndex((m) => m.id === v.id);

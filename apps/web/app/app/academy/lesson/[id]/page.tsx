@@ -87,7 +87,9 @@ export default function LessonPlayer({ params }: { params: Promise<{ id: string 
 
 function VideoPanel({ v }: { v: LessonVideo }) {
   const [failed, setFailed] = useState(false);
-  const mins = `${Math.floor(v.duration_s / 60)}:${String(Math.round(v.duration_s % 60)).padStart(2, '0')}`;
+  // Truncated like the browser's own player, so both show the same length.
+  const secs = Math.floor(v.duration_s);
+  const mins = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
   return (
     <section className="card lesson-video" aria-labelledby={`video-${v.id}`}>
       <h2 id={`video-${v.id}`} style={{ fontSize: 18, marginTop: 0 }}>Watch: {v.title} <span className="mu">({mins})</span></h2>
