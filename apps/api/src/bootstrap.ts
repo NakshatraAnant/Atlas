@@ -14,6 +14,8 @@ import { reconcileSubscriptions, settlePeriods } from './modules/billing/service
 import { deliverOutbox, OutboxOnlyTransport } from './modules/notify/email.js';
 import { schedulerTick } from './pipeline/daily.js';
 import { createCryptoModule, type CryptoOptions } from './modules/crypto/index.js';
+import { syncEquityProviders } from './modules/equity/ingest.js';
+import type { FetchFn } from './modules/equity/providers.js';
 import { SyntheticVendor, type VendorAdapter } from './pipeline/vendor.js';
 
 export interface ContextOptions {
@@ -25,6 +27,7 @@ export interface ContextOptions {
   ai?: ModelGateway;
   memory?: boolean;
   crypto?: CryptoOptions;
+  equityFetch?: FetchFn;
 }
 
 export async function createContext(opts: ContextOptions = {}): Promise<AppContext> {
@@ -43,7 +46,10 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   const vendor = opts.vendor ?? new SyntheticVendor({ companies: await syntheticUniverseSize(db, log), injectFaults: process.env.SYNTHETIC_INJECT_FAULTS === 'true' });
   if (vendor.isSynthetic && !cfg.allowSyntheticData) throw new Error('A synthetic vendor cannot be used in this environment');
   const crypto = await createCryptoModule(db, cfg, log, { now: () => clock().getTime(), ...opts.crypto });
-  return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg), crypto };
+  await syncEquityProviders(db, { eodhd: cfg.EODHD_API_TOKEN, alphavantage: cfg.ALPHAVANTAGE_API_KEY });
+  const offline: FetchFn = async (url) => { throw new Error(`Network access is disabled in this environment (${url.replace(/(api_token|apikey)=[^&]+/g, '$1=REDACTED')})`); };
+  const equityFetch = opts.equityFetch ?? (cfg.NODE_ENV === 'test' ? offline : (globalThis.fetch as unknown as FetchFn));
+  return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg), crypto, equityFetch };
 }
 
 /**

@@ -7,3 +7,4 @@ export * from './learning-sims-courses.js';
 export * from './three-statements.js';
 export * from './crypto-analytics.js';
 export * from './crypto-sims.js';
+export * from './research-analytics.js';

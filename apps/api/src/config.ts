@@ -49,6 +49,11 @@ const schema = z.object({
   CRYPTO_HISTORY_ASSETS: z.coerce.number().int().min(1).max(100).default(25),
   CRYPTO_BACKFILL_REQUESTS_PER_RUN: z.coerce.number().int().min(1).max(200).default(30),
   ETHEREUM_RPC_URL: z.string().url().default('https://ethereum-rpc.publicnode.com'),
+  // Indian equity reference data (your own keys; docs/equity/SOURCE_CAPABILITY_MATRIX.md). Never sent to the browser.
+  EODHD_API_TOKEN: z.string().optional().default(''),
+  ALPHAVANTAGE_API_KEY: z.string().optional().default(''),
+  /** Annual risk-free rate used for Sharpe/Sortino (decimal, e.g. 0.065). Shown next to every ratio. */
+  RESEARCH_RISK_FREE_RATE: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().min(0).max(0.5).default(0)),
 });
 
 export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean; academyShowDrafts: boolean; cryptoIngestion: boolean; cryptoLiveFeed: boolean };

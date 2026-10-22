@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn, watchErrors } from './helpers';
+import { signIn, verifyPlayback, watchErrors } from './helpers';
 
 // ATLAS Digital Assets journeys. The e2e database holds digital-asset data imported by the real
 // ingestion jobs from provider responses recorded on 22 Oct 2026 (scripts/e2e-crypto-seed.mts);
@@ -74,17 +74,11 @@ test('Crypto Academy: lesson video, toy-chain scene interaction, and the signing
   const w = watchErrors(page);
   await signIn(page, 'pro@atlas.test', '/app/academy/lesson/cd-l1');
   await expect(page.getByRole('heading', { name: /Watch: How blockchains and digital assets work/ })).toBeVisible();
-  const state = await page.getByTestId('lesson-video').evaluate(async (el: HTMLVideoElement) => {
-    el.muted = true;
-    if (el.readyState < 1) await new Promise((ok) => el.addEventListener('loadedmetadata', ok, { once: true }));
-    await el.play();
-    await new Promise((ok) => setTimeout(ok, 1500));
-    el.pause();
-    return { duration: el.duration, time: el.currentTime, captions: el.textTracks[0]?.kind, error: el.error?.code ?? null };
-  });
-  expect(state.error).toBeNull();
+  const state = await verifyPlayback(page.getByTestId('lesson-video'));
+  expect(state.error, JSON.stringify(state)).toBeNull();
   expect(state.duration).toBeGreaterThan(100);
-  expect(state.time).toBeGreaterThan(0.5);
+  expect(state.advanced, `playback did not advance: ${JSON.stringify(state)}`).toBe(true);
+  expect(state.ended, `playback did not reach the end: ${JSON.stringify(state)}`).toBe(true);
   expect(state.captions).toBe('captions');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.locator('main')).toContainText('Simulation.');

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn, watchErrors } from './helpers';
+import { signIn, verifyPlayback, watchErrors } from './helpers';
 
 // Academy journey: catalogue → course → five-question readiness check → result → enrol → lesson
 // with a lab → quiz → mastery feedback → games → capstone page.
@@ -112,19 +112,13 @@ test('Academy video: the lesson video plays through the API with captions and a 
   await expect(page.getByRole('heading', { name: /Watch: How the Indian share market works/ })).toBeVisible();
   const video = page.getByTestId('lesson-video');
   await expect(video).toBeVisible();
-  const state = await video.evaluate(async (el: HTMLVideoElement) => {
-    el.muted = true;
-    if (el.readyState < 1) await new Promise((ok) => el.addEventListener('loadedmetadata', ok, { once: true }));
-    await el.play();
-    await new Promise((ok) => setTimeout(ok, 2000));
-    el.pause();
-    const t = el.textTracks[0];
-    return { duration: el.duration, time: el.currentTime, width: el.videoWidth, captions: t?.kind, mode: t?.mode, error: el.error?.code ?? null };
-  });
-  expect(state.error).toBeNull();
+  const state = await verifyPlayback(video);
+  expect(state.error, JSON.stringify(state)).toBeNull();
   expect(state.width).toBe(1280);
   expect(state.duration).toBeGreaterThan(60);
-  expect(state.time).toBeGreaterThan(0.5);
+  expect(state.advanced, `playback did not advance: ${JSON.stringify(state)}`).toBe(true);
+  expect(state.seekedTo).toBeGreaterThan(state.duration - 3);
+  expect(state.ended, `playback did not reach the end after seeking: ${JSON.stringify(state)}`).toBe(true);
   expect(state.captions).toBe('captions');
   expect(state.mode).toBe('showing');
   const transcript = await page.request.get('/v1/academy/videos/md-intro/transcript');

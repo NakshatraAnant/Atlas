@@ -5,7 +5,7 @@ import { migrate } from '../src/db/migrate.js';
 // Database-level deny-by-default (ADR-012, migration 004). The API enforces authorisation;
 // these tests prove the database refuses any other role even if a grant slips in later.
 
-const ATLAS_SCHEMAS = ['ref', 'market', 'fund', 'disc', 'calc', 'bt', 'ai', 'app', 'ops', 'acad', 'crypto'];
+const ATLAS_SCHEMAS = ['ref', 'market', 'fund', 'disc', 'calc', 'bt', 'ai', 'app', 'ops', 'acad', 'crypto', 'equity', 'research'];
 
 describe('row-level security (deny by default)', () => {
   let db: Db;
