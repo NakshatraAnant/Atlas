@@ -22,6 +22,9 @@ const ENV_FILE = join(ROOT, '.env.local');
 const API_DIR = join(ROOT, 'apps', 'api');
 const WEB_DIR = join(ROOT, 'apps', 'web');
 const HOST = '127.0.0.1';
+// Windows ships bsdtar in System32. Under Git Bash, GNU tar comes first on PATH and reads "C:..." as a
+// remote host, so always use the system tar on Windows.
+const TAR = process.platform === 'win32' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
 
 const log = (...a) => console.log('[atlas]', ...a);
 class AtlasError extends Error {}
@@ -293,7 +296,7 @@ async function backup() {
   const name = `atlas-backup-${stamp()}.tar.gz`;
   const file = join(BACKUPS, name);
   // Windows 10+ ships bsdtar as tar.exe; relative paths keep the archive portable.
-  const r = spawnSync('tar', ['-czf', file, '-C', ROOT, 'data'], { stdio: 'inherit' });
+  const r = spawnSync(TAR, ['-czf', file, '-C', ROOT, 'data'], { stdio: 'inherit' });
   if (r.status !== 0) fail('tar failed; no backup was written.');
   const manifest = { file: name, created_at: new Date().toISOString(), sha256: sha256(file), bytes: statSync(file).size, contains: 'data/ (PGlite database and object store)', atlas_version: JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version };
   writeFileSync(`${file}.json`, JSON.stringify(manifest, null, 2));
@@ -316,7 +319,7 @@ async function restore(args) {
     if (m.sha256 !== sha256(file)) fail('Checksum mismatch: the backup file is damaged or was changed. Nothing was restored.');
     log('Checksum verified.');
   } else log('No manifest found next to the backup; restoring without checksum verification.');
-  const list = spawnSync('tar', ['-tzf', file], { encoding: 'utf8' });
+  const list = spawnSync(TAR, ['-tzf', file], { encoding: 'utf8' });
   if (list.status !== 0 || !list.stdout.split(/\r?\n/).every((l) => !l || l.startsWith('data/') || l === 'data')) fail('This archive is not an ATLAS data backup. Nothing was restored.');
   const wasRunning = alive(readPid('api'));
   if (wasRunning) await stop();
@@ -325,7 +328,7 @@ async function restore(args) {
     renameSync(DATA, aside);
     log(`Current data moved aside to ${aside} (not deleted).`);
   }
-  const r = spawnSync('tar', ['-xzf', file, '-C', ROOT], { stdio: 'inherit' });
+  const r = spawnSync(TAR, ['-xzf', file, '-C', ROOT], { stdio: 'inherit' });
   if (r.status !== 0) fail('Extraction failed. Your previous data is in the data.before-restore-* folder; rename it back to data to recover.');
   log('Restore complete.');
   if (wasRunning || args.includes('--start')) await start();

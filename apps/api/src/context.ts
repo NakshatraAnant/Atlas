@@ -4,6 +4,7 @@ import type { Logger } from './lib/logger.js';
 import type { ObjectStore } from './lib/objectStore.js';
 import type { RateLimiter } from './lib/rateLimit.js';
 import type { ModelGateway } from './modules/ai/gateway.js';
+import type { CryptoModule } from './modules/crypto/index.js';
 import type { PaymentGateway } from './modules/billing/gateway.js';
 import type { EmailTransport } from './modules/notify/email.js';
 import { loadRightsMatrix, type RightsMatrix } from './modules/ref/rights.js';
@@ -21,6 +22,8 @@ export interface AppContext {
   ai: ModelGateway;
   vendor: VendorAdapter;
   rights: () => Promise<RightsMatrix>;
+  /** ATLAS Digital Assets (crypto data, scheduler, live feed). */
+  crypto?: CryptoModule;
 }
 
 export interface SessionUser {

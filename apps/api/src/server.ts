@@ -6,6 +6,8 @@ import { createContext, startBackgroundJobs } from './bootstrap.js';
 const ctx = await createContext();
 const app = await buildApp(ctx);
 const stopJobs = process.env.ATLAS_BACKGROUND_JOBS === 'false' ? () => undefined : startBackgroundJobs(ctx);
+// Crypto ingestion and the live feed have their own scheduler so a long backfill never blocks backtests.
+const stopCrypto = process.env.ATLAS_BACKGROUND_JOBS === 'false' || !ctx.crypto ? () => undefined : ctx.crypto.start();
 await app.listen({ port: ctx.cfg.API_PORT, host: '127.0.0.1' });
 ctx.log.info('ATLAS API listening', { port: ctx.cfg.API_PORT, synthetic: ctx.cfg.allowSyntheticData, ai: ctx.ai.provider, payments: ctx.payments.name });
 
@@ -15,6 +17,7 @@ const shutdown = async (reason: string) => {
   stopping = true;
   ctx.log.info('ATLAS API shutting down', { reason });
   stopJobs();
+  stopCrypto();
   await app.close();
   // Closing the database flushes the embedded PGlite store to disk; a hard kill can lose recent writes.
   await ctx.db.close();

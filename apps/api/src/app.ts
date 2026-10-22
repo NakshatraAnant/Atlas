@@ -18,6 +18,7 @@ import { contentRoutes } from './modules/content/routes.js';
 import { dataRoutes } from './modules/research/dataRoutes.js';
 import { labRoutes } from './modules/research/labRoutes.js';
 import { workspaceRoutes } from './modules/research/workspaceRoutes.js';
+import { cryptoRoutes } from './modules/crypto/routes.js';
 
 // HTTP application (Blueprint §7). Versioned under /v1; RFC 9457 errors; secure cookies;
 // CSRF double-submit check on state-changing requests; per-route rate limits; idempotency keys;
@@ -190,6 +191,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
   await datasetRoutes(app, ctx);
   await dataHealthRoutes(app, ctx);
   await terminalRoutes(app, ctx);
+  await cryptoRoutes(app, ctx);
   await adminRoutes(app, ctx);
   return app;
 }

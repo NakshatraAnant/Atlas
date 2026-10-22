@@ -38,16 +38,30 @@ const schema = z.object({
   TRUST_PROXY: z.enum(['true', 'false']).default('false'),
   /** Scales route rate limits (tests use a high value; never set above 1 in production). */
   RATE_LIMIT_MULTIPLIER: z.coerce.number().min(1).max(100000).default(1),
+  // ATLAS Digital Assets (docs/crypto). Free public sources; an optional free CoinGecko Demo key raises its limit.
+  COINGECKO_DEMO_API_KEY: z.string().optional().default(''),
+  /** Scheduled crypto ingestion. Defaults to on outside tests. */
+  CRYPTO_INGESTION: z.enum(['true', 'false']).optional(),
+  /** Binance WebSocket price feed for CRYPTO_LIVE_SYMBOLS. Defaults to on outside tests. */
+  CRYPTO_LIVE_FEED: z.enum(['true', 'false']).optional(),
+  CRYPTO_LIVE_SYMBOLS: z.string().default('BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,BNBUSDT,DOGEUSDT,ADAUSDT,LINKUSDT'),
+  CRYPTO_UNIVERSE_SIZE: z.coerce.number().int().min(10).max(500).default(100),
+  CRYPTO_HISTORY_ASSETS: z.coerce.number().int().min(1).max(100).default(25),
+  CRYPTO_BACKFILL_REQUESTS_PER_RUN: z.coerce.number().int().min(1).max(200).default(30),
+  ETHEREUM_RPC_URL: z.string().url().default('https://ethereum-rpc.publicnode.com'),
 });
 
-export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean; academyShowDrafts: boolean };
+export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean; academyShowDrafts: boolean; cryptoIngestion: boolean; cryptoLiveFeed: boolean };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = schema.parse(env);
   const isProduction = parsed.NODE_ENV === 'production';
   const allowSyntheticData = parsed.ALLOW_SYNTHETIC_DATA ? parsed.ALLOW_SYNTHETIC_DATA === 'true' : !isProduction;
   const academyShowDrafts = parsed.ACADEMY_SHOW_DRAFTS ? parsed.ACADEMY_SHOW_DRAFTS === 'true' : !isProduction;
-  const cfg: Config = { ...parsed, allowSyntheticData, isProduction, academyShowDrafts };
+  const isTest = parsed.NODE_ENV === 'test';
+  const cryptoIngestion = parsed.CRYPTO_INGESTION ? parsed.CRYPTO_INGESTION === 'true' : !isTest;
+  const cryptoLiveFeed = parsed.CRYPTO_LIVE_FEED ? parsed.CRYPTO_LIVE_FEED === 'true' : !isTest;
+  const cfg: Config = { ...parsed, allowSyntheticData, isProduction, academyShowDrafts, cryptoIngestion, cryptoLiveFeed };
   if (isProduction) assertProductionSafe(cfg);
   return cfg;
 }

@@ -5,3 +5,5 @@ export * from './plans.js';
 export * from './learning-sims.js';
 export * from './learning-sims-courses.js';
 export * from './three-statements.js';
+export * from './crypto-analytics.js';
+export * from './crypto-sims.js';

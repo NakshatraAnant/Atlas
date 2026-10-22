@@ -13,6 +13,7 @@ import { RazorpayGateway, SandboxGateway, type PaymentGateway } from './modules/
 import { reconcileSubscriptions, settlePeriods } from './modules/billing/service.js';
 import { deliverOutbox, OutboxOnlyTransport } from './modules/notify/email.js';
 import { schedulerTick } from './pipeline/daily.js';
+import { createCryptoModule, type CryptoOptions } from './modules/crypto/index.js';
 import { SyntheticVendor, type VendorAdapter } from './pipeline/vendor.js';
 
 export interface ContextOptions {
@@ -23,6 +24,7 @@ export interface ContextOptions {
   clock?: () => Date;
   ai?: ModelGateway;
   memory?: boolean;
+  crypto?: CryptoOptions;
 }
 
 export async function createContext(opts: ContextOptions = {}): Promise<AppContext> {
@@ -40,7 +42,8 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   const ai = opts.ai ?? (cfg.AI_PROVIDER === 'anthropic' && cfg.ANTHROPIC_API_KEY ? new AnthropicGateway(cfg.ANTHROPIC_API_KEY, cfg.AI_MODEL, cfg.AI_USD_INR) : new DeterministicGateway());
   const vendor = opts.vendor ?? new SyntheticVendor({ companies: await syntheticUniverseSize(db, log), injectFaults: process.env.SYNTHETIC_INJECT_FAULTS === 'true' });
   if (vendor.isSynthetic && !cfg.allowSyntheticData) throw new Error('A synthetic vendor cannot be used in this environment');
-  return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg) };
+  const crypto = await createCryptoModule(db, cfg, log, { now: () => clock().getTime(), ...opts.crypto });
+  return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg), crypto };
 }
 
 /**

@@ -12,7 +12,8 @@
     "migrate": "tsx src/cli/migrate.ts",
     "pipeline": "tsx src/cli/pipeline.ts",
     "eval": "tsx src/cli/eval.ts",
-    "worker": "tsx src/cli/worker.ts"
+    "worker": "tsx src/cli/worker.ts",
+    "crypto": "tsx src/cli/crypto.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
