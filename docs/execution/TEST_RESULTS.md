@@ -141,3 +141,25 @@ Local hosting, verified against the running app (`node scripts/atlas.mjs start` 
 | `npm test` | shared 58 passed; API **328 passed, 8 skipped**, 0 failed (+7 from the new lessons' content checks) |
 | `npm run test:e2e` | 12 passed + restart check passed |
 | Running app (existing `./data`, no reseed) | catalogue lessons 14 / 15 / 6 / 6; `Module 5: The business behind the numbers` listed; ed-l9 and ed-l15 open (7 stages, 3 questions, draft) |
+
+## 23 Oct 2026, session 8 (ATLAS Digital Assets)
+
+Windows 11, Node 24.16.0, Microsoft Edge. Baseline before any change (22 Oct): typecheck pass; shared 58 passed; API 328 passed, 8 skipped.
+
+| Check | Command | Result |
+|---|---|---|
+| Type checking | `npm run typecheck` | pass (all workspaces) |
+| Unit, pipeline, policy, golden, API, crypto tests | `npm test` | shared **92 passed** (+34 crypto analytics/simulation tests, hand-calculated values); API **392 passed, 8 skipped** (real-PostgreSQL suite, no `TEST_DATABASE_URL`; skips are not passes), 0 failed |
+| New: crypto integration | `apps/api/test/crypto.test.ts` | 36 passed: transforms on recorded real responses, validation, budget/cache/back-off, idempotent ingestion, quarantine, staged jobs, outage → stale (no invented values), analytics vs independent calculation, access control, watchlist privacy, live-feed staleness |
+| Academy content checks with the 27 crypto lessons | `academy-content.test.ts` etc. | pass (seven-stage loop, objectives assessed ≥ 3 times, answer keys, no advice language) |
+| Production build | `npm run build` | pass (9 Digital Assets routes) |
+| Browser end-to-end | `npm run test:e2e` | **15 passed, 1 failed** + restart check passed. The failure: existing md-intro video test (`currentTime` 0 after 2 s) while unit tests and a backfill ran concurrently. Re-run alone (`npm run test:e2e -- e2e/academy.spec.ts -g "Academy video"`): **passed**, with all four Academy tests. Recorded as a load-sensitive test, not fixed. All four new crypto journeys passed. |
+| Video render | `npm run video:render cd-intro td-intro oe-intro aa-intro` | 4 rendered (136.5 s, 116.0 s, 107.2 s, 107.6 s; 10.5–13.3 MB); script numbers checked against `@atlas/shared` first |
+| Video playback | `npm run video:verify` | 8/8 OK in Edge (duration, 1280×720, video and audio decoded, 21–30 caption cues) |
+| Secret scan | `npm run check:secrets` | pass (370 tracked files) |
+| Real-PostgreSQL suite | `npm run test:postgres` | **not run** (migration 010 verified on PGlite only) |
+
+Real-data verification (local database `./data/pglite`, free public sources, 22 Oct 2026):
+- Imported: 100 assets (CoinGecko top 100), 241 verified venue pairs (Binance 124, Coinbase 117), daily OHLCV and reference observations (77,078 stored across 45 series by the second restart; Binance back to 2017-08-17, Coinbase back to 2015-07-20, CoinGecko last 365 days), 300 DeFi protocols, 37,720 DeFi metric points, rolling Bitcoin/Ethereum blocks, 668 source-linked events, 0 quarantined.
+- Browser pane (signed in as `pro@atlas.test`): overview with CoinGecko totals and freshness; Binance WebSocket "Live: receiving messages"; asset page with CoinGecko 365-day chart; correlation matrix from Binance candles (BTC/ETH 0.89 over 90 days); backtest on Coinbase BTC-USD; on-chain blocks; sources & health; crypto lesson cd-l1 with video (poster, captions) and the 3D transaction-journey scene (WebGL canvas; tamper detection works). 375 px width: no horizontal scroll on overview and explorer.
+- `atlas stop` → "API stopped cleanly"; `restart` → healthy; persisted crypto data intact; scheduler resumed (markets_inr, asset_details, onchain_bitcoin ran within a minute). One `onchain_ethereum` run failed on a transient "fetch failed" from the public RPC: recorded, source marked degraded, retried on schedule.

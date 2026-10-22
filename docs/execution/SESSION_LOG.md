@@ -72,3 +72,12 @@
 - Tests added: `videos.test.ts` (7), `config.test.ts` (5: production refuses synthetic data and drafts, previously untested), e2e video journey.
 - Not done: real data still blocked by source terms (B-DATA-01).
 - On your go-ahead, integrated `feat/academy-equity-detective-batch2`: cherry-picked `89c2dfb` as `554aa69` (no conflicts). EQUITY DETECTIVE now has 15 lessons (41 in total). typecheck, 58 + 328 tests, e2e 12/12 and the running app re-verified.
+
+## Session 8 — 22–23 Oct 2026: ATLAS Digital Assets
+
+- Checkpoint: branch `backup/pre-digital-assets-2026-10-22`, all-branch bundle, database backup (after fixing `atlas backup` under Git Bash).
+- Verified free sources from official docs and live requests (CoinGecko keyless: 365-day limit; Binance; Coinbase; DefiLlama; PublicNode RPC; mempool.space; GitHub releases; EF blog). Matrix: `docs/crypto/SOURCE_CAPABILITY_MATRIX.md`.
+- Built migration 010 (`crypto` schema), provider client with budgets/back-off, adapters, staged idempotent ingestion, scheduler, Binance WebSocket feed, analytics in `@atlas/shared`, `/v1/crypto` API, CLI, web terminal (overview, explorer, asset pages, research, DeFi, on-chain, events, sources & health).
+- Academy: four crypto courses (27 lessons), seven scenes, four rendered videos; course list grouped into equity and digital-asset tracks.
+- Indian equities: Alpha Vantage assessed (key required, terms unreadable): not connected; real equity data still blocked (B-DATA-01).
+- Commits: `0668c08`, `34ce3e0`. Status: `docs/IMPLEMENTATION_STATUS.md`.

@@ -20,6 +20,12 @@ Ordered. Take the first unchecked item whose dependencies are met.
 6. [ ] Evaluate the assistant with a live model once B-AI-01 is resolved (`AI_PROVIDER=anthropic`, `npm run eval`).
 7. [ ] Load tests for backtests and the daily cycle.
 
+## Digital Assets follow-ups (session 8)
+8. [ ] Make the md-intro video e2e test robust under load (it stalled once at currentTime 0 while other jobs ran; passes alone).
+9. [ ] Run `npm run test:postgres` to verify migration 010 on real PostgreSQL.
+10. [ ] Optional free CoinGecko Demo key in `.env.local` (your account) for faster, larger reference history refreshes.
+11. [ ] Solana on-chain coverage; transaction detail view; active-address metrics from a source with documented methodology.
+
 ## For you (unblock external items; see BLOCKERS.md)
 
 - B-GH-01: create the GitHub repo and push (commands in BLOCKERS.md).

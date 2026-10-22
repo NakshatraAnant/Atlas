@@ -8,6 +8,15 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 - User CSV upload (price series) works with column mapping, validation and provenance (`/app/research/datasets`). XLSX and document (PDF) extraction are not built.
 - Point-in-time fundamentals exist for the synthetic data; real point-in-time history would depend on the provider.
 
+## Digital assets (session 8)
+- Free tiers only: CoinGecko keyless history is limited to 365 days and its rate pool is shared per IP (ATLAS uses ≤ 5 calls/min); a free Demo key (COINGECKO_DEMO_API_KEY) raises the limit. Long history comes from Binance and Coinbase daily candles (venue-specific).
+- Snapshots refresh every 15 minutes; only the Binance panel streams, for 8 pairs. Nothing else is real time.
+- Binance and Coinbase market-data terms could not be read in full (PDF / 403); data is used for personal, local research only and never redistributed. CoinGecko asks that cached data be refreshed at least daily.
+- Not available: token unlock schedules (no free verified source), holder concentration, Solana on-chain data, transaction-level explorer, active-address metrics, user-selectable chart time zone (UTC only), an automated event-study tool.
+- Cross-asset comparison uses only price files you upload; ATLAS's own equity data is synthetic and is never compared with real crypto data.
+- The PGlite single-process limit applies: run `atlas crypto …` only while ATLAS is stopped.
+- Crypto Academy content (27 lessons, 4 videos) is AI-drafted and in review, like the equity courses.
+
 ## Infrastructure
 - **Embedded database (PGlite) memory ceiling: fixed** (ADR-018). Seeds of 40, 120 and 602 companies complete, and the daily catch-up is covered by tests. Limits that remain:
   - A 500-company seed takes about 97 minutes (disk mode, peak RSS about 960 MB, database 1.7 GB). That size is for stress testing; the default is 120.
