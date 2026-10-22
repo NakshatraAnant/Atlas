@@ -5,7 +5,7 @@ import { Shell } from '@/components/shell';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'ATLAS — research workspace for Indian equities', template: '%s · ATLAS' },
+  title: { default: 'ATLAS — research workspace for Indian equities and digital assets', template: '%s · ATLAS' },
   description: 'Understand a company’s financial performance and the market context around it in one research workspace. Every number traceable; AI that shows its work.',
 };
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#14243d' };

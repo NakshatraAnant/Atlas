@@ -81,3 +81,31 @@ To connect the app: put the session-pooler URI in `.env.local` as `DATABASE_URL`
 - API logs are JSON lines on stdout (correlation ids on every request).
 - `/healthz` (API) and `/status` (web) show component status.
 - Data corrections go in the correction log (`calc.corrections`) and are shown publicly.
+
+## Digital Assets (crypto) data
+
+ATLAS Digital Assets uses free public sources only (`docs/crypto/SOURCE_CAPABILITY_MATRIX.md`). While the API runs, its own crypto scheduler (separate from the equity jobs) refreshes data within each provider's budget, and a Binance WebSocket streams a few pairs. Health, freshness, request use, failures and quarantined records are on **Digital Assets → Sources & health**; administrators with two-step verification can run any job from there.
+
+The embedded database allows one process at a time, so the command-line tool runs while ATLAS is stopped:
+
+```bash
+node scripts/atlas.mjs stop
+```
+
+```bash
+node scripts/atlas.mjs crypto status
+```
+
+```bash
+node scripts/atlas.mjs crypto tick 10
+```
+
+```bash
+node scripts/atlas.mjs crypto run markets global candles_binance
+```
+
+`crypto jobs` lists job types. `tick` runs whatever is due (as the scheduler does); `run` forces named jobs. Add `--memory` (via `npm run crypto -w @atlas/api -- run markets --memory`) for a dry run against a throwaway database.
+
+Settings in `.env.local` (all optional): `COINGECKO_DEMO_API_KEY` (free Demo key: higher limit), `CRYPTO_INGESTION=false` (no scheduled refresh), `CRYPTO_LIVE_FEED=false` (no WebSocket), `CRYPTO_LIVE_SYMBOLS`, `CRYPTO_UNIVERSE_SIZE` (default 100), `CRYPTO_HISTORY_ASSETS` (default 25), `CRYPTO_BACKFILL_REQUESTS_PER_RUN` (default 30), `ETHEREUM_RPC_URL`.
+
+If a provider fails: the job is recorded as failed with the error, the source is marked degraded/failing/rate-limited, the last stored values stay in place and are labelled stale once past their freshness target, and the scheduler retries after a fifth of the interval (at least 2 minutes). Jobs interrupted by a stop are closed as failed at the next start-up. Nothing is ever filled with invented values.

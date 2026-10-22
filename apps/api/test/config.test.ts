@@ -33,3 +33,16 @@ describe('production safety (assertProductionSafe)', () => {
     expect(dev.academyShowDrafts).toBe(true);
   });
 });
+
+describe('digital-assets settings', () => {
+  it('empty values from a copied .env.example mean "not set", and tests never ingest or stream by default', () => {
+    const dev = loadConfig({ NODE_ENV: 'development', CRYPTO_INGESTION: '', CRYPTO_LIVE_FEED: '', COINGECKO_DEMO_API_KEY: '' } as NodeJS.ProcessEnv);
+    expect(dev.cryptoIngestion).toBe(true);
+    expect(dev.cryptoLiveFeed).toBe(true);
+    const test = loadConfig({ NODE_ENV: 'test' } as NodeJS.ProcessEnv);
+    expect(test.cryptoIngestion).toBe(false);
+    expect(test.cryptoLiveFeed).toBe(false);
+    expect(loadConfig({ NODE_ENV: 'development', CRYPTO_INGESTION: 'false' } as NodeJS.ProcessEnv).cryptoIngestion).toBe(false);
+    expect(() => loadConfig({ NODE_ENV: 'development', CRYPTO_UNIVERSE_SIZE: '5000' } as NodeJS.ProcessEnv)).toThrow();
+  });
+});

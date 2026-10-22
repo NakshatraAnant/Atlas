@@ -14,13 +14,14 @@ const run = (cmd, args, extra = {}) => {
 };
 
 run('npx', ['tsx', 'scripts/e2e-prepare.mts', DATA]);
+run('npx', ['tsx', 'scripts/e2e-crypto-seed.mts', join(DATA, 'pglite')]);
 run('npm', ['run', 'build', '-w', '@atlas/shared']);
 run('npm', ['run', 'build', '-w', '@atlas/web']);
 const pw = spawnSync('npx', ['playwright', 'test', ...process.argv.slice(2)], { stdio: 'inherit', shell, env });
 let code = pw.status ?? 1;
 
 // Restart and recovery: the note created by the research spec must still exist after a restart.
-const apiEnv = { ...env, PGLITE_DIR: join(DATA, 'pglite'), OBJECT_STORE_DIR: join(DATA, 'objects'), ATLAS_BACKGROUND_JOBS: 'false', LOG_LEVEL: 'warn', APP_SECRET: 'e2e-secret-e2e-secret-e2e-secret-e2e' };
+const apiEnv = { ...env, PGLITE_DIR: join(DATA, 'pglite'), OBJECT_STORE_DIR: join(DATA, 'objects'), ATLAS_BACKGROUND_JOBS: 'false', CRYPTO_INGESTION: 'false', CRYPTO_LIVE_FEED: 'false', LOG_LEVEL: 'warn', APP_SECRET: 'e2e-secret-e2e-secret-e2e-secret-e2e' };
 const api = spawn('npx', ['tsx', 'apps/api/src/server.ts'], { shell, env: apiEnv, stdio: 'ignore' });
 try {
   let up = false;

@@ -13,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { equalWeightVol } from '../../packages/shared/src/learning-sims-courses.js';
 import { threeStatements, DEFAULT_STATEMENT_INPUTS } from '../../packages/shared/src/three-statements.js';
+import { impermanentLoss, simulateTokenomics } from '../../packages/shared/src/crypto-sims.js';
 import { VIDEO_SCRIPTS, type VideoScript } from './scripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -54,6 +55,26 @@ function checkScripts() {
   const md = VIDEO_SCRIPTS.find((v) => v.id === 'md-intro')!;
   const line = md.scenes[4]!.visual as { points: { value: number }[] };
   close(line.points[2]!.value, 100 * 1.2 * 0.8, 1e-9, '+20% then −20%');
+  // Digital-assets track
+  const cd = VIDEO_SCRIPTS.find((v) => v.id === 'cd-intro')!;
+  const conf = cd.scenes[2]!.visual as { points: { value: number }[] };
+  conf.points.forEach((p, i) => close(p.value, i + 1, 0, `confirmations at block ${100 + i}`));
+  const mc = cd.scenes[5]!.visual as { items: { value: number }[] };
+  close(mc.items[0]!.value, (20_000_000 * 50_000) / 1e12, 1e-9, 'market cap');
+  close(mc.items[1]!.value, (21_000_000 * 50_000) / 1e12, 1e-9, 'FDV');
+  const td = VIDEO_SCRIPTS.find((v) => v.id === 'td-intro')!;
+  const sup = td.scenes[2]!.visual as { items: { value: number }[] };
+  const sim = simulateTokenomics({ initialCirculating: 400, tranches: [{ label: 'team', amount: 200, cliffMonths: 12, vestingMonths: 24 }, { label: 'investors', amount: 150, cliffMonths: 6, vestingMonths: 12 }], monthlyEmission: 0, monthlyBurnRate: 0, maxSupply: null, price: 1, months: 36 });
+  [0, 12, 24, 36].forEach((m, i) => close(sup.items[i]!.value, sim[m]!.circulating, 0.5, `circulating at month ${m}`));
+  const oe = VIDEO_SCRIPTS.find((v) => v.id === 'oe-intro')!;
+  const ann = oe.scenes[3]!.visual as { items: { value: number }[] };
+  close(ann.items[0]!.value, 3 * Math.sqrt(365), 0.05, '3% x sqrt(365)');
+  close(ann.items[1]!.value, 3 * Math.sqrt(252), 0.05, '3% x sqrt(252)');
+  const fp = oe.scenes[4]!.visual as { items: { value: number }[] };
+  [1, 5, 20].forEach((n, i) => close(fp.items[i]!.value, (1 - 0.95 ** n) * 100, 0.05, `false positives with ${n} rules`));
+  const aa = VIDEO_SCRIPTS.find((v) => v.id === 'aa-intro')!;
+  const il = aa.scenes[3]!.visual as { items: { value: number }[] };
+  [1.5, 2, 4].forEach((x, i) => close(il.items[i]!.value, impermanentLoss(x) * 100, 0.01, `impermanent loss at ${x}x`));
   console.log('Script numbers checked against packages/shared: OK');
 }
 
@@ -175,7 +196,9 @@ async function main() {
       const sha = createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 16);
       const entry = {
         id: v.id, course_id: v.course_id, lesson_id: v.lesson_id, title: v.title, objective: v.objective,
-        duration_s: Math.floor(((res.frames - 1) / 30) * 10) / 10, // the encoded length, as players report it width: 1280, height: 720, fps: 30, codecs: 'VP9 + Opus (WebM)', bytes: webm.length,
+        // duration_s is the encoded length, as players report it.
+        duration_s: Math.floor(((res.frames - 1) / 30) * 10) / 10,
+        width: 1280, height: 720, fps: 30, codecs: 'VP9 + Opus (WebM)', bytes: webm.length,
         voice: VOICE, script_sha: sha, status: 'in_review', rendered_at: new Date().toISOString(),
       };
       const k = meta.findIndex((m) => m.id === v.id);

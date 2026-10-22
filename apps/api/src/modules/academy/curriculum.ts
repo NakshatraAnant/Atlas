@@ -29,7 +29,7 @@ export interface SourceQuestion {
   objective?: string;
 }
 
-export const WIDGETS = ['order_book', 'percent_path', 'ownership_split', 'diversification', 'compound_growth', 'real_return', 'index_weighting', 'statement_flow', 'dupont', 'ev_bridge', 'drawdown', 'overfit', 'cost_drag', 'dcf', 'dcf_surface_3d', 'portfolio_risk', 'multiple_testing', 'statements_3d'] as const;
+export const WIDGETS = ['order_book', 'percent_path', 'ownership_split', 'diversification', 'compound_growth', 'real_return', 'index_weighting', 'statement_flow', 'dupont', 'ev_bridge', 'drawdown', 'overfit', 'cost_drag', 'dcf', 'dcf_surface_3d', 'portfolio_risk', 'multiple_testing', 'statements_3d', 'tx_journey_3d', 'tokenomics_3d', 'consensus_3d', 'signing', 'amm_pool_3d', 'quant_3d', 'depth_3d'] as const;
 export type Widget = (typeof WIDGETS)[number];
 
 export type Block =
@@ -341,4 +341,15 @@ const marketArchitect: SourceCourse = {
   ],
 };
 
-export const CURRICULUM: SourceCourse[] = [marketDecoder, equityDetective, signalEngineer, marketArchitect];
+// Digital-assets track (ATLAS Digital Assets). Imported at the end: the content modules import types from here.
+import { CRYPTO_DECODER } from './content/crypto-decoder.js';
+import { ASSET_ARCHITECT, ONCHAIN_ENGINEER, TOKENOMICS_DETECTIVE } from './content/crypto-advanced.js';
+
+export const CURRICULUM: SourceCourse[] = [marketDecoder, equityDetective, signalEngineer, marketArchitect, CRYPTO_DECODER, TOKENOMICS_DETECTIVE, ONCHAIN_ENGINEER, ASSET_ARCHITECT];
+
+/** Learning tracks: the four equity courses and the four digital-asset courses. Level is the position within the track. */
+export const DIGITAL_ASSET_COURSES = new Set(['crypto-decoder', 'tokenomics-detective', 'onchain-engineer', 'asset-architect']);
+export function courseTrack(courseId: string): { track: 'equities' | 'digital_assets'; level: number } {
+  const ids = CURRICULUM.filter((c) => DIGITAL_ASSET_COURSES.has(c.id) === DIGITAL_ASSET_COURSES.has(courseId)).map((c) => c.id);
+  return { track: DIGITAL_ASSET_COURSES.has(courseId) ? 'digital_assets' : 'equities', level: ids.indexOf(courseId) + 1 };
+}

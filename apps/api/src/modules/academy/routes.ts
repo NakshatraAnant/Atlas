@@ -11,6 +11,7 @@ import {
   ACADEMY_ENGINE_VERSION, attemptsRemaining, isCorrect, nextReview, publicQuestion, REVIEW_DAILY_CAP, scoreDiagnostic, seedFrom, selectDiagnostic, updateMastery,
   type BankQuestion, type MasteryState, type ReadinessRules, type Response,
 } from './engine.js';
+import { courseTrack } from './curriculum.js';
 import { currentCourses, diagnosticBank, lessonQuiz, questionsByRefs, visibleStatuses, type CourseVersionRow } from './service.js';
 import { loadVideos, parseRange, VIDEO_FILES, videoPath, type VideoFile } from './videos.js';
 
@@ -89,7 +90,7 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
       : [];
     return {
       courses: courses.map((c) => ({
-        course_id: c.course_id, version: c.version, title: c.title, tagline: c.tagline, description: c.description, audience: c.audience, position: c.position,
+        course_id: c.course_id, version: c.version, title: c.title, tagline: c.tagline, description: c.description, audience: c.audience, position: c.position, ...courseTrack(c.course_id),
         draft: isDraft(c.status), status: c.status, available: statuses.includes(c.status),
         modules: counts.find((x) => x.course_id === c.course_id)?.modules ?? 0,
         lessons: statuses.includes(c.status) ? (counts.find((x) => x.course_id === c.course_id)?.lessons ?? 0) : 0,

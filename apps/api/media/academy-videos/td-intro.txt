@@ -1,0 +1,12 @@
+How token supply and incentives affect analysis (ATLAS Academy, ATLAS: TOKENOMICS DETECTIVE)
+
+Learning objective: Distinguish circulating, total and maximum supply, and show how unlocks, emissions and burns change circulating supply.
+
+Tokenomics Detective is about the supply side of a token: how many exist, how many can trade, and how that changes over time.
+There are three supply figures. Circulating supply can trade now. Total supply exists, including locked tokens. Maximum supply is a cap, where the protocol defines one. Market capitalisation uses circulating supply; fully diluted valuation uses the maximum.
+Here is a fictional token. Four hundred million circulate at launch. Two hundred million team tokens unlock after a twelve-month cliff over twenty-four months, and one hundred and fifty million investor tokens after a six-month cliff over twelve. Circulating supply grows from four hundred million to seven hundred and fifty million in three years.
+If the market value of the token stayed the same while supply nearly doubled, the price per token would fall by almost half. Supply alone can move the arithmetic, before any change in demand.
+Supply also changes through emissions, which pay participants with new tokens, and burns, which destroy tokens. Net change is issuance minus burns. Incentives paid in new tokens are a cost borne by every holder through dilution.
+In the course you will design vesting schedules in a three-dimensional simulator, test utility claims against evidence, and build a disclosure checklist. Unlock data in ATLAS is shown only from verified sources, never estimated. This is education, not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

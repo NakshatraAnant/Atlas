@@ -11,8 +11,8 @@ const lessons = CURRICULUM.flatMap((c) => c.modules.flatMap((m) => m.lessons.map
 const allQuestions: { q: SourceQuestion; course: string }[] = CURRICULUM.flatMap((c) => [...c.diagnostic, ...c.modules.flatMap((m) => m.lessons.flatMap((l) => l.quiz))].map((q) => ({ q, course: c.id })));
 
 describe('curriculum completeness', () => {
-  it('has four courses and no module without lessons', () => {
-    expect(CURRICULUM.map((c) => c.title)).toEqual(['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT']);
+  it('has the four equity courses (unchanged) and the four digital-asset courses, and no module without lessons', () => {
+    expect(CURRICULUM.map((c) => c.title)).toEqual(['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT', 'ATLAS: CRYPTO MARKET DECODER', 'ATLAS: TOKENOMICS DETECTIVE', 'ATLAS: ON-CHAIN SIGNAL ENGINEER', 'ATLAS: DIGITAL ASSET ARCHITECT']);
     for (const c of CURRICULUM) for (const m of c.modules) expect(m.lessons.length, `${m.id} has lessons`).toBeGreaterThanOrEqual(2);
     expect(lessons.length).toBeGreaterThanOrEqual(29);
   });

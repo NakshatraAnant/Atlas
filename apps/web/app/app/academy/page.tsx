@@ -2,7 +2,7 @@
 import { Empty, Loading, Problem, useApi } from '@/components/ui';
 
 interface Course {
-  course_id: string; title: string; tagline: string; description: string; audience: string; position: number; draft: boolean; status: string; available: boolean;
+  course_id: string; title: string; tagline: string; description: string; audience: string; position: number; track: 'equities' | 'digital_assets'; level: number; draft: boolean; status: string; available: boolean;
   modules: number; lessons: number; minutes: number; enrolment: { entry_route: string } | null; last_diagnostic: { readiness: string | null } | null;
 }
 interface Progress { courses: { course_id: string; title: string; lessons: number; lessons_completed: number; objectives: number; mastered: number }[]; reviews_due: number; note: string }
@@ -30,7 +30,7 @@ export default function AcademyHome() {
       <header className="ac-hero">
         <p className="eyebrow">ATLAS Academy</p>
         <h1>Learn to read markets the way ATLAS does: with evidence.</h1>
-        <p className="mu" style={{ maxWidth: 640 }}>Four courses, from how a share works to defending a valuation. Each starts with a five-question readiness check so you begin at the right place. {cat.not_a_qualification}</p>
+        <p className="mu" style={{ maxWidth: 640 }}>Two tracks of four courses: Indian equities, from how a share works to defending a valuation, and digital assets, from how a blockchain works to an evidence-based crypto research report. Each starts with a five-question readiness check so you begin at the right place. {cat.not_a_qualification}</p>
         {me.data && (
           <div className="card next-action">
             <p className="big">Next: {me.data.recommendation.href ? <a href={me.data.recommendation.href}>{me.data.recommendation.title}</a> : me.data.recommendation.title}</p>
@@ -48,14 +48,17 @@ export default function AcademyHome() {
       {cat.courses.length === 0 ? (
         <Empty>No courses are set up in this environment yet. The curriculum loads when the API starts; if this persists, check the API log for the curriculum sync.</Empty>
       ) : (
-        <ol className="course-grid">
-          {cat.courses.map((c) => {
+        <>{(['equities', 'digital_assets'] as const).map((t) => (
+          <section key={t} aria-labelledby={`track-${t}`}>
+            <h2 id={`track-${t}`} className="eyebrow" style={{ margin: '18px 0 8px' }}>{t === 'equities' ? 'Track 1 · Indian equities' : 'Track 2 · Digital assets'}</h2>
+          <ol className="course-grid">
+          {cat.courses.filter((c) => c.track === t).map((c) => {
             const mine = p?.courses.find((x) => x.course_id === c.course_id);
             return (
-              <li key={c.course_id} className={`course c${c.position}${c.available ? '' : ' locked'}`}>
+              <li key={c.course_id} className={`course c${c.level}${c.available ? '' : ' locked'}`}>
                 <a href={`/app/academy/${c.course_id}`} className="course-link" aria-describedby={`st-${c.course_id}`}>
-                  <span className="num" aria-hidden="true">0{c.position}</span>
-                  <span className="level">{LEVEL[c.position] ?? ''}</span>
+                  <span className="num" aria-hidden="true">0{c.level}</span>
+                  <span className="level">{LEVEL[c.level] ?? ''}</span>
                   <h2>{c.title.replace('ATLAS: ', '')}</h2>
                   <p>{c.tagline}</p>
                   <p className="mu">
@@ -76,6 +79,8 @@ export default function AcademyHome() {
             );
           })}
         </ol>
+          </section>
+        ))}</>
       )}
       {p && p.courses.length > 0 && <p className="mu">{p.note}</p>}
       <p className="mu">Prefer short concept notes? See <a href="/app/learn">Quick lessons</a>.</p>

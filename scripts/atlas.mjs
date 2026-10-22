@@ -352,6 +352,14 @@ async function seedCmd() {
   await seedIfNeeded(env);
 }
 
+/** Digital-assets data CLI (status, run <jobs…>, tick [rounds], jobs). Needs the API stopped: one process per embedded database. */
+async function cryptoCmd(args) {
+  const { env } = loadLocalEnv();
+  if (!env.DATABASE_URL && alive(readPid('api'))) fail('Stop ATLAS first (node scripts/atlas.mjs stop): the embedded database allows one process at a time. While ATLAS runs, its own scheduler refreshes crypto data.');
+  const r = spawnSync(process.execPath, [TSX(), 'src/cli/crypto.ts', ...(args.length ? args : ['status'])], { cwd: API_DIR, env: { ...process.env, ...env }, stdio: 'inherit', windowsHide: true });
+  if (r.status !== 0) fail('The crypto command failed (see the output above).');
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 const commands = {
   start, stop, status, backup,
@@ -361,9 +369,10 @@ const commands = {
   update,
   test: () => run('npm', ['test']),
   seed: seedCmd,
+  crypto: () => cryptoCmd(rest),
 };
 if (!cmd || !commands[cmd]) {
-  console.log('Usage: node scripts/atlas.mjs <start|stop|restart|status|logs [api|web|seed] [--follow]|backup|restore [file] [--start]|update|test|seed>');
+  console.log('Usage: node scripts/atlas.mjs <start|stop|restart|status|logs [api|web|seed] [--follow]|backup|restore [file] [--start]|update|test|seed|crypto [status|run <job…>|tick [rounds]|jobs]>');
   process.exit(cmd ? 1 : 0);
 }
 try {

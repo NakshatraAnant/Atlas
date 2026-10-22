@@ -1,0 +1,12 @@
+How to build an integrated crypto research process (ATLAS Academy, ATLAS: DIGITAL ASSET ARCHITECT)
+
+Learning objective: Combine tokenomics, protocol economics, liquidity, risk and scenarios into a sourced research report that states its unknowns.
+
+Digital Asset Architect brings the whole toolkit together into a research process you can defend.
+Start with a precise question and the exact identity of the asset: its id, network and contract. Then gather sourced data, analyse supply, protocol economics, network activity, liquidity and risk, run scenarios, and write down what is unknown.
+Protocol data has its own vocabulary. Total value locked is capital deposited, priced at market. Fees are what users pay. Revenue is the share of fees the protocol keeps. None of them is a company’s audited revenue or profit.
+Decentralised finance moves risk around. A liquidity provider in a constant-product pool loses value relative to holding when prices move: about two percent for a one-and-a-half times move, about six percent for a doubling, and twenty percent for a four times move, before fees.
+Finally, write a report others can check. Every number cites its source or formula. Observations, calculations and interpretations are labelled, and a limitations section names what would change the picture.
+In the course you will analyse protocols with DefiLlama data, stress-test liquidity, build scenarios, and write a full research report. A report describes evidence and uncertainty; it is not a recommendation. This is education, not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

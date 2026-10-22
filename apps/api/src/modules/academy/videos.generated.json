@@ -1,5 +1,39 @@
 [
   {
+    "id": "aa-intro",
+    "course_id": "asset-architect",
+    "lesson_id": "aa-l1",
+    "title": "How to build an integrated crypto research process",
+    "objective": "Combine tokenomics, protocol economics, liquidity, risk and scenarios into a sourced research report that states its unknowns.",
+    "duration_s": 107.6,
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "codecs": "VP9 + Opus (WebM)",
+    "bytes": 11039785,
+    "voice": "Microsoft Zira Desktop",
+    "script_sha": "9114375648700e8f",
+    "status": "in_review",
+    "rendered_at": "2026-10-22T18:59:09.115Z"
+  },
+  {
+    "id": "cd-intro",
+    "course_id": "crypto-decoder",
+    "lesson_id": "cd-l1",
+    "title": "How blockchains and digital assets work",
+    "objective": "Explain what a blockchain records, how blocks link, how keys control funds, and why venue prices differ from reference prices.",
+    "duration_s": 136.5,
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "codecs": "VP9 + Opus (WebM)",
+    "bytes": 13320557,
+    "voice": "Microsoft Zira Desktop",
+    "script_sha": "6bd611da670bf649",
+    "status": "in_review",
+    "rendered_at": "2026-10-22T18:54:25.752Z"
+  },
+  {
     "id": "ed-intro",
     "course_id": "equity-detective",
     "lesson_id": "ed-l1",
@@ -51,6 +85,23 @@
     "rendered_at": "2026-10-21T20:04:40.617Z"
   },
   {
+    "id": "oe-intro",
+    "course_id": "onchain-engineer",
+    "lesson_id": "oe-l1",
+    "title": "How to analyse blockchain data quantitatively",
+    "objective": "Treat chain and market data as measurements with definitions, clean and align them, and recognise the biases that inflate results.",
+    "duration_s": 107.2,
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "codecs": "VP9 + Opus (WebM)",
+    "bytes": 10467233,
+    "voice": "Microsoft Zira Desktop",
+    "script_sha": "25f5fa9f4b9e7f33",
+    "status": "in_review",
+    "rendered_at": "2026-10-22T18:57:59.136Z"
+  },
+  {
     "id": "se-intro",
     "course_id": "signal-engineer",
     "lesson_id": "se-l1",
@@ -66,5 +117,22 @@
     "script_sha": "acc9b10b19be2157",
     "status": "in_review",
     "rendered_at": "2026-10-21T20:20:31.564Z"
+  },
+  {
+    "id": "td-intro",
+    "course_id": "tokenomics-detective",
+    "lesson_id": "td-l1",
+    "title": "How token supply and incentives affect analysis",
+    "objective": "Distinguish circulating, total and maximum supply, and show how unlocks, emissions and burns change circulating supply.",
+    "duration_s": 116,
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "codecs": "VP9 + Opus (WebM)",
+    "bytes": 11929314,
+    "voice": "Microsoft Zira Desktop",
+    "script_sha": "613ac07eb8bd7438",
+    "status": "in_review",
+    "rendered_at": "2026-10-22T18:56:36.598Z"
   }
 ]

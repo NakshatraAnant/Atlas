@@ -1,0 +1,86 @@
+WEBVTT
+
+1
+00:00:00.500 --> 00:00:07.025
+Digital Asset Architect brings the whole toolkit together into a research process you can defend.
+
+2
+00:00:08.425 --> 00:00:14.374
+Start with a precise question and the exact identity of the asset: its id,
+
+3
+00:00:14.374 --> 00:00:16.062
+network and contract.
+
+4
+00:00:16.062 --> 00:00:22.413
+Then gather sourced data, analyse supply, protocol economics, network activity,
+
+5
+00:00:22.413 --> 00:00:27.719
+liquidity and risk, run scenarios, and write down what is unknown.
+
+6
+00:00:29.119 --> 00:00:32.217
+Protocol data has its own vocabulary.
+
+7
+00:00:32.217 --> 00:00:37.073
+Total value locked is capital deposited, priced at market.
+
+8
+00:00:37.073 --> 00:00:39.083
+Fees are what users pay.
+
+9
+00:00:39.083 --> 00:00:43.102
+Revenue is the share of fees the protocol keeps.
+
+10
+00:00:43.102 --> 00:00:47.624
+None of them is a company’s audited revenue or profit.
+
+11
+00:00:49.024 --> 00:00:51.968
+Decentralised finance moves risk around.
+
+12
+00:00:51.968 --> 00:01:02.864
+A liquidity provider in a constant-product pool loses value relative to holding when prices move: about two percent for a one-and-a-half times move,
+
+13
+00:01:02.864 --> 00:01:09.343
+about six percent for a doubling, and twenty percent for a four times move, before fees.
+
+14
+00:01:10.743 --> 00:01:13.901
+Finally, write a report others can check.
+
+15
+00:01:13.901 --> 00:01:17.060
+Every number cites its source or formula.
+
+16
+00:01:17.060 --> 00:01:21.682
+Observations, calculations and interpretations are labelled,
+
+17
+00:01:21.682 --> 00:01:26.458
+and a limitations section names what would change the picture.
+
+18
+00:01:27.857 --> 00:01:34.273
+In the course you will analyse protocols with DefiLlama data, stress-test liquidity,
+
+19
+00:01:34.273 --> 00:01:38.092
+build scenarios, and write a full research report.
+
+20
+00:01:38.092 --> 00:01:43.591
+A report describes evidence and uncertainty; it is not a recommendation.
+
+21
+00:01:43.591 --> 00:01:46.722
+This is education, not investment advice.
+

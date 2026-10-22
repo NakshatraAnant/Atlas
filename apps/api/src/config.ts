@@ -41,9 +41,9 @@ const schema = z.object({
   // ATLAS Digital Assets (docs/crypto). Free public sources; an optional free CoinGecko Demo key raises its limit.
   COINGECKO_DEMO_API_KEY: z.string().optional().default(''),
   /** Scheduled crypto ingestion. Defaults to on outside tests. */
-  CRYPTO_INGESTION: z.enum(['true', 'false']).optional(),
+  CRYPTO_INGESTION: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()),
   /** Binance WebSocket price feed for CRYPTO_LIVE_SYMBOLS. Defaults to on outside tests. */
-  CRYPTO_LIVE_FEED: z.enum(['true', 'false']).optional(),
+  CRYPTO_LIVE_FEED: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()),
   CRYPTO_LIVE_SYMBOLS: z.string().default('BTCUSDT,ETHUSDT,SOLUSDT,XRPUSDT,BNBUSDT,DOGEUSDT,ADAUSDT,LINKUSDT'),
   CRYPTO_UNIVERSE_SIZE: z.coerce.number().int().min(10).max(500).default(100),
   CRYPTO_HISTORY_ASSETS: z.coerce.number().int().min(1).max(100).default(25),

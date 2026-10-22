@@ -1,0 +1,13 @@
+How blockchains and digital assets work (ATLAS Academy, ATLAS: CRYPTO MARKET DECODER)
+
+Learning objective: Explain what a blockchain records, how blocks link, how keys control funds, and why venue prices differ from reference prices.
+
+Welcome to Crypto Market Decoder. In the next two minutes you will see what a blockchain records, why old entries are hard to change, and how to read crypto prices without being misled.
+A blockchain is a ledger of transactions that thousands of independent computers keep copies of and check against the same rules. New transactions are grouped into blocks, and each block stores the fingerprint, or hash, of the block before it.
+Each block built on top of a transaction adds a confirmation. A transaction in block one hundred, with the newest block at one hundred and five, has six confirmations. Reversing it would mean redoing all six blocks faster than the rest of the network.
+A wallet does not hold coins. It holds private keys that sign transactions. You can share an address so others can pay you, but a seed phrase or private key gives full control of the funds, and nobody legitimate will ever ask for it.
+Prices need care too. Each exchange runs its own order book for each pair, so bitcoin against USDT on one venue and bitcoin against US dollars on another are different markets. A reference price from a data provider is an average across venues, not a price anyone can trade at.
+Market capitalisation multiplies price by circulating supply. A hypothetical coin at fifty thousand dollars with twenty million coins circulating has a market capitalisation of one trillion dollars. With a maximum supply of twenty-one million, its fully diluted value is one point zero five trillion.
+In the course you will follow transactions in three dimensions, sign with toy keys, walk an order book, and read real, sourced data in ATLAS. Crypto is volatile and transfers cannot be reversed. This course is education, not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

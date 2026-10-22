@@ -5,6 +5,7 @@ import {
 } from '@atlas/shared';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ThreeStatementsScene } from './statements3d';
+import { AmmPoolScene, ConsensusScene, DepthScene, QuantScene, SigningLab, TokenomicsScene, TxJourneyScene } from './crypto-scenes';
 
 // Interactive labs for the four Academy courses. Every number comes from the tested simulations in
 // @atlas/shared; every lab states its result in text (aria-live) so it works without the visual.
@@ -427,4 +428,5 @@ export const COURSE_LABS: Record<string, () => ReactNode> = {
   drawdown: DrawdownLab, overfit: OverfitLab, cost_drag: CostDragLab,
   dcf: DcfLab, dcf_surface_3d: DcfSurface3D, portfolio_risk: PortfolioRiskLab, multiple_testing: MultipleTestingLab,
   statements_3d: ThreeStatementsScene,
+  tx_journey_3d: TxJourneyScene, tokenomics_3d: TokenomicsScene, consensus_3d: ConsensusScene, signing: SigningLab, amm_pool_3d: AmmPoolScene, quant_3d: QuantScene, depth_3d: DepthScene,
 };

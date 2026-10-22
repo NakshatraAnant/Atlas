@@ -1,0 +1,98 @@
+WEBVTT
+
+1
+00:00:00.500 --> 00:00:07.085
+On-Chain Signal Engineer is about analysing blockchain and market data like a careful scientist.
+
+2
+00:00:08.485 --> 00:00:11.364
+Chain data is precise but low level.
+
+3
+00:00:11.364 --> 00:00:16.004
+Every metric, such as active addresses or transfer volume,
+
+4
+00:00:16.004 --> 00:00:19.044
+is a choice about how to aggregate it.
+
+5
+00:00:19.044 --> 00:00:22.724
+One person can control thousands of addresses,
+
+6
+00:00:22.724 --> 00:00:27.044
+and one exchange address can serve millions of people.
+
+7
+00:00:27.044 --> 00:00:29.044
+Activity is not adoption.
+
+8
+00:00:30.444 --> 00:00:32.670
+Clean before you calculate.
+
+9
+00:00:32.670 --> 00:00:39.925
+Quarantine impossible records, keep gaps as gaps, and align series on the same calendar,
+
+10
+00:00:39.925 --> 00:00:41.986
+venue and quote currency.
+
+11
+00:00:41.986 --> 00:00:45.696
+A daily crypto candle closes at midnight UTC,
+
+12
+00:00:45.696 --> 00:00:49.984
+about fourteen hours after the Indian market closes.
+
+13
+00:00:51.384 --> 00:00:53.796
+State every choice in a calculation.
+
+14
+00:00:53.796 --> 00:01:02.576
+A daily volatility of three percent is about fifty-seven percent a year using the square root of three hundred and sixty-five days,
+
+15
+00:01:02.576 --> 00:01:04.318
+the convention for crypto,
+
+16
+00:01:04.318 --> 00:01:09.613
+but about forty-eight percent using two hundred and fifty-two trading sessions.
+
+17
+00:01:11.013 --> 00:01:12.743
+Then test ideas honestly.
+
+18
+00:01:12.743 --> 00:01:17.448
+If you try twenty rules with no real edge at the five percent level,
+
+19
+00:01:17.448 --> 00:01:21.047
+you should expect one to look significant by chance,
+
+20
+00:01:21.047 --> 00:01:26.168
+and the chance of at least one false positive is about sixty-four percent.
+
+21
+00:01:27.568 --> 00:01:34.171
+In the course you will read real blocks, clean and align series, calculate volatility,
+
+22
+00:01:34.171 --> 00:01:38.317
+correlation and beta, run event studies and backtests,
+
+23
+00:01:38.317 --> 00:01:43.154
+and learn why look-ahead and survivorship bias flatter results.
+
+24
+00:01:43.154 --> 00:01:46.302
+This is education, not investment advice.
+

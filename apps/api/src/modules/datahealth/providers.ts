@@ -21,7 +21,7 @@ export interface ProviderAssessment {
   next_step: string;
 }
 
-export const PROVIDER_ASSESSMENT_VERSION = 'providers-2026-10-21';
+export const PROVIDER_ASSESSMENT_VERSION = 'providers-2026-10-23';
 
 export const PROVIDER_ASSESSMENTS: ProviderAssessment[] = [
   {
@@ -96,7 +96,22 @@ export const PROVIDER_ASSESSMENTS: ProviderAssessment[] = [
     commercial_display: 'prohibited',
     redistribution: 'prohibited',
     finding: 'You confirm at upload that you may use the file. ATLAS keeps it private to your account, validates it, records provenance and never shares or redistributes it.',
-    atlas_action: 'Available now: CSV upload with column mapping, validation, provenance and per-user isolation.',
+    atlas_action: 'Available now: CSV upload with column mapping, validation, provenance and per-user isolation. Digital Assets → Research uses these files for crypto-versus-equity comparisons.',
     next_step: '—',
+  },
+  {
+    provider_id: 'alpha-vantage',
+    provider: 'Alpha Vantage API (free key)',
+    datasets: ['daily prices for BSE-listed shares (symbol format RELIANCE.BSE)'],
+    site: 'https://www.alphavantage.co/documentation/',
+    terms_url: 'https://www.alphavantage.co/terms_of_service/',
+    assessed_on: '2026-10-23',
+    automated_retrieval: 'unverified',
+    local_retention: 'unverified',
+    commercial_display: 'unverified',
+    redistribution: 'unverified',
+    finding: 'The documentation (read 23 Oct 2026) shows a BSE example for daily prices and requires an API key for every request; free keys get the "compact" output (the latest 100 data points). The terms of service are published as a PDF whose text could not be read, so storage, display and redistribution rights are unverified. NSE symbols are not documented.',
+    atlas_action: 'Not connected. ATLAS has no key, does not create accounts, and does not fetch from a source whose terms it has not read.',
+    next_step: 'If you want it: create a free key yourself, read and accept the terms, and confirm the permitted use; an adapter can then import BSE daily prices as a clearly labelled reference dataset.',
   },
 ];

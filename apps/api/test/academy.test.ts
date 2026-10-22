@@ -36,12 +36,13 @@ const answerKey = async (refs: { question_id: string; version: number }[]) => {
 const wrongFor = (q: any) => (q.qtype === 'numeric' ? { value: -999 } : q.qtype === 'multi_select' ? { indexes: [] } : { index: 19 });
 
 describe('Academy catalogue (curriculum from the database)', () => {
-  it('lists the four courses in order, labelled as draft while content is in review', async () => {
+  it('lists the equity and digital-asset courses in order, labelled as draft while content is in review', async () => {
     const r = await new Client(app).get('/v1/academy/courses');
     expect(r.status).toBe(200);
-    expect(r.json.courses.map((c: any) => c.title)).toEqual(['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT']);
+    expect(r.json.courses.map((c: any) => c.title)).toEqual(['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT', 'ATLAS: CRYPTO MARKET DECODER', 'ATLAS: TOKENOMICS DETECTIVE', 'ATLAS: ON-CHAIN SIGNAL ENGINEER', 'ATLAS: DIGITAL ASSET ARCHITECT']);
     expect(r.json.courses.every((c: any) => c.draft === true)).toBe(true);
-    expect(r.json.courses.map((c: any) => c.lessons)).toEqual([14, 15, 6, 6]);
+    expect(r.json.courses.map((c: any) => c.lessons)).toEqual([14, 15, 6, 6, 9, 6, 6, 6]);
+    expect(r.json.courses.map((c: any) => `${c.track}:${c.level}`)).toEqual(['equities:1', 'equities:2', 'equities:3', 'equities:4', 'digital_assets:1', 'digital_assets:2', 'digital_assets:3', 'digital_assets:4']);
     expect(r.json.not_a_qualification).toMatch(/not a professional qualification/);
   });
   it('course detail explains prerequisites and the five-question check', async () => {

@@ -1,8 +1,10 @@
 # ATLAS
 
-Research workspace and learning academy for Indian equities: an evidence-linked market briefing, company research with provenance on every figure, screener, an AI research assistant that never invents numbers, a Quant Research Lab for reproducible backtests, watchlists and notes, and the four-course ATLAS Academy.
+Research workspace and learning academy for Indian equities and digital assets: an evidence-linked market briefing, company research with provenance on every figure, screener, an AI research assistant that never invents numbers, a Quant Research Lab for reproducible backtests, watchlists and notes, and the four-course ATLAS Academy.
 
-**All market data in this repository is synthetic** (fictional companies, ISINs starting `XXS`). It exists so every feature can run locally. It is never real market data, and production mode refuses to start with it. See `docs/DATA_RIGHTS_AND_PROVIDERS.md`.
+**Indian equity data in this repository is synthetic** (fictional companies, ISINs starting `XXS`): licensed Indian market data is not available (`docs/DATA_RIGHTS_AND_PROVIDERS.md`), and production mode refuses to start with synthetic data.
+
+**ATLAS Digital Assets uses real data** from free public sources (CoinGecko, Binance, Coinbase Exchange, DefiLlama, public Ethereum and Bitcoin endpoints, official release feeds), stored locally with source, timestamp and validation status. It never mixes synthetic and real data, and never fills gaps with invented values. Sources, limits and terms: `docs/crypto/SOURCE_CAPABILITY_MATRIX.md`. Status: `docs/IMPLEMENTATION_STATUS.md`.
 
 ATLAS is a research and education product. It does not give investment advice or recommendations, and Academy completion is not a professional qualification.
 
@@ -38,6 +40,7 @@ Then open **http://localhost:3000** and sign in with a development account (`fre
 | `node scripts/atlas.mjs stop` / `restart` | Graceful stop (flushes the database) / restart |
 | `node scripts/atlas.mjs logs` | Recent logs |
 | `node scripts/atlas.mjs backup` / `restore` | Back up or restore the local database |
+| `node scripts/atlas.mjs crypto status` / `tick` / `run <job…>` | Digital-assets data: health, run due jobs, run named jobs (ATLAS stopped) |
 
 Health checks: http://127.0.0.1:4000/healthz (API) and http://localhost:3000/status (web).
 

@@ -7,8 +7,8 @@ import { signIn, watchErrors } from './helpers';
 test('Academy: readiness check, enrolment, lesson lab, quiz and mastery', async ({ page }) => {
   const w = watchErrors(page);
   await signIn(page, 'free@atlas.test', '/app/academy');
-  await expect(page.getByRole('heading', { name: 'MARKET DECODER' })).toBeVisible();
-  await page.locator('a.course-link', { hasText: 'MARKET DECODER' }).click();
+  await expect(page.getByRole('heading', { name: 'MARKET DECODER', exact: true })).toBeVisible();
+  await page.locator('a.course-link[href="/app/academy/market-decoder"]').click();
   await expect(page.locator('main')).toContainText('Before you start');
   await page.getByRole('link', { name: /readiness check/i }).click();
   await expect(page.getByRole('heading', { name: 'Readiness check' })).toBeVisible();
@@ -77,7 +77,7 @@ test('Academy is discoverable, every course opens, and a lesson resumes after re
   await expect(nav.getByRole('link').nth(1)).toHaveText('Academy');
   await nav.getByRole('link', { name: 'Academy', exact: true }).click();
   await page.waitForURL('**/app/academy');
-  for (const name of ['MARKET DECODER', 'EQUITY DETECTIVE', 'SIGNAL ENGINEER', 'MARKET ARCHITECT']) await expect(page.getByRole('heading', { name })).toBeVisible();
+  for (const name of ['MARKET DECODER', 'EQUITY DETECTIVE', 'SIGNAL ENGINEER', 'MARKET ARCHITECT', 'CRYPTO MARKET DECODER', 'TOKENOMICS DETECTIVE', 'ON-CHAIN SIGNAL ENGINEER', 'DIGITAL ASSET ARCHITECT']) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   await expect(page.locator('main')).toContainText(/Preview mode|expert review/);
   // Every course detail opens directly and survives a reload.
   for (const id of ['market-decoder', 'equity-detective', 'signal-engineer', 'market-architect']) {

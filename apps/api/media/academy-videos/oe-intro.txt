@@ -1,0 +1,12 @@
+How to analyse blockchain data quantitatively (ATLAS Academy, ATLAS: ON-CHAIN SIGNAL ENGINEER)
+
+Learning objective: Treat chain and market data as measurements with definitions, clean and align them, and recognise the biases that inflate results.
+
+On-Chain Signal Engineer is about analysing blockchain and market data like a careful scientist.
+Chain data is precise but low level. Every metric, such as active addresses or transfer volume, is a choice about how to aggregate it. One person can control thousands of addresses, and one exchange address can serve millions of people. Activity is not adoption.
+Clean before you calculate. Quarantine impossible records, keep gaps as gaps, and align series on the same calendar, venue and quote currency. A daily crypto candle closes at midnight UTC, about fourteen hours after the Indian market closes.
+State every choice in a calculation. A daily volatility of three percent is about fifty-seven percent a year using the square root of three hundred and sixty-five days, the convention for crypto, but about forty-eight percent using two hundred and fifty-two trading sessions.
+Then test ideas honestly. If you try twenty rules with no real edge at the five percent level, you should expect one to look significant by chance, and the chance of at least one false positive is about sixty-four percent.
+In the course you will read real blocks, clean and align series, calculate volatility, correlation and beta, run event studies and backtests, and learn why look-ahead and survivorship bias flatter results. This is education, not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

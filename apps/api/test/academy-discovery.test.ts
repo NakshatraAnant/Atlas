@@ -9,7 +9,7 @@ import { fixtureContext } from './fixture.js';
 
 // Regression for "the user cannot see the courses": every content item is still in expert review,
 // so with drafts hidden the catalogue used to be empty and every course URL returned 404.
-const TITLES = ['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT'];
+const TITLES = ['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT', 'ATLAS: CRYPTO MARKET DECODER', 'ATLAS: TOKENOMICS DETECTIVE', 'ATLAS: ON-CHAIN SIGNAL ENGINEER', 'ATLAS: DIGITAL ASSET ARCHITECT'];
 const cfg = (showDrafts: 'true' | 'false') =>
   loadConfig({ NODE_ENV: 'test', APP_SECRET: 'test-secret-test-secret-test-secret-test', LOG_LEVEL: 'silent', RATE_LIMIT_MULTIPLIER: '1000', WEB_ORIGIN: 'http://localhost:3000', ACADEMY_SHOW_DRAFTS: showDrafts } as NodeJS.ProcessEnv);
 
@@ -25,7 +25,7 @@ describe('Academy discovery with drafts hidden (published-only, as in production
     await ctx?.db.close();
   });
 
-  it('still lists all four courses, marked unavailable, with an explanation instead of an empty page', async () => {
+  it('still lists every course, marked unavailable, with an explanation instead of an empty page', async () => {
     const r = await new Client(app).get('/v1/academy/courses');
     expect(r.status).toBe(200);
     expect(r.json.courses.map((c: any) => c.title)).toEqual(TITLES);
@@ -64,7 +64,7 @@ describe('Academy discovery in local preview mode (drafts shown, labelled)', () 
     await ctx?.db.close();
   });
 
-  it('lists the four courses as available drafts with real lesson counts and durations', async () => {
+  it('lists every course as an available draft with real lesson counts and durations', async () => {
     const r = await new Client(app).get('/v1/academy/courses');
     expect(r.json.courses.map((c: any) => c.title)).toEqual(TITLES);
     expect(r.json.courses.every((c: any) => c.available && c.draft && c.lessons > 0 && c.minutes > 0)).toBe(true);
@@ -73,7 +73,7 @@ describe('Academy discovery in local preview mode (drafts shown, labelled)', () 
   });
 
   it('every course detail opens with its lessons', async () => {
-    for (const id of ['market-decoder', 'equity-detective', 'signal-engineer', 'market-architect']) {
+    for (const id of ['market-decoder', 'equity-detective', 'signal-engineer', 'market-architect', 'crypto-decoder', 'tokenomics-detective', 'onchain-engineer', 'asset-architect']) {
       const d = await new Client(app).get(`/v1/academy/courses/${id}`);
       expect(d.status).toBe(200);
       expect(d.json.available).toBe(true);

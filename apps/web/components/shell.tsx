@@ -7,7 +7,7 @@ import { Disclosure, useApi } from './ui';
 import { useApp } from './providers';
 
 const APP_NAV: [string, string][] = [
-  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/terminal', 'Terminal'], ['/app/market', 'Market'], ['/app/companies', 'Companies'], ['/app/assistant', 'Assistant'], ['/app/screener', 'Screener'], ['/app/lab', 'Quant Lab'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
+  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/terminal', 'Terminal'], ['/app/market', 'Market'], ['/app/crypto', 'Digital Assets'], ['/app/companies', 'Companies'], ['/app/assistant', 'Assistant'], ['/app/screener', 'Screener'], ['/app/lab', 'Quant Lab'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
 ];
 const PUBLIC_NAV: [string, string][] = [['/', 'Overview'], ['/app/academy', 'Academy'], ['/briefing-sample', 'Sample briefing'], ['/pricing', 'Pricing'], ['/methodology', 'Methodology'], ['/help', 'Help']];
 
@@ -41,7 +41,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <a className="skip" href="#main">Skip to content</a>
       <header className="top">
         <a href={me ? '/app' : '/'} className="logo" aria-label="ATLAS home">ATLAS</a>
-        <span className="tag">Research workspace for Indian equities · end-of-day data</span>
+        <span className="tag">Research workspace for Indian equities and digital assets</span>
         {me ? (
           <>
             <a className="pill" href="/app/billing" title="Your plan">{me.plan.name}{me.plan.status === 'past_due' ? ' · payment due' : ''}</a>
