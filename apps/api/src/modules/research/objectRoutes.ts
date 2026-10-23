@@ -174,7 +174,7 @@ export async function objectRoutes(app: FastifyInstance, ctx: AppContext): Promi
   // ───────── Features 14, 19 and journal: notebook ─────────
   const entryBody = z.object({
     kind: z.enum(['note', 'hypothesis', 'journal']), title: z.string().trim().min(1).max(200), body: z.string().max(20000).default(''),
-    instruments: z.array(instrumentKey).max(20).default([]), sources: z.array(z.object({ title: z.string().max(200), url: z.string().url().max(500).optional(), note: z.string().max(500).optional() })).max(30).default([]),
+    instruments: z.array(instrumentKey).max(20).default([]), sources: z.array(z.object({ title: z.string().max(200), url: z.string().url().max(500).refine((u) => /^https?:\/\//i.test(u), 'only http(s) links').optional(), note: z.string().max(500).optional() })).max(30).default([]),
     chart_configs: z.array(z.record(z.unknown())).max(10).default([]), assumptions: z.string().max(5000).optional(), counterarguments: z.string().max(5000).optional(),
     thesis: z.string().max(5000).optional(), evidence_for: z.string().max(5000).optional(), evidence_against: z.string().max(5000).optional(), horizon_days: z.number().int().min(1).max(3650).optional(),
     benchmark_key: instrumentKey.optional(), review_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

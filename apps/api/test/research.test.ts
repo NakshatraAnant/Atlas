@@ -251,3 +251,27 @@ describe('research progress (XP, cap, achievements, rank)', () => {
     for (const [m, u] of [['POST', '/v1/academy/me'], ['POST', '/v1/academy/xp'], ['PATCH', '/v1/academy/me']] as const) expect((await c.req(m, u, { xp: 99999 })).status).toBe(404);
   });
 });
+
+describe('default series choice', () => {
+  it('a stale series is not chosen by default when a current one exists', async () => {
+    // An older, longer venue-style history that stopped updating two years ago.
+    const asset = await ctx.db.one<{ asset_id: string }>(`SELECT asset_id FROM crypto.assets WHERE canonical_key='bitcoin'`);
+    const s = await ctx.db.one<{ series_id: string }>(`INSERT INTO crypto.price_series (source_id, kind, asset_id, quote_currency, interval) VALUES ('binance','reference_close',$1,'USDT','1d') RETURNING series_id`, [asset.asset_id]).catch(async () => ctx.db.one<{ series_id: string }>(`INSERT INTO crypto.price_series (source_id, kind, asset_id, quote_currency, interval) VALUES ('coinbase','reference_close',$1,'USD','1d') RETURNING series_id`, [asset.asset_id]));
+    for (let i = 0; i < 900; i++) await ctx.db.query(`INSERT INTO crypto.ohlcv (series_id, open_time, close, transform_version) VALUES ($1,$2,$3,'test')`, [s.series_id, new Date(Date.parse('2022-01-01T00:00:00Z') + i * DAY).toISOString(), 100 + i]);
+    await ctx.db.query(`UPDATE crypto.price_series SET observations=900, first_open_time='2022-01-01', last_open_time='2024-06-18' WHERE series_id=$1`, [s.series_id]);
+    const r = (await c.post('/v1/research/workbench', { keys: ['crypto:bitcoin'], range: '90d' })).json;
+    expect(r.instruments[0].key).not.toContain(s.series_id);
+    expect(r.instruments[0].last.slice(0, 10) > '2026-01-01').toBe(true); // the current series, not the one that stopped in 2024
+  });
+});
+
+describe('input safety', () => {
+  it('notebook sources accept only http(s) links (no javascript: URLs)', async () => {
+    expect((await c.post('/v1/research/notebook', { kind: 'note', title: 'x', sources: [{ title: 's', url: 'javascript:alert(1)' }] })).status).toBe(400);
+    expect((await c.post('/v1/research/notebook', { kind: 'note', title: 'x', sources: [{ title: 's', url: 'https://example.org/a' }] })).status).toBe(200);
+  });
+  it('signed-out requests to research endpoints are refused', async () => {
+    const anon = new Client(app);
+    for (const u of ['/v1/research/notebook', '/v1/research/portfolios', '/v1/research/alerts', '/v1/research/discoveries', '/v1/research/instruments?q=b', '/v1/equity/status']) expect((await anon.get(u)).status, u).toBe(401);
+  });
+});

@@ -23,7 +23,8 @@
     "test:postgres": "node scripts/test-postgres.mjs",
     "test:e2e": "node scripts/e2e.mjs",
     "video:render": "tsx scripts/video/render.mts",
-    "video:verify": "tsx scripts/video/verify.mts"
+    "video:verify": "tsx scripts/video/verify.mts",
+    "test:all": "npm test && npm run test:postgres"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1",

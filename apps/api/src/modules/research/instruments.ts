@@ -49,7 +49,9 @@ export async function resolveInstrument(db: Db, userId: string, key: string, now
     if (!a) throw notFound(`No crypto asset ${canon}.`);
     const s = await db.maybeOne<{ series_id: string; source_id: string; kind: string; quote_currency: string; product_id: string | null; first_open_time: string | null; last_open_time: string | null }>(
       `SELECT s.series_id, s.source_id, s.kind, s.quote_currency, p.product_id, s.first_open_time, s.last_open_time FROM crypto.price_series s LEFT JOIN crypto.market_pairs p ON p.pair_id=s.pair_id
-        WHERE s.asset_id=$1 AND s.observations > 0 AND ($2::uuid IS NULL OR s.series_id=$2) ORDER BY (s.kind='venue_candle') DESC, s.observations DESC LIMIT 1`, [a.asset_id, seriesId ?? null]);
+        WHERE s.asset_id=$1 AND s.observations > 0 AND ($2::uuid IS NULL OR s.series_id=$2)
+        -- Default series: one that is current (within 3 days of the asset's freshest series), then venue candles, then the longest.
+        ORDER BY (s.last_open_time >= (SELECT max(last_open_time) FROM crypto.price_series x WHERE x.asset_id=$1 AND x.observations > 0) - interval '3 days') DESC, (s.kind='venue_candle') DESC, s.observations DESC LIMIT 1`, [a.asset_id, seriesId ?? null]);
     if (!s) throw notFound(`No stored daily history for ${a.name}.`);
     const rows = await db.query<{ open_time: string; close: number; volume: number | null }>(`SELECT open_time, close::float8 AS close, volume::float8 AS volume FROM crypto.ohlcv WHERE series_id=$1 AND ($2::timestamptz IS NULL OR open_time >= $2) ORDER BY open_time`, [s.series_id, from]);
     const venue = s.kind === 'venue_candle';

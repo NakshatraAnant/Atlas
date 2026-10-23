@@ -100,7 +100,7 @@ test('Academy is discoverable, every course opens, and a lesson resumes after re
   await expect(page.locator('main')).toContainText('Resumed where you left off');
   // Progress page: level, XP rules and achievements are shown from the server ledger.
   await page.goto('/app/academy/progress');
-  await expect(page.getByRole('heading', { name: /^Level \d+/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^(Explorer|Market Student|Research Apprentice|Data Analyst|Quantitative Researcher|Senior Analyst|Research Architect) · level \d+$/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'How XP is earned' })).toBeVisible();
   await expect(page.locator('main')).toContainText('First Concept Mastered');
   w.assertClean();

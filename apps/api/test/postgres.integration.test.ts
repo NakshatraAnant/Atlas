@@ -102,4 +102,58 @@ describe.skipIf(!url)('PostgreSQL integration (node-postgres driver)', () => {
       expect(hits.map((h) => h.short_name)).toContain(c!.short_name);
     });
   });
+
+  describe('concurrency and idempotency on the new write paths (crypto, equity, research, learning)', () => {
+    let ctx: AppContext;
+    let userId = '';
+    beforeAll(async () => {
+      ctx = await createContext({ cfg: testConfig(), db: pgDb, store: new MemoryObjectStore(), vendor: testVendor(), clock: () => new Date('2026-10-23T12:00:00Z') });
+      userId = (await pgDb.one<{ user_id: string }>(`INSERT INTO app.users (email, password_hash) VALUES ('pg-concurrency@example.test', 'x') RETURNING user_id`)).user_id;
+    });
+
+    it('parallel imports of the same equity rows store each day once', async () => {
+      const { importEquityPrices } = await import('../src/modules/equity/ingest.js');
+      const rows = Array.from({ length: 40 }, (_, i) => { const d = new Date(Date.UTC(2026, 0, 5 + i)); const p = 100 + i; return { date: d.toISOString().slice(0, 10), open: p, high: p + 1, low: p - 1, close: p, adjusted_close: p, volume: 10 }; });
+      const fetchFn = async () => ({ status: 200, ok: true, text: async () => JSON.stringify(rows) });
+      const req = { provider: 'eodhd' as const, exchange: 'NSE' as const, symbol: 'PGTEST', kind: 'equity' as const };
+      const results = await Promise.allSettled([1, 2, 3].map(() => importEquityPrices(pgDb, fetchFn, { eodhd: 't', alphavantage: '' }, req, new Date('2026-10-23T12:00:00Z'))));
+      expect(results.some((r) => r.status === 'fulfilled')).toBe(true);
+      const n = await pgDb.one<{ raw: number; series: number }>(`SELECT (SELECT count(*)::int FROM equity.prices p JOIN equity.price_series s USING (series_id) WHERE s.basis='raw') AS raw, (SELECT count(*)::int FROM equity.price_series) AS series`);
+      expect(n).toEqual({ raw: 40, series: 2 });
+    });
+
+    it('the same research activity and XP award recorded concurrently exist once', async () => {
+      const { recordActivity } = await import('../src/modules/research/activity.js');
+      const { syncLearningEvents } = await import('../src/modules/academy/learning.js');
+      const at = new Date('2026-10-23T10:00:00Z');
+      await Promise.all(Array.from({ length: 8 }, () => recordActivity(pgDb, userId, 'report_created', 'pg-report-1', at)));
+      await Promise.all(Array.from({ length: 4 }, () => syncLearningEvents(pgDb, userId)));
+      const a = await pgDb.one<{ n: number }>(`SELECT count(*)::int AS n FROM research.activity WHERE user_id=$1`, [userId]);
+      const e = await pgDb.one<{ n: number; xp: number }>(`SELECT count(*)::int AS n, coalesce(sum(xp),0)::int AS xp FROM acad.learning_events WHERE user_id=$1 AND kind='report_created'`, [userId]);
+      expect(a.n).toBe(1);
+      expect(e).toEqual({ n: 1, xp: 30 });
+    });
+
+    it('parallel alert evaluations notify once per observation', async () => {
+      const { evaluateAlerts } = await import('../src/modules/research/objectRoutes.js');
+      await pgDb.query(`INSERT INTO research.alert_rules (user_id, kind, instrument_key, threshold) VALUES ($1,'price_above','equity:NSE:PGTEST',1)`, [userId]);
+      await Promise.all([1, 2, 3].map(() => evaluateAlerts(pgDb, new Date('2026-10-23T12:00:00Z'), userId)));
+      const ev = await pgDb.one<{ n: number }>(`SELECT count(*)::int AS n FROM research.alert_events WHERE user_id=$1`, [userId]);
+      const notes = await pgDb.one<{ n: number }>(`SELECT count(*)::int AS n FROM app.notifications WHERE user_id=$1 AND kind='research_alert'`, [userId]);
+      expect(ev.n).toBe(1);
+      expect(notes.n).toBe(1);
+    });
+
+    it('concurrent crypto candle writes for the same series do not duplicate', async () => {
+      const { storeCandles, Job } = await import('../src/modules/crypto/ingest.js');
+      const rt = ctx.crypto!.rt;
+      const a = await pgDb.one<{ asset_id: string }>(`INSERT INTO crypto.assets (canonical_key, name, symbol, metadata_source) VALUES ('pg-coin','PG Coin','PGC','coingecko') RETURNING asset_id`);
+      const s = await pgDb.one<{ series_id: string }>(`INSERT INTO crypto.price_series (source_id, kind, asset_id, quote_currency, interval) VALUES ('coingecko','reference_close',$1,'USD','1d') RETURNING series_id`, [a.asset_id]);
+      const candles = Array.from({ length: 30 }, (_, i) => ({ open_time: Date.UTC(2026, 0, 1 + i), open: null, high: null, low: null, close: 10 + i, volume: 1 }));
+      const job = await pgDb.one<{ job_id: string }>(`INSERT INTO crypto.ingestion_jobs (source_id, job_type, status) VALUES ('coingecko','pg_test','running') RETURNING job_id`);
+      await Promise.all([1, 2].map(() => storeCandles(rt, new Job(rt, job.job_id, 'coingecko'), s.series_id, candles, 'pg_test')));
+      const n = await pgDb.one<{ n: number }>(`SELECT count(*)::int AS n FROM crypto.ohlcv WHERE series_id=$1`, [s.series_id]);
+      expect(n.n).toBe(30);
+    });
+  });
 });

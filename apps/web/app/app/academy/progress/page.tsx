@@ -14,6 +14,9 @@ interface Me {
   missions: { id: string; kind: string; title: string; why: string; condition: string; effort: string; reward: string; done: boolean; href?: string; progress?: [number, number] }[];
   recommendation: { kind: string; title: string; reason: string; effort: string; reward: string; href?: string };
   notes: string[];
+  rank: { rank: number; title: string; next: null | { title: string; needs_level: number; level_ok: boolean; needs_mastered: number; mastered_ok: boolean; needs_practices: { kind: string; label: string; done: boolean }[] } };
+  skill_map: { id: string; title: string; objectives: number; mastered: number; practices: { kind: string; label: string; done: boolean }[]; needs_practice: { objective_id: string; statement: string }[] }[];
+  research: { this_week: number; hypotheses_open: { entry_id: string; title: string; review_date: string; due: boolean }[] };
 }
 
 const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -42,7 +45,7 @@ export default function LearningProgress() {
   return (
     <div className="academy">
       <p><a href="/app/academy">← Academy</a></p>
-      <h1>Your learning</h1>
+      <h1>Your learning and research progress</h1>
 
       <section className="card next-action" aria-labelledby="na">
         <h2 id="na">Recommended next</h2>
@@ -52,17 +55,48 @@ export default function LearningProgress() {
 
       <div className="grid2">
         <section className="card" aria-labelledby="lv">
-          <h2 id="lv">Level {m.xp.level}</h2>
+          <h2 id="lv">{m.rank.title} <span className="mu">· level {m.xp.level}</span></h2>
           <div className="meter" role="progressbar" aria-valuemin={m.xp.level_start} aria-valuemax={m.xp.next_level_at} aria-valuenow={m.xp.xp} aria-label={`XP towards level ${m.xp.level + 1}`}><i style={{ width: `${pct}%` }} /></div>
           <p className="mu">{m.xp.xp} XP · {m.xp.next_level_at - m.xp.xp} XP to level {m.xp.level + 1}. XP counts learning activity; mastery (on each course page) is measured separately and can go down as well as up.</p>
+          {m.rank.next && (
+            <div>
+              <p><strong>Next rank: {m.rank.next.title}</strong>. Ranks need competence as well as XP:</p>
+              <ul className="mu">
+                <li>{m.rank.next.level_ok ? '✓' : '○'} Level {m.rank.next.needs_level}</li>
+                <li>{m.rank.next.mastered_ok ? '✓' : '○'} {m.rank.next.needs_mastered} learning objectives mastered</li>
+                {m.rank.next.needs_practices.map((p) => <li key={p.kind}>{p.done ? '✓' : '○'} {p.label}</li>)}
+              </ul>
+            </div>
+          )}
         </section>
         <section className="card" aria-labelledby="st">
           <h2 id="st">Streaks</h2>
           <p><strong>{m.streak.daily.current}</strong> day{m.streak.daily.current === 1 ? '' : 's'} in a row{m.streak.daily.today_active ? ' · today counted' : ' · learn today to continue'}{m.streak.daily.rest_days_in_current ? ` · ${m.streak.daily.rest_days_in_current} rest day used` : ''}. Longest: {m.streak.daily.longest}.</p>
           <p><strong>{m.streak.weekly.current}</strong> week{m.streak.weekly.current === 1 ? '' : 's'} meeting your goal · this week {m.streak.weekly.this_week_days} of {m.streak.weekly.goal} days.</p>
-          <p className="mu">A day counts when you complete a lesson or quiz, recall a concept in review, solve a game or submit a capstone. One missed day a week is treated as a rest day. Missing days never removes XP or achievements.</p>
+          <p className="mu">A day counts when you complete a lesson or quiz, recall a concept in review, solve a game, submit a capstone or do documented research (Research hub). One missed day a week is treated as a rest day. Missing days never removes XP or achievements.</p>
         </section>
       </div>
+
+      <section className="card" aria-labelledby="sk">
+        <h2 id="sk">Skill map</h2>
+        <p className="mu">Mastery comes from repeated correct answers on each objective; practices are research you have actually done in ATLAS. Completing courses is not a professional qualification.</p>
+        {m.skill_map.map((a) => (
+          <div key={a.id} className="skill-row">
+            <div><strong>{a.title}</strong><div className="mu" style={{ fontSize: 12 }}>{a.mastered} of {a.objectives} objectives mastered</div></div>
+            <div>
+              <div className="meter" role="progressbar" aria-label={`${a.title} mastery`} aria-valuemin={0} aria-valuemax={a.objectives} aria-valuenow={a.mastered}><i style={{ width: `${a.objectives ? (a.mastered / a.objectives) * 100 : 0}%` }} /></div>
+              {a.practices.length > 0 && <div className="mu" style={{ fontSize: 12 }}>{a.practices.map((p) => `${p.done ? '✓' : '○'} ${p.label}`).join(' · ')}</div>}
+              {a.needs_practice.length > 0 && <div className="warn" style={{ fontSize: 12 }}>Needs practice: {a.needs_practice.map((n) => n.statement).join('; ')}</div>}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="card" aria-labelledby="rp">
+        <h2 id="rp">Research in progress</h2>
+        <p>{m.research.this_week} documented research activit{m.research.this_week === 1 ? 'y' : 'ies'} this week.</p>
+        {m.research.hypotheses_open.length ? <ul>{m.research.hypotheses_open.map((h) => <li key={h.entry_id}><a href="/app/research-hub?tab=notebook">{h.title}</a> <span className={h.due ? 't i' : 'mu'}>{h.due ? 'review due' : `review on ${h.review_date}`}</span></li>)}</ul> : <p className="mu">No open hypotheses. <a href="/app/research-hub?tab=notebook">Record one</a> before you look at an outcome.</p>}
+      </section>
 
       <section className="card" aria-labelledby="cal">
         <h2 id="cal">Last five weeks</h2>

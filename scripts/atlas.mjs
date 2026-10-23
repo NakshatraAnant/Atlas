@@ -360,6 +360,50 @@ async function cryptoCmd(args) {
   if (r.status !== 0) fail('The crypto command failed (see the output above).');
 }
 
+/**
+ * Recovery drill: restores a backup into a TEMPORARY folder (never ./data), checks its integrity, starts a
+ * second API on port 4100 against the copy, confirms /readyz, then stops it and deletes the copy.
+ */
+async function verifyBackup(args) {
+  const arg = args[0] ?? (existsSync(BACKUPS) ? readdirSync(BACKUPS).filter((x) => x.endsWith('.tar.gz')).sort().map((x) => join('backups', x)).pop() : undefined);
+  if (!arg) fail('No backup to verify. Create one with: node scripts/atlas.mjs backup');
+  const file = resolve(ROOT, arg);
+  if (!existsSync(file)) fail(`Backup not found: ${file}`);
+  if (existsSync(`${file}.json`)) {
+    const m = JSON.parse(readFileSync(`${file}.json`, 'utf8'));
+    if (m.sha256 !== sha256(file)) fail('Checksum mismatch: the backup file is damaged or was changed.');
+    log('Checksum verified.');
+  } else log('No manifest next to the backup; checksum not verified.');
+  const list = spawnSync(TAR, ['-tzf', file], { encoding: 'utf8' });
+  if (list.status !== 0 || !list.stdout.split(/\r?\n/).every((l) => !l || l.startsWith('data/') || l === 'data')) fail('This archive is not an ATLAS data backup.');
+  const tmp = join(ROOT, '.atlas', `verify-${stamp()}`);
+  mkdirSync(tmp, { recursive: true });
+  try {
+    const x = spawnSync(TAR, ['-xzf', file, '-C', tmp], { stdio: 'inherit' });
+    if (x.status !== 0) fail('Extraction failed.');
+    log(`Restored a copy into ${tmp} (your ./data is untouched).`);
+    const pg = join(tmp, 'data', 'pglite');
+    const chk = spawnSync(process.execPath, [TSX(), 'src/cli/verify-backup.ts', pg], { cwd: API_DIR, stdio: 'inherit', windowsHide: true });
+    if (chk.status !== 0) fail('Integrity check failed on the restored copy (see above).');
+    const port = 4100;
+    const { env } = loadLocalEnv();
+    const child = spawn(process.execPath, [TSX(), 'src/server.ts'], { cwd: API_DIR, env: { ...process.env, ...env, PGLITE_DIR: pg, OBJECT_STORE_DIR: join(tmp, 'data', 'objects'), API_PORT: String(port), ATLAS_BACKGROUND_JOBS: 'false', LOG_LEVEL: 'warn' }, stdio: 'ignore', windowsHide: true });
+    let ready = null;
+    for (let i = 0; i < 120 && !ready; i++) {
+      await sleep(1000);
+      const r = await httpOk(`http://${HOST}:${port}/readyz`, 2000);
+      if (r.status === 200) ready = r;
+    }
+    killTree(child.pid);
+    await sleep(1500);
+    if (!ready) fail('The API did not become ready against the restored copy.');
+    log(`API started against the restored copy and answered /readyz on port ${port}.`);
+    log('Recovery drill passed.');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 const commands = {
   start, stop, status, backup,
@@ -370,9 +414,10 @@ const commands = {
   test: () => run('npm', ['test']),
   seed: seedCmd,
   crypto: () => cryptoCmd(rest),
+  'verify-backup': () => verifyBackup(rest),
 };
 if (!cmd || !commands[cmd]) {
-  console.log('Usage: node scripts/atlas.mjs <start|stop|restart|status|logs [api|web|seed] [--follow]|backup|restore [file] [--start]|update|test|seed|crypto [status|run <job…>|tick [rounds]|jobs]>');
+  console.log('Usage: node scripts/atlas.mjs <start|stop|restart|status|logs [api|web|seed] [--follow]|backup|restore [file] [--start]|update|test|seed|crypto [status|run <job…>|tick [rounds]|jobs]|verify-backup [file]>');
   process.exit(cmd ? 1 : 0);
 }
 try {
