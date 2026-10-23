@@ -63,7 +63,7 @@ function SetupSteps() {
     <div className="err" role="status">
       <p><strong>No provider is configured, so no real Indian prices can be imported.</strong> ATLAS cannot create provider accounts for you. To enable this:</p>
       <ol>
-        <li>Create your own free EODHD key (NSE end-of-day with split- and dividend-adjusted closes; free plan: 20 API calls a day, one year of history, personal use) and read their terms. If a key was ever pasted into a chat, email or file, rotate it in the EODHD dashboard first.</li>
+        <li>Create your own EODHD key (end-of-day prices; free plan: 20 API calls a day, one year of history, personal use, Indian indices but, as tested, not individual NSE/BSE shares) and read their terms. If a key was ever pasted into a chat, email or file, rotate it in the EODHD dashboard first.</li>
         <li>Add <code>EODHD_API_TOKEN=…</code> to <code>.env.local</code> in the ATLAS folder (git-ignored; never commit it or paste it anywhere else). <code>ALPHAVANTAGE_API_KEY</code> adds BSE (latest 100 days).</li>
         <li>Restart ATLAS (<code>node scripts/atlas.mjs restart</code>). An administrator adds instruments under Data operations; the scheduled refresh imports them within the daily budget.</li>
       </ol>
@@ -229,7 +229,7 @@ function Operations({ d, reload }: { d: Status; reload: () => void }) {
               <label className="field">Provider code{u.exchange === 'INDEX' ? '' : ' (optional)'}<input value={u.provider_symbol} onChange={(e) => setU({ ...u, provider_symbol: e.target.value })} placeholder={u.exchange === 'INDEX' ? 'e.g. NSEI.INDX' : `${u.symbol || 'SYMBOL'}.${u.exchange}`} /></label>
               <label className="field">Priority<select value={u.priority} onChange={(e) => setU({ ...u, priority: e.target.value })}>{[1, 2, 3, 4, 5].map((n) => <option key={n}>{n}</option>)}</select></label>
               <button className="btn" disabled={!u.symbol || !!busy} onClick={() => act('add', () => api('/admin/v1/equity/universe', { body: { exchange: u.exchange, symbol: u.symbol, name: u.name || undefined, provider_symbol: u.provider_symbol || undefined, priority: Number(u.priority) } }), () => `${u.symbol} added; it is imported when the backfill budget allows`)}>Add</button>
-              <button className="btn ghost" disabled={!!busy} onClick={() => act('starter', () => api('/admin/v1/equity/universe/starter', { body: {} }), (r) => `${r.added.length} added (no calls spent)`)}>Add starter list (NIFTY 50, SENSEX, 10 large NSE shares)</button>
+              <button className="btn ghost" disabled={!!busy} onClick={() => act('starter', () => api('/admin/v1/equity/universe/starter', { body: {} }), (r) => `${r.added.length} added (no calls spent)`)}>Add starter list (NIFTY 50, SENSEX, NIFTY BANK)</button>
             </div>
             <p className="mu">Adding never calls the provider. The mapping stays “unverified” until the first successful response.</p>
           </>

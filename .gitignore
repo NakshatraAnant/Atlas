@@ -20,3 +20,4 @@ seed-timing.log
 backups/
 data.before-restore-*/
 data.failed-seed-*/
+apps/api/admin-client.local.ts

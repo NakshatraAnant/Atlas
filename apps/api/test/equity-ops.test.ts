@@ -286,6 +286,46 @@ describe('universe and the refresh run', () => {
   });
 });
 
+describe('provisional sessions (observed live: EODHD serves today’s row minutes after the close)', () => {
+  it('a row for a session before 20:00 IST is not stored; a stored provisional row is withdrawn with its history kept', async () => {
+    const at = new Date('2026-10-27T10:15:00Z'); // Tue 15:45 IST
+    routes['eod/'] = () => json(bars('2026-10-20', '2026-10-27'));
+    const s = await importEquityPrices(ctx.db, fetchFn, KEYS, { provider: 'eodhd', exchange: 'NSE', symbol: 'PROV', kind: 'equity' }, at);
+    expect(s).toMatchObject({ status: 'succeeded', provisional: 1, last_date: '2026-10-26' });
+    // A row that was stored before its session was final (as imports before this rule did) is withdrawn.
+    const series = await ctx.db.one<{ series_id: string }>(`SELECT s.series_id FROM equity.price_series s JOIN equity.instruments i USING (instrument_id) WHERE i.symbol='PROV' AND s.basis='raw'`);
+    await ctx.db.query(`INSERT INTO equity.prices (series_id, trade_date, open, high, low, close, volume, imported_at) VALUES ($1,'2026-10-27',10,11,9,10,1,'2026-10-27T10:15:00Z')`, [series.series_id]);
+    const { withdrawProvisionalRows } = await import('../src/modules/equity/ingest.js');
+    expect(await withdrawProvisionalRows(ctx.db)).toBe(1);
+    const rev = await ctx.db.one<{ previous: { withdrawn: string; close: number } }>(`SELECT previous FROM equity.price_revisions WHERE series_id=$1 AND trade_date='2026-10-27'`, [series.series_id]);
+    expect(rev.previous).toMatchObject({ close: 10, withdrawn: expect.stringMatching(/provisional/) });
+    expect((await ctx.db.one<{ last_date: string }>(`SELECT to_char(last_date,'YYYY-MM-DD') AS last_date FROM equity.price_series WHERE series_id=$1`, [series.series_id])).last_date).toBe('2026-10-26');
+    // After 20:00 IST the same session is final and stored.
+    const later = await importEquityPrices(ctx.db, fetchFn, KEYS, { provider: 'eodhd', exchange: 'NSE', symbol: 'PROV', kind: 'equity', from: '2026-10-26' }, new Date('2026-10-27T15:00:00Z'));
+    expect(later).toMatchObject({ provisional: 0, last_date: '2026-10-27' });
+  });
+});
+
+describe('holiday placeholder rows (observed live in EODHD index data)', () => {
+  it('a flat zero-volume row repeating the previous close is quarantined as "no trading", not stored, and does not make the job partial', async () => {
+    const rows = bars('2025-12-22', '2025-12-26');
+    const prev = rows.find((r) => r.date === '2025-12-24')!;
+    // Same shape as NSEBANK.INDX on 2025-12-25: O=H=L=C=previous close, volume 0.
+    Object.assign(rows.find((r) => r.date === '2025-12-25')!, { open: prev.close, high: prev.close, low: prev.close, close: prev.close, adjusted_close: prev.close, volume: 0 });
+    routes['eod/'] = () => json(rows);
+    const s = await importEquityPrices(ctx.db, fetchFn, KEYS, { provider: 'eodhd', exchange: 'INDEX', symbol: 'HOLTEST', kind: 'index', providerSymbol: 'HOLTEST.INDX' }, now());
+    expect(s).toMatchObject({ status: 'succeeded', placeholders: 1, rejected: 0, stored: 4 });
+    const q = await ctx.db.one<{ reasons: string[] }>(`SELECT reasons FROM equity.quarantine WHERE job_id=$1`, [s.job_id]);
+    expect(q.reasons).toEqual(['no_trading_placeholder']);
+    // A placeholder stored before this rule existed is withdrawn, with its values kept in the revision history.
+    const series = await ctx.db.one<{ series_id: string }>(`SELECT s.series_id FROM equity.price_series s JOIN equity.instruments i USING (instrument_id) WHERE i.symbol='HOLTEST' AND s.basis='raw'`);
+    await ctx.db.query(`INSERT INTO equity.prices (series_id, trade_date, open, high, low, close, volume, imported_at) VALUES ($1,'2025-12-25',$2,$2,$2,$2,0,$3)`, [series.series_id, prev.close, now().toISOString()]);
+    const { withdrawPlaceholderRows } = await import('../src/modules/equity/ingest.js');
+    expect(await withdrawPlaceholderRows(ctx.db)).toBe(1);
+    expect((await ctx.db.one<{ n: number }>(`SELECT count(*)::int AS n FROM equity.price_revisions WHERE series_id=$1 AND previous->>'withdrawn' LIKE 'no_trading_placeholder%'`, [series.series_id])).n).toBe(1);
+  });
+});
+
 describe('corporate actions', () => {
   it('a split shows up in the provider-adjusted series, or is flagged', async () => {
     const inst = await ctx.db.one<{ instrument_id: string }>(`SELECT instrument_id FROM equity.instruments WHERE exchange='NSE' AND symbol='AAA'`);

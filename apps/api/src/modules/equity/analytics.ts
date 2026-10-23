@@ -14,7 +14,10 @@ const MAX_GAP = 5 * DAY;
 export interface Bars { basis: 'raw' | 'adjusted_split_dividend'; dates: string[]; open: number[]; high: number[]; low: number[]; close: number[]; volume: (number | null)[]; suspect: number }
 
 export async function loadBars(db: Db, instrumentId: string, basis?: 'raw' | 'adjusted_split_dividend'): Promise<Bars | null> {
-  const series = await db.query<{ series_id: string; basis: 'raw' | 'adjusted_split_dividend' }>(`SELECT series_id, basis FROM equity.price_series WHERE instrument_id=$1 AND observations > 0 ORDER BY CASE basis WHEN 'adjusted_split_dividend' THEN 0 ELSE 1 END`, [instrumentId]);
+  // Shares: the provider-adjusted series first (a split is not a crash). Indices: the published level (raw);
+  // a provider "adjusted close" for an index is the same number and must not be read as total return.
+  const series = await db.query<{ series_id: string; basis: 'raw' | 'adjusted_split_dividend' }>(`SELECT s.series_id, s.basis FROM equity.price_series s JOIN equity.instruments i USING (instrument_id) WHERE s.instrument_id=$1 AND s.observations > 0
+    ORDER BY CASE WHEN s.basis = CASE WHEN i.kind = 'index' THEN 'raw' ELSE 'adjusted_split_dividend' END THEN 0 ELSE 1 END`, [instrumentId]);
   const s = basis ? series.find((x) => x.basis === basis) : series[0];
   if (!s) return null;
   const rows = await db.query<{ d: string; open: number; high: number; low: number; close: number; volume: number | null; validation: string }>(

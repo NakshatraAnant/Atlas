@@ -284,7 +284,7 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
       await addToUniverse(db, { ...s, note: 'Starter list (mapping unverified until the provider answers).' }, u.userId);
       added.push(`${s.exchange}:${s.symbol}`);
     }
-    return { added, note: 'Nothing was requested from the provider. These are imported by the scheduled refresh within the daily backfill budget (2 a day on the free plan).' };
+    return { added, note: 'Nothing was requested from the provider. These are imported by the scheduled refresh within the daily backfill budget (2 a day on the free plan). Individual NSE/BSE shares returned "Ticker Not Found" on a free key in testing, so the starter list holds the indices that worked.' };
   });
 
   app.patch('/admin/v1/equity/universe/:exchange/:symbol', async (req) => {

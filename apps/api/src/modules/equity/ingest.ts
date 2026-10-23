@@ -14,7 +14,52 @@ export interface ImportRequest { provider: 'eodhd' | 'alphavantage'; exchange: '
 /** Quota accounting for one import: the call is charged before it is sent, or not sent at all. */
 export interface ImportQuota { policy: QuotaPolicy; category: Exclude<QuotaCategory, 'reserve'>; useReserve?: boolean; pacer?: Pacer }
 
-export interface ImportSummary { job_id: string; status: 'succeeded' | 'partial' | 'failed'; dry_run: boolean; received: number; stored: number; unchanged: number; corrected: number; rejected: number; suspect: number; first_date: string | null; last_date: string | null; error: string | null; error_category: string | null; quota_refusal?: 'budget' | 'daily_limit' | 'exhausted'; series: { basis: string; series_id: string | null }[] }
+export interface ImportSummary { job_id: string; status: 'succeeded' | 'partial' | 'failed'; dry_run: boolean; received: number; stored: number; unchanged: number; corrected: number; rejected: number; suspect: number; provisional: number; placeholders: number; first_date: string | null; last_date: string | null; error: string | null; error_category: string | null; quota_refusal?: 'budget' | 'daily_limit' | 'exhausted'; series: { basis: string; series_id: string | null }[] }
+
+/**
+ * Earliest IST time at which a session's end-of-day row counts as final. NSE closes at 15:30 IST; EODHD
+ * serves a row for the current session soon after (observed 23 Oct 2026 at 15:45 IST) and does not
+ * document when it is final, so ATLAS treats it as provisional until 20:00 IST (an assumption, stated).
+ */
+export const EOD_READY_IST_MINUTES = 20 * 60;
+/** UTC instant from which the row for `day` is treated as final. */
+export const finalAfter = (day: string) => Date.parse(`${day}T00:00:00Z`) + (EOD_READY_IST_MINUTES - 330) * 60_000;
+
+/**
+ * Withdraws stored rows that were imported before their session was final (provisional values). Each is
+ * kept in equity.price_revisions with the reason, and is fetched again by the next refresh.
+ */
+export async function withdrawProvisionalRows(db: Db): Promise<number> {
+  const w = await db.query<{ series_id: string }>(
+    `WITH w AS (
+       DELETE FROM equity.prices p WHERE coalesce(p.revised_at, p.imported_at) < ((p.trade_date::timestamp + interval '${EOD_READY_IST_MINUTES - 330} minutes') AT TIME ZONE 'UTC')
+       RETURNING p.series_id, p.trade_date, p.open, p.high, p.low, p.close, p.volume, p.job_id)
+     INSERT INTO equity.price_revisions (series_id, trade_date, previous, job_id)
+     SELECT series_id, trade_date, jsonb_build_object('open', open::float8, 'high', high::float8, 'low', low::float8, 'close', close::float8, 'volume', volume::float8, 'withdrawn', 'provisional: imported before 20:00 IST on the session day'), job_id FROM w
+     RETURNING series_id`);
+  for (const id of new Set(w.map((x) => x.series_id))) {
+    await db.query(`UPDATE equity.price_series s SET first_date=x.f, last_date=x.l, observations=x.n, updated_at=now() FROM (SELECT min(trade_date) f, max(trade_date) l, count(*)::int n FROM equity.prices WHERE series_id=$1) x WHERE s.series_id=$1`, [id]);
+  }
+  return w.length;
+}
+
+/**
+ * Withdraws stored rows that the current rules reject as "no trading" placeholders (flat OHLC, zero
+ * volume), keeping each in equity.price_revisions with the reason. Returns how many were withdrawn.
+ */
+export async function withdrawPlaceholderRows(db: Db): Promise<number> {
+  const w = await db.query<{ series_id: string }>(
+    `WITH w AS (
+       DELETE FROM equity.prices p WHERE p.volume = 0 AND p.open = p.high AND p.high = p.low AND p.low = p.close
+       RETURNING p.series_id, p.trade_date, p.open, p.high, p.low, p.close, p.volume, p.job_id)
+     INSERT INTO equity.price_revisions (series_id, trade_date, previous, job_id)
+     SELECT series_id, trade_date, jsonb_build_object('open', open::float8, 'high', high::float8, 'low', low::float8, 'close', close::float8, 'volume', volume::float8, 'withdrawn', 'no_trading_placeholder: flat row with zero volume (provider filler on a non-trading day)'), job_id FROM w
+     RETURNING series_id`);
+  for (const id of new Set(w.map((x) => x.series_id))) {
+    await db.query(`UPDATE equity.price_series s SET first_date=x.f, last_date=x.l, observations=x.n, updated_at=now() FROM (SELECT min(trade_date) f, max(trade_date) l, count(*)::int n FROM equity.prices WHERE series_id=$1) x WHERE s.series_id=$1`, [id]);
+  }
+  return w.length;
+}
 
 export async function syncEquityProviders(db: Db, keys: EquityKeys): Promise<void> {
   for (const p of EQUITY_PROVIDERS) {
@@ -40,10 +85,10 @@ export async function importEquityPrices(db: Db, fetchFn: FetchFn, keys: EquityK
   const def = EQUITY_PROVIDERS.find((p) => p.provider_id === req.provider)!;
   if (!def.exchanges.includes(req.exchange)) throw new EquityProviderError(req.provider, 'not_found', `${def.name} is not set up for ${req.exchange} in ATLAS.`);
   const { job_id } = await db.one<{ job_id: string }>(`INSERT INTO equity.import_jobs (provider_id, kind, dry_run, status, requested_by, started_at) VALUES ($1,'api',$2,'running',$3,$4) RETURNING job_id`, [req.provider, !!req.dryRun, req.requestedBy ?? null, now.toISOString()]);
-  const sum: ImportSummary = { job_id, status: 'failed', dry_run: !!req.dryRun, received: 0, stored: 0, unchanged: 0, corrected: 0, rejected: 0, suspect: 0, first_date: null, last_date: null, error: null, error_category: null, series: [] };
+  const sum: ImportSummary = { job_id, status: 'failed', dry_run: !!req.dryRun, received: 0, stored: 0, unchanged: 0, corrected: 0, rejected: 0, suspect: 0, provisional: 0, placeholders: 0, first_date: null, last_date: null, error: null, error_category: null, series: [] };
   const finish = async () => {
     await db.query(`UPDATE equity.import_jobs SET status=$2, finished_at=$3, received=$4, stored=$5, unchanged=$6, corrected=$7, rejected=$8, error=$9, error_category=$10, detail=$11 WHERE job_id=$1`,
-      [job_id, sum.status, new Date().toISOString(), sum.received, sum.stored, sum.unchanged, sum.corrected, sum.rejected, sum.error, sum.error_category, JSON.stringify({ suspect: sum.suspect, first_date: sum.first_date, last_date: sum.last_date, symbol, exchange: req.exchange })]);
+      [job_id, sum.status, new Date().toISOString(), sum.received, sum.stored, sum.unchanged, sum.corrected, sum.rejected, sum.error, sum.error_category, JSON.stringify({ suspect: sum.suspect, provisional: sum.provisional, placeholders: sum.placeholders, first_date: sum.first_date, last_date: sum.last_date, symbol, exchange: req.exchange })]);
     return sum;
   };
   const key = keys[req.provider];
@@ -83,6 +128,8 @@ export async function importEquityPrices(db: Db, fetchFn: FetchFn, keys: EquityK
   } catch (err) {
     const e = err instanceof EquityProviderError ? err : new EquityProviderError(req.provider, 'provider_error', (err as Error).message);
     sum.error = e.message;
+    // Observed 23 Oct 2026: a free EODHD key gets 404 "Ticker Not Found" for NSE/BSE shares that EODHD's search lists.
+    if (req.provider === 'eodhd' && e.category === 'not_found' && (req.exchange === 'NSE' || req.exchange === 'BSE')) sum.error = `${e.message} EODHD lists this share, but a free plan received this answer for NSE and BSE shares in ATLAS's test (23 Oct 2026): individual Indian shares appear to need a paid EODHD plan. Indices (e.g. NSEI.INDX) work on the free plan.`;
     sum.error_category = e.category;
     if (charged) await logRequest(db, now, { provider_id: req.provider, category: quota!.category, endpoint: 'eod', target: req.providerSymbol ?? symbol, cost: req.provider === 'eodhd' ? EODHD_COSTS.eod : 1, outcome: 'error', http_status: httpStatus, error_category: e.category, job_id });
     if (e.category === 'quota_exhausted') await markExhausted(db, req.provider, now, e.message);
@@ -91,15 +138,23 @@ export async function importEquityPrices(db: Db, fetchFn: FetchFn, keys: EquityK
     return finish();
   }
   sum.received = rows.length;
+  if (!req.dryRun) {
+    await withdrawProvisionalRows(db);
+    await withdrawPlaceholderRows(db);
+  }
   const today = now.toISOString().slice(0, 10);
   const seen = new Set<string>();
   const valid: DailyRow[] = [];
   for (const r of rows) {
+    // A row for a session that is not yet final is neither stored nor rejected: the next refresh fetches it.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(r.date) && now.getTime() < finalAfter(r.date)) { sum.provisional++; continue; }
     const c = checkRow(r, today);
     const dup = seen.has(r.date);
     seen.add(r.date);
     if (!c.ok || dup) {
-      sum.rejected++;
+      // Holiday filler is expected and recorded, but is not a data error.
+      if (!dup && c.reasons.length === 1 && c.reasons[0] === 'no_trading_placeholder') sum.placeholders++;
+      else sum.rejected++;
       if (!req.dryRun) await db.query(`INSERT INTO equity.quarantine (job_id, record, reasons) VALUES ($1,$2,$3)`, [job_id, JSON.stringify(r), dup ? ['duplicate_date'] : c.reasons]);
       continue;
     }
@@ -126,7 +181,8 @@ export async function importEquityPrices(db: Db, fetchFn: FetchFn, keys: EquityK
       ON CONFLICT (provider_id, provider_symbol) DO UPDATE SET validated_at=EXCLUDED.validated_at, verification='verified', last_checked_at=EXCLUDED.last_checked_at, last_check_error=NULL,
         effective_from=least(coalesce(equity.provider_symbols.effective_from, EXCLUDED.effective_from), EXCLUDED.effective_from)`, [req.provider, providerSymbol, inst.instrument_id, now.toISOString(), sum.first_date]);
   const bases: { basis: 'raw' | 'adjusted_split_dividend'; rows: DailyRow[] }[] = [{ basis: 'raw', rows: valid }];
-  if (def.adjusted) {
+  // Indices have no splits or dividends of their own: only the published level is stored.
+  if (def.adjusted && req.kind !== 'index') {
     const adj = valid.map(adjustRow).filter((x): x is DailyRow => x !== null);
     if (adj.length) bases.push({ basis: 'adjusted_split_dividend', rows: adj });
   }
@@ -157,9 +213,9 @@ export async function importEquityPrices(db: Db, fetchFn: FetchFn, keys: EquityK
         await write(async () => {
           if (old) await t.query(`INSERT INTO equity.price_revisions (series_id, trade_date, previous, job_id) VALUES ($1,$2,$3,$4)`, [seriesId, r.date, JSON.stringify(old), job_id]);
           await t.query(
-            `INSERT INTO equity.prices (series_id, trade_date, open, high, low, close, volume, validation, job_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-             ON CONFLICT (series_id, trade_date) DO UPDATE SET open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low, close=EXCLUDED.close, volume=EXCLUDED.volume, validation=EXCLUDED.validation, job_id=EXCLUDED.job_id, revised_at=now()`,
-            [seriesId, r.date, r.open, r.high, r.low, r.close, r.volume, suspect ? 'suspect' : 'valid', job_id]);
+            `INSERT INTO equity.prices (series_id, trade_date, open, high, low, close, volume, validation, job_id, imported_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+             ON CONFLICT (series_id, trade_date) DO UPDATE SET open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low, close=EXCLUDED.close, volume=EXCLUDED.volume, validation=EXCLUDED.validation, job_id=EXCLUDED.job_id, revised_at=EXCLUDED.imported_at`,
+            [seriesId, r.date, r.open, r.high, r.low, r.close, r.volume, suspect ? 'suspect' : 'valid', job_id, now.toISOString()]);
         });
       }
       await write(async () => {

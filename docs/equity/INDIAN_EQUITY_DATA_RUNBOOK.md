@@ -14,7 +14,7 @@ Last updated 23 Oct 2026 (session 10). Code: `apps/api/src/modules/equity/` (`pr
 | Fundamentals | **not included** in the free plan (10 calls each on paid plans) | pricing page |
 | Cost per request | end-of-day 1, splits 1, dividends 1, exchange details 1, usage (`/api/user`) 0, bulk 100+ | api-limits page |
 | Errors | 401 bad token; 402 daily allowance spent; 403 not permitted for the plan/ticker; 429 per-minute limit | api-limits page; 403 verified with the demo token |
-| Ticker format | `SYMBOL.NSE`; indices `CODE.INDX` (e.g. `NSEI.INDX`, `BSESN.INDX`) | EODHD symbol pages; **index codes unverified until the first response** |
+| Ticker format | `SYMBOL.NSE`; indices `CODE.INDX` | **Verified 23 Oct 2026:** `NSEI.INDX`, `BSESN.INDX`, `NSEBANK.INDX` return data on the free plan. `RELIANCE.NSE` and `RELIANCE.BSE` return 404 "Ticker Not Found" although EODHD search lists them: Indian shares are not in the free plan. |
 | Licence | the free plan sits under "personal plans". ATLAS keeps data locally for your own research. Nothing in ATLAS implies a right to redistribute | pricing page |
 
 Response shapes recorded with the public demo token: `/api/user`, splits and dividends (`apps/api/test/fixtures/equity`). End-of-day rows were recorded for a US ticker; the demo token returns 403 for Indian tickers. **The exchange-details (holiday) response for NSE has not been seen yet.** Its parser accepts only the documented shape and rejects anything else.
@@ -81,6 +81,8 @@ ATLAS never invents a holiday. Without a list, only weekends and inferred days a
 ## 6. Data quality and corrections
 
 - Rows are validated (OHLC consistency, positive prices, no future dates, no duplicates) or quarantined with reasons.
+- A flat row with zero volume (O=H=L=C, volume 0) is EODHD's filler on a non-trading day (observed on 25 Dec and 26 Jan in index data). It is quarantined as `no_trading_placeholder`, not stored, and does not mark the import partial.
+- A row for a session imported before 20:00 IST that day is provisional: it is not stored, and rows stored that way earlier are withdrawn to `price_revisions` and fetched again.
 - Moves above 20% are kept and flagged `suspect`.
 - A re-import that changes a stored value keeps the old value in `equity.price_revisions`.
 - Raw (as-traded) and provider-adjusted (splits + dividends) series are stored separately; adjustments are never applied twice.
@@ -121,7 +123,11 @@ Real Indian prices never mix with demo data.
 4. Check the instrument page for chart, metrics and freshness "current" (after 20:00 IST on a session day).
 5. Record the date, the calls spent, and any provider difference in `docs/execution/TEST_RESULTS.md`.
 
-Status on 23 Oct 2026: **blocked pending your rotated key.** Every step above is covered by automated tests with recorded response shapes. No live Indian response has been received yet.
+Status: **run on 23 Oct 2026 with the rotated key** (`docs/execution/TEST_RESULTS.md`, session 10b).
+- NSE/BSE shares return 404 on the free plan, so step 2 cannot pass without a paid plan.
+- Indices work: NIFTY 50 (`NSEI.INDX`), SENSEX (`BSESN.INDX`), NIFTY BANK (`NSEBANK.INDX`), 247 sessions each after cleaning.
+- `exchange-details/NSE` returns 404, so holidays come from data inference.
+- Two provider behaviours are now handled by rules: provisional same-day rows (§4) and flat zero-volume holiday rows (§6).
 
 ## 11. Troubleshooting
 

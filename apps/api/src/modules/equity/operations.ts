@@ -1,5 +1,7 @@
 import type { Db } from '../../db/db.js';
-import { importEquityPrices, type EquityKeys, type ImportSummary } from './ingest.js';
+import { EOD_READY_IST_MINUTES, importEquityPrices, withdrawPlaceholderRows, withdrawProvisionalRows, type EquityKeys, type ImportSummary } from './ingest.js';
+
+export { EOD_READY_IST_MINUTES };
 import { eodhdGet, EODHD_COSTS, EquityProviderError, parseEodhdDividends, parseEodhdExchangeDetails, parseEodhdSplits, parseEodhdUser, type EodhdEndpoint, type FetchFn, type ProviderAction } from './providers.js';
 import { logRequest, markExhausted, Pacer, quotaDay, quotaStatus, recordProviderUsage, spend, type QuotaCategory, type QuotaPolicy } from './quota.js';
 
@@ -14,12 +16,6 @@ import { logRequest, markExhausted, Pacer, quotaDay, quotaStatus, recordProvider
 export interface Policies { eodhd: QuotaPolicy; alphavantage: QuotaPolicy }
 
 const IST_OFFSET_MS = 330 * 60_000;
-/**
- * Earliest IST time at which a session's end-of-day data is expected from the provider. NSE closes at
- * 15:30 IST; EODHD does not document when Indian end-of-day files are complete, so ATLAS waits until
- * 20:00 IST before it expects that day's row (an assumption, stated in the runbook).
- */
-export const EOD_READY_IST_MINUTES = 20 * 60;
 
 const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 const isWeekend = (d: string) => [0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay());
@@ -52,14 +48,15 @@ export function expectedLatestSession(now: Date, cal: CalendarDay[]): string {
 export interface UniverseInput { exchange: 'NSE' | 'BSE' | 'INDEX'; symbol: string; kind?: 'equity' | 'index'; name?: string; provider_symbol?: string; priority?: number; note?: string }
 
 /**
- * Starting suggestions: large NSE companies and the two headline indices. These are identifiers only (no
- * data); each mapping stays "unverified" until the provider answers for it. EODHD index codes are taken
- * from EODHD's index naming (CODE.INDX) and are confirmed or rejected by the first request.
+ * Starting suggestions: the three Indian indices that returned data with a free EODHD key on 23 Oct 2026
+ * (NSEI.INDX, BSESN.INDX, NSEBANK.INDX). Identifiers only; nothing is requested when they are added.
+ * NSE/BSE shares are not suggested: the same free key received "Ticker Not Found" for RELIANCE.NSE and
+ * RELIANCE.BSE, although EODHD's search lists them. Add shares yourself if your plan includes them.
  */
 export const STARTER_UNIVERSE: UniverseInput[] = [
   { exchange: 'INDEX', symbol: 'NIFTY50', kind: 'index', name: 'NIFTY 50', provider_symbol: 'NSEI.INDX', priority: 1 },
   { exchange: 'INDEX', symbol: 'SENSEX', kind: 'index', name: 'S&P BSE SENSEX', provider_symbol: 'BSESN.INDX', priority: 1 },
-  ...['RELIANCE', 'HDFCBANK', 'TCS', 'ICICIBANK', 'INFY', 'BHARTIARTL', 'SBIN', 'ITC', 'LT', 'HINDUNILVR'].map((symbol) => ({ exchange: 'NSE' as const, symbol, priority: 2 })),
+  { exchange: 'INDEX', symbol: 'NIFTYBANK', kind: 'index', name: 'NIFTY BANK', provider_symbol: 'NSEBANK.INDX', priority: 2 },
 ];
 
 export function providerFor(exchange: string): 'eodhd' | 'alphavantage' {
@@ -206,7 +203,7 @@ export async function splitConsistency(db: Db, instrumentId: string): Promise<{ 
  * each with observations on both sides, have no row. Recorded as "no_session_observed" with the evidence;
  * a later observation on that day removes the inference.
  */
-export async function inferNoSessionDays(db: Db, now: Date, lookbackDays = 60): Promise<number> {
+export async function inferNoSessionDays(db: Db, now: Date, lookbackDays = 400): Promise<number> {
   const to = quotaDay(now);
   const from = addDays(to, -lookbackDays);
   await db.query(`DELETE FROM equity.calendar_days c WHERE c.source='inferred_from_data' AND EXISTS (
@@ -240,6 +237,8 @@ const RETRY_AFTER_HOURS: Record<string, number> = { entitlement: 24 * 7, not_fou
 export async function runEquityRefresh(db: Db, fetchFn: FetchFn, keys: EquityKeys, now: Date, opts: RefreshOptions): Promise<RefreshResult> {
   const cal = await calendarFor(db, 'NSE', addDays(quotaDay(now), -30), addDays(quotaDay(now), 1));
   const expected = expectedLatestSession(now, cal);
+  await withdrawProvisionalRows(db);
+  await withdrawPlaceholderRows(db);
   const { run_id } = await db.one<{ run_id: string }>(`INSERT INTO equity.refresh_runs (trigger, requested_by, started_at, expected_session, status) VALUES ($1,$2,$3,$4,'running') RETURNING run_id`, [opts.trigger, opts.requestedBy ?? null, now.toISOString(), expected]);
   const res: RefreshResult = { run_id, status: 'succeeded', expected_session: expected, attempted: 0, succeeded: 0, failed: 0, up_to_date: 0, deferred_budget: 0, calls_spent: 0, stop_reason: null, items: [] };
   const before = { eodhd: (await quotaStatus(db, opts.policies.eodhd, now)).spent_local, alphavantage: (await quotaStatus(db, opts.policies.alphavantage, now)).spent_local };
@@ -320,7 +319,7 @@ async function runValidation(db: Db, fetchFn: FetchFn, token: string, now: Date,
     `SELECT u.instrument_id, u.provider_symbol FROM equity.universe u JOIN equity.price_series s ON s.instrument_id=u.instrument_id AND s.provider_id='eodhd' AND s.basis='raw'
        LEFT JOIN LATERAL (SELECT max(retrieved_at) AS checked FROM equity.corporate_actions c WHERE c.instrument_id=u.instrument_id) c ON true
        LEFT JOIN LATERAL (SELECT max(requested_at) AS asked FROM equity.provider_requests r WHERE r.provider_id='eodhd' AND r.endpoint IN ('splits','dividends') AND r.target=u.provider_symbol) r ON true
-      WHERE u.enabled AND u.provider_id='eodhd' AND (r.asked IS NULL OR r.asked < $1)
+      WHERE u.enabled AND u.provider_id='eodhd' AND (SELECT kind FROM equity.instruments WHERE instrument_id=u.instrument_id) = 'equity' AND (r.asked IS NULL OR r.asked < $1)
       ORDER BY greatest(c.checked, r.asked) NULLS FIRST, u.priority LIMIT 1`, [new Date(now.getTime() - 7 * 86_400_000).toISOString()]);
   if (!next) return;
   const from = addDays(quotaDay(now), -366);

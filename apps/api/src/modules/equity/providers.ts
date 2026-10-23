@@ -34,7 +34,7 @@ export const EQUITY_PROVIDERS: ProviderDef[] = [
   {
     provider_id: 'eodhd', name: 'EOD Historical Data (EODHD)', docs_url: 'https://eodhd.com/financial-apis/api-for-historical-data-and-volumes', terms_url: 'https://eodhd.com/financial-apis/terms-conditions',
     docs_checked_on: '2026-10-23', auth: 'required_key', env: 'EODHD_API_TOKEN',
-    coverage_note: 'End-of-day OHLCV with a split- and dividend-adjusted close. Ticker format SYMBOL.EXCHANGE; ATLAS uses the .NSE suffix for NSE shares (shown on EODHD’s own NSE pages). Index tickers must be mapped explicitly and are validated by a successful response.',
+    coverage_note: 'End-of-day OHLCV with a split- and dividend-adjusted close. Ticker format SYMBOL.EXCHANGE; ATLAS uses the .NSE suffix for NSE shares (EODHD search lists e.g. RELIANCE on exchange NSE). Verified with a free key on 23 Oct 2026: Indian indices NSEI.INDX (NIFTY 50), BSESN.INDX (SENSEX) and NSEBANK.INDX (NIFTY BANK) return a year of daily data; NSE and BSE shares (RELIANCE.NSE, RELIANCE.BSE) return HTTP 404 "Ticker Not Found", so individual Indian shares appear not to be included in the free plan. The exchange-details (holiday) endpoint returned 404 for NSE.',
     limits_note: 'Free plan: 20 API calls a day, 20 requests a minute, a one-time 500-call welcome bonus, one year of end-of-day history, no fundamentals (documented). The allowance resets at midnight GMT (05:30 IST). End-of-day, splits and dividends cost 1 call each; the usage endpoint costs 0. HTTP 402 means the day’s allowance is spent. The public demo token returns HTTP 403 for Indian tickers (verified).',
     licence_note: 'Free plan is for personal use (documented). Data is kept locally for your own research and never redistributed.',
     priority: 1, exchanges: ['NSE', 'INDEX'], adjusted: true,
@@ -225,6 +225,9 @@ export function checkRow(r: DailyRow, today: string): RowCheck {
   }
   if (r.volume !== null && (!Number.isFinite(r.volume) || r.volume < 0)) reasons.push('volume_negative');
   if (r.adjusted_close !== undefined && r.adjusted_close !== null && !(r.adjusted_close > 0)) reasons.push('adjusted_close_not_positive');
+  // Observed in EODHD index data (23 Oct 2026): on exchange holidays a flat row repeating the previous close
+  // with zero volume. It records no trading, so it is not a session.
+  if (!reasons.length && r.volume === 0 && r.open === r.high && r.high === r.low && r.low === r.close) reasons.push('no_trading_placeholder');
   return { ok: reasons.length === 0, reasons };
 }
 

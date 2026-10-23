@@ -71,15 +71,15 @@ export async function resolveInstrument(db: Db, userId: string, key: string, now
     if (!inst) throw notFound(`No real data imported for ${exchange}:${symbol}. Import it from Indian equities (needs a configured provider key).`);
     const s = await db.maybeOne<{ series_id: string; provider_id: string; classification: Classification; basis: string; first_date: string | null; last_date: string | null; name: string }>(
       `SELECT s.series_id, s.provider_id, s.classification, s.basis, s.first_date, s.last_date, p.name FROM equity.price_series s JOIN equity.providers p USING (provider_id)
-        WHERE s.instrument_id=$1 AND s.observations > 0 AND ($2::text IS NULL OR s.basis=$2) ORDER BY (s.basis='adjusted_split_dividend') DESC, p.priority LIMIT 1`, [inst.instrument_id, wanted ?? null]);
+        WHERE s.instrument_id=$1 AND s.observations > 0 AND ($2::text IS NULL OR s.basis=$2) ORDER BY (s.basis = CASE WHEN $3 = 'index' THEN 'raw' ELSE 'adjusted_split_dividend' END) DESC, p.priority LIMIT 1`, [inst.instrument_id, wanted ?? null, inst.kind]);
     if (!s) throw notFound(`No stored prices for ${exchange}:${symbol}.`);
     const rows = await db.query<{ trade_date: string; close: number; volume: number | null }>(`SELECT trade_date, close::float8 AS close, volume::float8 AS volume FROM equity.prices WHERE series_id=$1 AND ($2::date IS NULL OR trade_date >= $2::date) ORDER BY trade_date`, [s.series_id, from ? from.slice(0, 10) : null]);
     return {
       key: `equity:${exchange}:${symbol}@${s.basis}`, label: `${inst.name ?? symbol} (${exchange}:${symbol})`, asset_class: inst.kind === 'index' ? 'index' : 'equity', calendar: 'sessions', currency: inst.currency, classification: s.classification,
-      source: `${s.name} end-of-day`, basis: s.basis === 'raw' ? 'raw (as traded; not adjusted for splits or dividends)' : 'adjusted for splits and dividends (provider adjustment)', annualisation: 252,
+      source: `${s.name} end-of-day`, basis: inst.kind === 'index' ? 'index level' : s.basis === 'raw' ? 'raw (as traded; not adjusted for splits or dividends)' : 'adjusted for splits and dividends (provider adjustment)', annualisation: 252,
       observations: rows.map((r) => ({ t: Date.parse(`${r.trade_date}T00:00:00Z`), v: r.close })), volumes: rows.map((r) => r.volume),
       first: s.first_date, last: s.last_date, freshness: dailyFreshness(s.last_date ? `${s.last_date}T00:00:00Z` : null, 'sessions', now),
-      notes: s.basis === 'raw' ? ['Raw prices: returns are price returns that ignore dividends and can jump on splits or bonuses.'] : ['Provider-adjusted series: returns approximate total return (dividends reinvested).'],
+      notes: inst.kind === 'index' ? ['Index level as published by the index provider (a price-return index unless its name says total return): dividends are not included.'] : s.basis === 'raw' ? ['Raw prices: returns are price returns that ignore dividends and can jump on splits or bonuses.'] : ['Provider-adjusted series: returns approximate total return (dividends reinvested).'],
     };
   }
   const datasetId = key.slice(7);

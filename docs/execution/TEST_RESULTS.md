@@ -194,3 +194,34 @@ Runtime on the real database after `atlas start` (migration 011 applied): `/read
 | Secret scan | passed |
 | Browser check, running app | `/app/equities` (no key: setup steps, quota strip, empty states, Data operations sections), `/app/market` demo banner; no console errors |
 | Live EODHD acceptance test | **blocked**: no rotated key configured in `.env.local` (runbook §10) |
+
+## 23 Oct 2026, session 10b: live EODHD acceptance test (rotated key configured in `.env.local`)
+
+Account (from `/api/user`, 0 calls): free plan, `dailyRateLimit` 20, `extraLimit` 500, no usage before today.
+
+| Request (time UTC) | Purpose | Result |
+|---|---|---|
+| `/api/user` | usage check | 200 (free) |
+| `exchange-details/NSE` 10:10 | holiday calendar | **404**: documented endpoint not available for NSE on this account |
+| `eod/NSEI.INDX` 10:11 | NIFTY 50 backfill | 200, 248 rows 2025-10-23 → 2026-10-23 |
+| `splits/NSEI.INDX` 10:11 | validation | 200, none (index; validation now skips indices) |
+| `eod/RELIANCE.NSE` 10:11 | RELIANCE backfill | **404 "Ticker Not Found"** |
+| `search/RELIANCE` (diagnostic) | identifier check | 200: RELIANCE on NSE, ISIN INE002A01018 |
+| `eod/RELIANCE.NSE`, `eod/RELIANCE.BSE` (diagnostic) | entitlement | 404 both |
+| `eod/MSFT.US` (diagnostic control) | entitlement | 200 |
+| `search/NIFTY` ×2 (diagnostic) | index codes | 200: ETFs only, no index codes |
+| `eod/BSESN.INDX` 10:13 | SENSEX (manual) | 200, 252 rows |
+| `eod/NSEBANK.INDX` 10:13 | NIFTY BANK (manual) | 200, 252 rows |
+
+Calls: ATLAS ledger 6; provider-reported 9 at 10:20 UTC (the 3 extra are the diagnostic calls made outside ATLAS, which ATLAS then counted by reconciliation). 404 responses do not appear to be charged by EODHD.
+
+Findings and fixes:
+1. **Free plan covers Indian indices, not individual NSE/BSE shares** (404 for listed tickers). The starter list now holds the three verified indices. A 404 on an Indian share explains this.
+2. **EODHD served a row for the current session at 15:45 IST** (15 minutes after the close). New rule: rows are final only from 20:00 IST. Earlier rows are not stored, and already-stored ones are withdrawn and kept in `price_revisions` (6 withdrawn; test).
+3. **Holiday placeholder rows** in index data: on NSE/BSE holidays, a flat row (O=H=L=C=previous close, volume 0). They are now quarantined as `no_trading_placeholder` (12 stored rows withdrawn, history kept; test). After this, holidays are inferred from the data: 15 days, including 25 Dec, 26 Jan, Holi, Good Friday, 1 May, 2 Oct and 20 Oct.
+4. Indices are now analysed on the published level, not labelled as "adjusted / total return".
+
+Verified downstream, on stored real data:
+- **Series:** NIFTY 50, SENSEX and NIFTY BANK, 247 sessions each (2025-10-23 → 2026-10-22), no unexplained missing sessions.
+- **Volatility (1y):** 13.9% / 14.2% / 17.1%.
+- **Research hub:** instrument search, workbench (with crypto, on shared session dates), portfolio analysis (246 shared sessions, two currencies stated), and an alert rule evaluated and triggered.
