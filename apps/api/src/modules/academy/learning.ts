@@ -20,7 +20,27 @@ export const XP_RULES = {
   course_completed: { xp: 200, label: 'Earn a course completion record', once: 'per course' },
   daily_mission: { xp: 10, label: 'Complete the daily mission', once: 'per day' },
   weekly_mission: { xp: 25, label: 'Meet your weekly goal of learning days', once: 'per week' },
+  // Research activity (written server-side to research.activity only after the work was done and checked).
+  research_note: { xp: 10, label: 'Write a substantive research note (80+ characters)', once: 'per note; at most 3 a day' },
+  hypothesis_recorded: { xp: 15, label: 'Record a hypothesis with evidence for and against, before the outcome', once: 'per hypothesis; at most 3 a day' },
+  hypothesis_reviewed: { xp: 25, label: 'Review a hypothesis against what happened (credit for the review, not for being right)', once: 'per hypothesis' },
+  journal_reflection: { xp: 15, label: 'Write a journal reflection: what you expected, what the evidence showed, what you missed', once: 'per entry; at most 3 a day' },
+  benchmark_comparison: { xp: 10, label: 'Compare instruments against a benchmark in the workbench', once: 'per set of instruments; at most 3 a day' },
+  correlation_study: { xp: 10, label: 'Study a rolling correlation', once: 'per pair and window; at most 3 a day' },
+  walkforward_backtest: { xp: 20, label: 'Run a walk-forward (out-of-sample) backtest', once: 'per instrument and window; at most 3 a day' },
+  report_created: { xp: 30, label: 'Build a research report with limitations and parameters', once: 'per report; at most 3 a day' },
+  portfolio_risk_review: { xp: 10, label: 'Review a research portfolio risk analysis', once: 'per portfolio and range; at most 3 a day' },
+  data_issue_investigated: { xp: 20, label: 'Document a data-quality issue that the integrity check confirms', once: 'per issue; at most 3 a day' },
+  scenario_tested: { xp: 10, label: 'Stress-test a research portfolio', once: 'per scenario; at most 3 a day' },
 } as const;
+/** research.activity kind → learning-event kind (alert_configured earns nothing: setting an alert is not research). */
+export const RESEARCH_KINDS: Record<string, keyof typeof XP_RULES> = {
+  note_written: 'research_note', hypothesis_recorded: 'hypothesis_recorded', hypothesis_reviewed: 'hypothesis_reviewed', journal_reflection: 'journal_reflection',
+  benchmark_comparison: 'benchmark_comparison', correlation_study: 'correlation_study', walkforward_backtest: 'walkforward_backtest', report_created: 'report_created',
+  portfolio_risk_review: 'portfolio_risk_review', data_issue_investigated: 'data_issue_investigated', scenario_tested: 'scenario_tested',
+};
+/** Research awards per kind per local day: repeating an action more often earns nothing more. */
+export const RESEARCH_DAILY_CAP = 3;
 export type EventKind = keyof typeof XP_RULES;
 /** Mission bonuses reward learning that already happened; they do not count as learning activity themselves. */
 const BONUS_KINDS = new Set<EventKind>(['daily_mission', 'weekly_mission']);
@@ -34,6 +54,29 @@ export function levelFor(xp: number): { level: number; xp: number; level_start: 
   let n = 1;
   while (xpForLevel(n + 1) <= xp) n++;
   return { level: n, xp, level_start: xpForLevel(n), next_level_at: xpForLevel(n + 1) };
+}
+
+/**
+ * Named ranks. A rank needs BOTH the XP level and demonstrated competence (mastered objectives and
+ * specific research practices), so activity alone cannot buy a senior title.
+ */
+export const RANKS: { rank: number; title: string; min_level: number; mastered: number; needs: (keyof typeof XP_RULES)[] }[] = [
+  { rank: 1, title: 'Explorer', min_level: 1, mastered: 0, needs: [] },
+  { rank: 2, title: 'Market Student', min_level: 2, mastered: 1, needs: [] },
+  { rank: 3, title: 'Research Apprentice', min_level: 3, mastered: 3, needs: ['research_note'] },
+  { rank: 4, title: 'Data Analyst', min_level: 4, mastered: 6, needs: ['benchmark_comparison', 'data_issue_investigated'] },
+  { rank: 5, title: 'Quantitative Researcher', min_level: 5, mastered: 10, needs: ['walkforward_backtest', 'correlation_study'] },
+  { rank: 6, title: 'Senior Analyst', min_level: 6, mastered: 16, needs: ['hypothesis_reviewed', 'portfolio_risk_review'] },
+  { rank: 7, title: 'Research Architect', min_level: 7, mastered: 24, needs: ['report_created', 'scenario_tested'] },
+];
+export function rankFor(level: number, mastered: number, practices: Set<string>) {
+  let current = RANKS[0]!;
+  for (const r of RANKS) if (level >= r.min_level && mastered >= r.mastered && r.needs.every((n) => practices.has(n))) current = r;
+  const next = RANKS.find((r) => r.rank === current.rank + 1) ?? null;
+  return {
+    rank: current.rank, title: current.title,
+    next: next ? { title: next.title, needs_level: next.min_level, level_ok: level >= next.min_level, needs_mastered: next.mastered, mastered_ok: mastered >= next.mastered, needs_practices: next.needs.map((n) => ({ kind: n, label: XP_RULES[n].label, done: practices.has(n) })) } : null,
+  };
 }
 
 // ───────────── Dates in the learner's timezone ─────────────
@@ -121,6 +164,7 @@ export interface Snapshot {
   reviewsRecalled: number;
   errorsRecovered: number;
   longestStreak: number;
+  research: { kind: string; at: string }[];
 }
 interface AchievementDef { id: string; title: string; description: string; glyph: string; check: (s: Snapshot) => { met: boolean; progress: [number, number]; evidence: string; at?: string } }
 const masteredAt = (s: Snapshot, id: string) => s.mastered.find((m) => m.objective_id === id)?.at;
@@ -151,8 +195,49 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'consistency-builder', title: 'Consistency Builder', description: 'Learn on seven days in a row (one rest day allowed).', glyph: '7', check: (s) => ({ met: s.longestStreak >= 7, progress: [Math.min(7, s.longestStreak), 7], evidence: 'A daily learning streak of seven' }) },
   { id: 'capstone-defender', title: 'Capstone Defender', description: 'Submit a course capstone.', glyph: 'C', check: (s) => ({ met: s.capstones.length > 0, progress: [Math.min(1, s.capstones.length), 1], evidence: 'A submitted capstone', at: s.capstones.map((c) => c.at).sort()[0] }) },
   { id: 'research-dossier', title: 'Research Dossier Completed', description: 'Submit the MARKET ARCHITECT research dossier capstone.', glyph: 'D', check: (s) => { const at = s.capstones.find((c) => c.course_id === 'market-architect')?.at; return { met: !!at, progress: [at ? 1 : 0, 1], evidence: 'MARKET ARCHITECT capstone submitted', at }; } },
+  { id: 'first-research-note', title: 'First Research Note', description: 'Write a substantive research note.', glyph: 'N', check: (s) => researchCount(s, 'note_written', 1, 'A substantive research note') },
+  { id: 'data-detective', title: 'Data Detective', description: 'Document a data-quality issue that the integrity check confirms.', glyph: 'D', check: (s) => researchCount(s, 'data_issue_investigated', 1, 'A confirmed data-quality finding') },
+  { id: 'source-verification-expert', title: 'Source Verification Expert', description: 'Document three confirmed data-quality issues.', glyph: '✓', check: (s) => researchCount(s, 'data_issue_investigated', 3, 'Three confirmed data-quality findings') },
+  { id: 'benchmark-builder', title: 'Benchmark Builder', description: 'Compare instruments against a benchmark.', glyph: 'B', check: (s) => researchCount(s, 'benchmark_comparison', 1, 'A benchmark comparison in the workbench') },
+  { id: 'correlation-explorer', title: 'Correlation Explorer', description: 'Study three rolling correlations.', glyph: 'ρ', check: (s) => researchCount(s, 'correlation_study', 3, 'Three rolling-correlation studies') },
+  { id: 'backtest-auditor', title: 'Backtest Auditor', description: 'Run a walk-forward backtest and compare in-sample with out-of-sample results.', glyph: 'W', check: (s) => researchCount(s, 'walkforward_backtest', 1, 'A walk-forward backtest') },
+  { id: 'risk-analyst', title: 'Risk Analyst', description: 'Review a portfolio risk analysis and stress-test it.', glyph: 'R', check: (s) => { const a = s.research.find((r) => r.kind === 'portfolio_risk_review'); const b = s.research.find((r) => r.kind === 'scenario_tested'); return { met: !!(a && b), progress: [(a ? 1 : 0) + (b ? 1 : 0), 2] as [number, number], evidence: 'A portfolio risk review and a stress scenario', at: a && b ? [a.at, b.at].sort().pop() : undefined }; } },
+  { id: 'thesis-reviewer', title: 'Thesis Reviewer', description: 'Review a recorded hypothesis against what happened.', glyph: 'T', check: (s) => researchCount(s, 'hypothesis_reviewed', 1, 'A reviewed hypothesis') },
+  { id: 'first-report', title: 'First Completed Research Report', description: 'Build a research report with limitations and parameters.', glyph: '§', check: (s) => researchCount(s, 'report_created', 1, 'A research report') },
+  { id: 'on-chain-explorer', title: 'On-Chain Explorer', description: 'Master reading chain data and network metrics.', glyph: '⛓', check: (s) => { const ids = ['oe-o1', 'oe-o2']; const n = ids.filter((i) => masteredAt(s, i)).length; return { met: n === 2, progress: [n, 2] as [number, number], evidence: 'Objectives oe-o1 and oe-o2 mastered', at: n === 2 ? ids.map((i) => masteredAt(s, i)!).sort().pop() : undefined }; } },
+  { id: 'fundamentals-investigator', title: 'Fundamentals Investigator', description: 'Master reading cash flow and returns on capital.', glyph: 'F', check: (s) => { const ids = ['ed-o2', 'ed-o3']; const n = ids.filter((i) => masteredAt(s, i)).length; return { met: n === 2, progress: [n, 2] as [number, number], evidence: 'Objectives ed-o2 and ed-o3 mastered', at: n === 2 ? ids.map((i) => masteredAt(s, i)!).sort().pop() : undefined }; } },
   { id: 'course-mastery', title: 'Course Mastery', description: 'Earn a course completion record (all lessons, 80% of objectives mastered, capstone).', glyph: '◆', check: (s) => ({ met: s.completions.length > 0, progress: [Math.min(1, s.completions.length), 1], evidence: 'A course completion record', at: s.completions.map((c) => c.at).sort()[0] }) },
 ];
+
+export const RESEARCH_EVENT_KINDS = new Set<string>(Object.values(RESEARCH_KINDS));
+
+/** Rotating daily research missions: each uses only features and data available without paid APIs. */
+export const RESEARCH_MISSIONS: { kind: keyof typeof XP_RULES; title: string; why: string; condition: string; effort: string; href: string }[] = [
+  { kind: 'benchmark_comparison', title: 'Compare an asset with a relevant benchmark', why: 'A return means little until you know what the alternative did.', condition: 'In the workbench, compare at least one instrument with a benchmark.', effort: '10 minutes', href: '/app/research-hub?tab=workbench' },
+  { kind: 'hypothesis_recorded', title: 'Write down a thesis before you know the outcome', why: 'Recording expectations in advance is the only honest way to check your judgement later.', condition: 'Record a hypothesis with evidence for, evidence against and a review date.', effort: '15 minutes', href: '/app/research-hub?tab=notebook' },
+  { kind: 'data_issue_investigated', title: 'Find and document a data-quality issue', why: 'Every analysis is only as good as its inputs.', condition: 'Use the integrity check to find a gap, deviation or revision and document it.', effort: '10–20 minutes', href: '/app/research-hub?tab=integrity' },
+  { kind: 'walkforward_backtest', title: 'Test a rule out of sample', why: 'In-sample results are optimistic by construction.', condition: 'Run a walk-forward backtest and compare in-sample with out-of-sample results.', effort: '10 minutes', href: '/app/research-hub?tab=backtest' },
+  { kind: 'journal_reflection', title: 'Reflect on a past analysis', why: 'Naming what you missed is how judgement improves.', condition: 'Write a journal entry: what you expected, what the evidence showed, what you missed.', effort: '10 minutes', href: '/app/research-hub?tab=notebook' },
+  { kind: 'report_created', title: 'Turn an analysis into a report', why: 'Writing it down exposes gaps in the reasoning.', condition: 'Build a report with a research question, instruments and a benchmark.', effort: '15 minutes', href: '/app/research-hub?tab=reports' },
+];
+
+/** Skill areas for the map: objectives (by id or course) plus the applied practices that evidence them. */
+export const SKILL_AREAS: { id: string; title: string; match: (objectiveId: string, courseId: string) => boolean; practices: (keyof typeof XP_RULES)[] }[] = [
+  { id: 'foundations', title: 'Financial foundations', match: (_o, c) => c === 'market-decoder', practices: [] },
+  { id: 'statements', title: 'Accounting and statements', match: (o) => ['ed-o1', 'ed-o2', 'ed-o3'].includes(o), practices: [] },
+  { id: 'equity', title: 'Equity analysis', match: (o, c) => c === 'equity-detective' && !['ed-o1', 'ed-o2', 'ed-o3'].includes(o), practices: ['benchmark_comparison'] },
+  { id: 'crypto', title: 'Crypto fundamentals', match: (_o, c) => c === 'crypto-decoder' || c === 'tokenomics-detective', practices: [] },
+  { id: 'microstructure', title: 'Market microstructure', match: (o) => ['md-o2', 'cd-o3', 'aa-o3'].includes(o), practices: [] },
+  { id: 'quant', title: 'Quantitative methods', match: (o, c) => c === 'signal-engineer' || (c === 'onchain-engineer' && o !== 'oe-o3'), practices: ['correlation_study', 'walkforward_backtest'] },
+  { id: 'risk', title: 'Portfolio risk', match: (o, c) => (c === 'market-architect' && o !== 'ma-o4') || o === 'aa-o4', practices: ['portfolio_risk_review', 'scenario_tested'] },
+  { id: 'data', title: 'Data literacy', match: (o) => o === 'oe-o3', practices: ['data_issue_investigated'] },
+  { id: 'communication', title: 'Research communication', match: (o) => ['ma-o4', 'aa-o1', 'aa-o5'].includes(o), practices: ['report_created', 'hypothesis_reviewed', 'journal_reflection'] },
+];
+
+function researchCount(s: Snapshot, kind: string, n: number, what: string) {
+  const xs = s.research.filter((r) => r.kind === kind).map((r) => r.at).sort();
+  return { met: xs.length >= n, progress: [Math.min(n, xs.length), n] as [number, number], evidence: what, at: xs.length >= n ? xs[n - 1] : undefined };
+}
 
 // ───────────── Missions ─────────────
 export interface Mission { id: string; kind: 'daily' | 'weekly' | 'revision' | 'course' | 'project'; title: string; why: string; condition: string; effort: string; reward: string; done: boolean; href?: string; progress?: [number, number] }
@@ -186,6 +271,18 @@ export async function syncLearningEvents(db: Db, userId: string): Promise<void> 
   for (const r of await db.query<{ game_id: string; at: string }>(`SELECT game_id, min(played_at) AS at FROM acad.game_scores WHERE user_id=$1 AND correct = total GROUP BY game_id`, [userId])) add('game_solved', r.game_id, r.at);
   for (const r of await db.query<{ course_id: string; at: string }>(`SELECT course_id, min(submitted_at) AS at FROM acad.capstone_submissions WHERE user_id=$1 GROUP BY course_id`, [userId])) add('capstone_submitted', r.course_id, r.at);
   for (const r of await db.query<{ course_id: string; issued_at: string }>(`SELECT course_id, issued_at FROM acad.completion_records WHERE user_id=$1`, [userId])) add('course_completed', r.course_id, r.issued_at);
+  // Research: at most RESEARCH_DAILY_CAP awards per kind per local day (later ones that day earn nothing).
+  const tz = (await learnerSettings(db, userId)).timezone;
+  const research = await db.query<{ kind: string; ref: string; occurred_at: string }>(`SELECT kind, ref, occurred_at FROM research.activity WHERE user_id=$1 ORDER BY occurred_at, ref`, [userId]);
+  const perDay = new Map<string, number>();
+  for (const r of research) {
+    const kind = RESEARCH_KINDS[r.kind];
+    if (!kind) continue;
+    const k = `${kind}|${localDate(r.occurred_at, tz)}`;
+    const n = perDay.get(k) ?? 0;
+    perDay.set(k, n + 1);
+    if (n < RESEARCH_DAILY_CAP) add(kind, `${r.kind}:${r.ref}`.slice(0, 120), r.occurred_at);
+  }
   await insertEvents(db, userId, events);
   // Mission bonuses, judged on the learning events above (bonuses themselves never count as activity).
   const settings = await learnerSettings(db, userId);
@@ -208,8 +305,10 @@ export async function syncLearningEvents(db: Db, userId: string): Promise<void> 
   await insertEvents(db, userId, bonuses);
 }
 /** Daily mission: one completed lesson, a solved game, or three correct reviews in a day. */
+/** Research that counts as a day of genuine practice (alone, quick look-ups such as one portfolio view do not). */
+export const QUALIFYING_RESEARCH = new Set<EventKind>(['hypothesis_recorded', 'hypothesis_reviewed', 'journal_reflection', 'benchmark_comparison', 'walkforward_backtest', 'report_created', 'data_issue_investigated']);
 export const dailyMissionMet = (evs: { kind: EventKind }[]) =>
-  evs.some((e) => e.kind === 'lesson_completed' || e.kind === 'game_solved') || evs.filter((e) => e.kind === 'review_recalled').length >= 3;
+  evs.some((e) => e.kind === 'lesson_completed' || e.kind === 'game_solved' || QUALIFYING_RESEARCH.has(e.kind)) || evs.filter((e) => e.kind === 'review_recalled').length >= 3;
 
 async function insertEvents(db: Db, userId: string, events: LearningEvent[]) {
   if (!events.length) return;
@@ -236,6 +335,7 @@ export async function evaluateAchievements(db: Db, userId: string, now: Date, st
     reviewsRecalled: (await db.one<{ n: number }>(`SELECT count(*)::int AS n FROM acad.learning_events WHERE user_id=$1 AND kind='review_recalled'`, [userId])).n,
     errorsRecovered: (await db.one<{ n: number }>(`SELECT count(*)::int AS n FROM acad.learning_events WHERE user_id=$1 AND kind='error_recovered'`, [userId])).n,
     longestStreak,
+    research: await db.query(`SELECT kind, occurred_at AS at FROM research.activity WHERE user_id=$1`, [userId]),
   };
   const results = ACHIEVEMENTS.map((a) => ({ a, r: a.check(snapshot) }));
   const newly = results.filter((x) => x.r.met);
@@ -281,10 +381,33 @@ export async function learnerSummary(db: Db, userId: string, now: Date, statuses
   ];
   if (reviewsDue > 0) missions.push({ id: 'revision', kind: 'revision', title: `Review ${reviewsDue} due concept${reviewsDue === 1 ? '' : 's'}`, why: 'These concepts are scheduled now because recall fades without practice.', condition: 'Answer each due review question.', effort: `about ${Math.max(2, reviewsDue)} minutes`, reward: `${XP_RULES.review_recalled.xp} XP per correct recall`, done: false, href: '/app/academy/review' });
   if (recommendation.href && recommendation.kind !== 'review') missions.push({ id: 'course', kind: recommendation.kind === 'capstone' ? 'project' : 'course', title: recommendation.title, why: recommendation.reason, condition: recommendation.condition, effort: recommendation.effort, reward: recommendation.reward, done: false, href: recommendation.href });
+  // Research mission of the day: deterministic rotation by local date, so it is auditable and the same all day.
+  const dayIndex = Math.floor(Date.parse(`${today}T00:00:00Z`) / 86_400_000);
+  const rm = RESEARCH_MISSIONS[dayIndex % RESEARCH_MISSIONS.length]!;
+  missions.push({ id: `research-${rm.kind}`, kind: 'daily', title: rm.title, why: rm.why, condition: rm.condition, effort: rm.effort, reward: `${XP_RULES[rm.kind].xp} XP`, done: todays.some((e) => e.kind === rm.kind), href: rm.href });
+  const researchThisWeek = learning.filter((e) => RESEARCH_EVENT_KINDS.has(e.kind) && weekStart(localDate(e.occurred_at, settings.timezone)) === weekStart(today)).length;
+  missions.push({ id: 'weekly-research', kind: 'weekly', title: 'Do two pieces of documented research this week', why: 'Applying a concept to real data is where it sticks.', condition: 'Any two research activities from the XP rules (notes, hypotheses, comparisons, backtests, reports, data findings).', effort: '2 sessions', reward: 'Counts toward your rank requirements', done: researchThisWeek >= 2, progress: [Math.min(2, researchThisWeek), 2], href: '/app/research-hub' });
+  // Rank: XP level AND competence.
+  const masteredRows = await db.query<{ objective_id: string; state: string; estimate: number; evidence_count: number }>(`SELECT objective_id, state, estimate::float8 AS estimate, evidence_count FROM acad.objective_mastery WHERE user_id=$1`, [userId]);
+  const masteredIds = new Set(masteredRows.filter((m) => m.state === 'mastered').map((m) => m.objective_id));
+  const practices = new Set(events.map((e) => e.kind as string));
+  const level = levelFor(xp);
+  const rank = rankFor(level.level, masteredIds.size, practices);
+  // Skill map: mastery of the objectives in each area plus the applied practices that evidence it.
+  const objectives = await db.query<{ objective_id: string; course_id: string; statement: string }>(`SELECT objective_id, course_id, statement FROM acad.objectives ORDER BY course_id, position`);
+  const skill_map = SKILL_AREAS.map((a) => {
+    const ids = objectives.filter((o) => a.match(o.objective_id, o.course_id)).map((o) => o.objective_id);
+    const weak = masteredRows.filter((m) => ids.includes(m.objective_id) && m.state === 'learning' && m.evidence_count >= 2 && m.estimate < 0.6).map((m) => ({ objective_id: m.objective_id, statement: objectives.find((o) => o.objective_id === m.objective_id)?.statement ?? '' }));
+    return { id: a.id, title: a.title, objectives: ids.length, mastered: ids.filter((i) => masteredIds.has(i)).length, practices: a.practices.map((p) => ({ kind: p, label: XP_RULES[p].label, done: practices.has(p) })), needs_practice: weak };
+  });
+  const hypothesesDue = await db.query<{ entry_id: string; title: string; review_date: string }>(`SELECT entry_id, title, review_date FROM research.notebook_entries WHERE user_id=$1 AND kind='hypothesis' AND reviewed_at IS NULL AND deleted_at IS NULL ORDER BY review_date LIMIT 10`, [userId]);
   return {
     engine_version: LEARNING_ENGINE_VERSION,
     settings,
-    xp: levelFor(xp),
+    xp: level,
+    rank,
+    skill_map,
+    research: { this_week: researchThisWeek, hypotheses_open: hypothesesDue.map((h) => ({ ...h, due: h.review_date <= today })) },
     xp_rules: Object.entries(XP_RULES).map(([kind, r]) => ({ kind, ...r })),
     streak: { daily, weekly },
     calendar,
