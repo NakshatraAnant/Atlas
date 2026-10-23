@@ -2,7 +2,7 @@
 import { Loading, Problem, useApi } from '@/components/ui';
 import { formatIstDateTime } from '@/lib/format';
 
-interface S { components: { name: string; status: string }[]; incidents: { incident_id: string; title: string; status: string; severity: string; started_at: string; updates: { at: string; text: string }[] }[]; latest_briefing: { trade_date: string; status: string } | null }
+interface S { demo_mode?: boolean; components: { name: string; status: string; last_success_at?: string | null }[]; incidents: { incident_id: string; title: string; status: string; severity: string; started_at: string; updates: { at: string; text: string }[] }[]; latest_briefing: { trade_date: string; status: string } | null }
 
 export default function Status() {
   const s = useApi<S>('/v1/status');
@@ -13,7 +13,7 @@ export default function Status() {
     <>
       <h1>Status</h1>
       <div className="card">
-        <ul>{d.components.map((c) => <li key={c.name}>{c.name}: <span className={`t ${c.status === 'operational' || c.status === 'published' ? 'o' : 'i'}`}>{c.status}</span></li>)}</ul>
+        <ul>{d.components.map((c) => <li key={c.name}>{c.name}: <span className={`t ${c.status === 'operational' || c.status === 'published' ? 'o' : c.status === 'not connected' ? 'm' : 'i'}`}>{c.status}</span>{c.last_success_at ? <span className="mu"> · last successful update {formatIstDateTime(c.last_success_at)}</span> : null}</li>)}</ul>
         {d.latest_briefing && <p className="mu">Latest briefing: {d.latest_briefing.trade_date} ({d.latest_briefing.status}).</p>}
       </div>
       <h2>Incidents</h2>

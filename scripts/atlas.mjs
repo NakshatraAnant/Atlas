@@ -173,6 +173,8 @@ async function seedIfNeeded(env) {
  */
 function catchUp(env) {
   if (env.DATABASE_URL || env.ATLAS_BACKGROUND_JOBS === 'false') return;
+  // Real-data mode: the synthetic demo pipeline has nothing to generate.
+  if (env.ALLOW_SYNTHETIC_DATA === 'false') return;
   log('Bringing market data up to date (missed trading days, if any). Progress: .atlas/logs/pipeline.log');
   mkdirSync(LOGS, { recursive: true });
   const out = openSync(join(LOGS, 'pipeline.log'), 'a');
@@ -205,7 +207,8 @@ async function start() {
   await seedIfNeeded(env);
   catchUp(env);
   rmSync(join(RUN, 'api.stop'), { force: true });
-  launch('api', [TSX(), 'src/server.ts'], API_DIR, env);
+  // Supervised: an abnormal exit is restarted with backoff (scripts/supervise.mjs); a clean stop is not.
+  launch('api', [join(ROOT, 'scripts', 'supervise.mjs'), process.execPath, TSX(), 'src/server.ts'], API_DIR, env);
   await waitFor(`http://${HOST}:${apiPort}/readyz`, 'API', 120_000, 'api');
   launch('web', [NEXT(), 'start', '-p', String(webPort), '-H', HOST], WEB_DIR, env);
   await waitFor(`http://${HOST}:${webPort}/`, 'Web app', 90_000, 'web');

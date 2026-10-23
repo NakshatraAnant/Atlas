@@ -25,11 +25,11 @@ const askReason = (what: string) => {
   return r && r.trim().length >= 5 ? r.trim() : null;
 };
 
-const TABS: [string, string][] = [['pipeline', 'Pipeline'], ['quality', 'Data quality'], ['ai', 'AI review'], ['support', 'Support'], ['users', 'Users'], ['flags', 'Feature flags'], ['analytics', 'Analytics'], ['outbox', 'Email outbox'], ['audit', 'Audit log']];
+const TABS: [string, string][] = [['providers', 'Data providers'], ['pipeline', 'Demo pipeline'], ['quality', 'Data quality'], ['ai', 'AI review'], ['support', 'Support'], ['users', 'Users'], ['flags', 'Feature flags'], ['analytics', 'Analytics'], ['outbox', 'Email outbox'], ['audit', 'Audit log']];
 
 export default function Admin() {
   const { me } = useApp();
-  const [tab, setTab] = useState('pipeline');
+  const [tab, setTab] = useState('providers');
   if (!me) return <Loading />;
   if (!['admin', 'support', 'data_ops'].includes(me.profile.role)) return <p className="err">This console is for ATLAS staff.</p>;
   if (!me.mfa_verified) return <p className="warn">Staff access requires two-step verification. Sign out and sign in again with your authenticator code.</p>;
@@ -37,6 +37,7 @@ export default function Admin() {
     <>
       <h1>Operations console</h1>
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
+      {tab === 'providers' && <Providers />}
       {tab === 'pipeline' && <Pipeline />}
       {tab === 'quality' && <Quality />}
       {tab === 'ai' && <AiReview />}
@@ -57,6 +58,34 @@ function useAct(reload: () => void) {
     try { await f(); toast(msg); setErr(null); reload(); } catch (e) { setErr(e as Error); }
   };
   return { act, err };
+}
+
+/** Every external data provider: state, quota, pauses, requests, stale datasets, job failures, backup. */
+function Providers() {
+  const d = useApi<any>('/admin/v1/providers');
+  const { act, err } = useAct(d.reload);
+  if (d.loading && !d.data) return <Loading lines={6} />;
+  if (d.error) return <Problem error={d.error} retry={d.reload} />;
+  const x = d.data;
+  return (
+    <>
+      <Table caption="Provider state" rows={x.providers} cols={['provider_id', 'configured', 'status', 'usage_confidence', 'requests_24h', 'errors_24h', 'last_success_at', 'last_failure_at', 'last_failure_category', 'next_eligible_at', 'paused_reason', 'reset_at', 'skipped_while_paused']}
+        actions={(r) => r.next_eligible_at ? <button className="link" onClick={() => act(() => api(`/admin/v1/providers/${r.provider_id}/resume`, { body: {} }), 'Resume requested: one health check next')}>Resume now</button> : null} />
+      <p className="mu">{x.notes.usage_confidence} {x.notes.reset}</p>
+      <h2>Quotas</h2>
+      <ul>
+        <li>EODHD (provider-reported where available): {x.quotas.eodhd.spent_local} counted by ATLAS, {x.quotas.eodhd.provider_reported ?? '—'} reported by EODHD, {x.quotas.eodhd.remaining} of {x.quotas.eodhd.daily_limit} left; resets {dateOrDash(x.quotas.eodhd.next_reset_at)}{x.quotas.eodhd.exhausted ? ' (exhausted)' : ''}.</li>
+        <li>CoinGecko (estimated, counted by ATLAS): {x.quotas.coingecko ? `${x.quotas.coingecko.used_month} of ${x.quotas.coingecko.cap} calls in ${x.quotas.coingecko.month}; today ${x.quotas.coingecko.used_today} of a paced ${x.quotas.coingecko.allowance_today}` : 'no monthly cap configured'}.</li>
+      </ul>
+      <Table caption="Datasets that are not fresh" rows={x.stale.map((s: any) => ({ ...s, state: s.freshness.state, age_days: s.freshness.age_days }))} cols={['kind', 'id', 'name', 'last_date', 'state', 'age_days', 'last_import_at', 'last_error']} />
+      <Table caption="Recent provider requests (no URLs or keys are stored)" rows={x.requests} cols={['requested_at', 'provider_id', 'endpoint', 'job', 'http_status', 'outcome', 'failure_category', 'cost', 'quota_event']} />
+      <Table caption="Indian equity refresh runs" rows={x.jobs.equity_runs} cols={['trigger', 'started_at', 'status', 'attempted', 'succeeded', 'failed', 'deferred_budget', 'calls_spent', 'stop_reason']} />
+      <Table caption="Commodity import problems" rows={x.jobs.commodity_failures} cols={['series_id', 'started_at', 'status', 'error_category', 'error']} />
+      <Table caption="Crypto job failures" rows={x.jobs.crypto_failures} cols={['job_type', 'source_id', 'started_at', 'error']} />
+      <p>Latest backup: {x.backup ? `${x.backup.file} (${x.backup.size_mb} MB, ${x.backup.age_days} day(s) old)` : 'none found'}.</p>
+      <Problem error={err} />
+    </>
+  );
 }
 
 function Pipeline() {

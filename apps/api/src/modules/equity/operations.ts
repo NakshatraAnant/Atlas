@@ -1,5 +1,5 @@
 import type { Db } from '../../db/db.js';
-import { EOD_READY_IST_MINUTES, importEquityPrices, withdrawPlaceholderRows, withdrawProvisionalRows, type EquityKeys, type ImportSummary } from './ingest.js';
+import { EOD_READY_IST_MINUTES, finalAfter, importEquityPrices, withdrawPlaceholderRows, withdrawProvisionalRows, type EquityKeys, type ImportSummary } from './ingest.js';
 
 export { EOD_READY_IST_MINUTES };
 import { eodhdGet, EODHD_COSTS, EquityProviderError, parseEodhdDividends, parseEodhdExchangeDetails, parseEodhdSplits, parseEodhdUser, type EodhdEndpoint, type FetchFn, type ProviderAction } from './providers.js';
@@ -259,7 +259,9 @@ export async function runEquityRefresh(db: Db, fetchFn: FetchFn, keys: EquityKey
   }
 
   const items = (await listUniverse(db, now, expected)).filter((i) => i.state === 'due' || i.state === 'awaiting_first_import');
-  const recentlyTried = (i: UniverseItem) => i.last_attempt_at && now.getTime() - Date.parse(i.last_attempt_at) < 6 * 3_600_000 && i.last_date !== null;
+  // "Asked recently" counts only if that attempt came after the expected session became final (20:00 IST);
+  // an attempt earlier that day (found live, 23 Oct 2026) must not block the evening refresh.
+  const recentlyTried = (i: UniverseItem) => !!i.last_attempt_at && i.last_date !== null && Date.parse(i.last_attempt_at) >= finalAfter(expected) && now.getTime() - Date.parse(i.last_attempt_at) < 6 * 3_600_000;
   res.up_to_date = (await listUniverse(db, now, expected)).filter((i) => i.state === 'up_to_date').length;
   const stopped = new Set<string>();
   for (const it of items) {

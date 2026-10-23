@@ -65,9 +65,17 @@ export async function contentRoutes(app: FastifyInstance, ctx: AppContext): Prom
   app.get('/v1/corrections', async () => ({ corrections: await db.query(`SELECT correction_id, published_at, kind, title, description, impact, users_notified FROM calc.corrections ORDER BY published_at DESC LIMIT 200`) }));
   app.get('/v1/status', async () => {
     const incidents = await db.query(`SELECT incident_id, component, title, severity, status, started_at, posted_at, resolved_at, updates FROM ops.status_incidents ORDER BY started_at DESC LIMIT 20`);
+    if (!ctx.cfg.allowSyntheticData) {
+      // Real-data mode: one line per data pipeline, from the durable provider state. "Operational" only
+      // when the provider's last request succeeded and it is not paused.
+      const states = await db.query<{ provider_id: string; configured: boolean; status: string; last_success_at: string | null; next_eligible_at: string | null }>(`SELECT provider_id, configured, status, last_success_at, next_eligible_at FROM ops.provider_state WHERE provider_id <> 'fred_csv'`);
+      const NAMES: Record<string, string> = { eodhd: 'Indian indices (EODHD, end of day)', fred: 'Macro and commodity benchmarks (FRED)', eia: 'US energy inventories (EIA)', coingecko: 'Crypto market data (CoinGecko)', data_gov_in: 'Indian mandi prices (data.gov.in)' };
+      const label = (s: { configured: boolean; status: string }) => (!s.configured ? 'not connected' : s.status === 'operational' ? 'operational' : ['rate_limited', 'quota_exhausted', 'recovering'].includes(s.status) ? 'limited, resuming automatically' : s.status === 'unknown' ? 'starting' : s.status === 'degraded' ? 'degraded' : 'unavailable');
+      return { demo_mode: false, components: [{ name: 'Web application and API', status: 'operational' }, ...states.map((s) => ({ name: NAMES[s.provider_id] ?? s.provider_id, status: label(s), last_success_at: s.last_success_at }))], incidents, latest_briefing: null };
+    }
     const fresh = await freshness(db, ctx.clock());
     const briefing = await db.maybeOne(`SELECT trade_date, status, published_at FROM calc.briefings ORDER BY trade_date DESC LIMIT 1`);
-    return { components: [{ name: 'Web application and API', status: 'operational' }, { name: 'End-of-day data pipeline', status: fresh.some((f) => f.stale && ['eod_prices', 'index'].includes(f.dataset)) ? 'degraded' : 'operational' }, { name: 'Daily briefing', status: briefing ? (briefing as { status: string }).status : 'no data' }], incidents, latest_briefing: briefing };
+    return { demo_mode: true, components: [{ name: 'Web application and API', status: 'operational' }, { name: 'End-of-day data pipeline (demo data)', status: fresh.some((f) => f.stale && ['eod_prices', 'index'].includes(f.dataset)) ? 'degraded' : 'operational' }, { name: 'Daily briefing', status: briefing ? (briefing as { status: string }).status : 'no data' }], incidents, latest_briefing: briefing };
   });
   app.get('/v1/release-notes', async () => ({ releases: RELEASE_NOTES }));
   app.get('/v1/legal/:slug', async (req) => {

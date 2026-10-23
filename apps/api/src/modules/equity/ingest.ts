@@ -1,6 +1,7 @@
 import type { Db } from '../../db/db.js';
 import { adjustRow, alphaVantageSymbol, checkRow, eodhdGet, eodhdTicker, EODHD_COSTS, EQUITY_PROVIDERS, EquityProviderError, fetchAlphaVantage, parseEodhd, type DailyRow, type FetchFn } from './providers.js';
-import { logRequest, markExhausted, spend, type Pacer, type QuotaCategory, type QuotaPolicy } from './quota.js';
+import { logRequest, markExhausted, nextReset, spend, type Pacer, type QuotaCategory, type QuotaPolicy } from './quota.js';
+import { record as recordProvider, type FailureCategory } from '../../lib/providerGate.js';
 
 // Imports real daily prices for one Indian instrument from one provider. Every run is a job with counts
 // for received / stored / unchanged / corrected / rejected rows. Writes are idempotent upserts; a changed
@@ -128,6 +129,7 @@ export async function importEquityPrices(db: Db, fetchFn: FetchFn, keys: EquityK
       rows = parseEodhd(r.status, r.body);
     } else rows = await fetchAlphaVantage(fetchFn, key, providerSymbol);
     if (quota) await logRequest(db, now, { provider_id: req.provider, category: quota.category, endpoint: 'eod', target: providerSymbol, cost: req.provider === 'eodhd' ? EODHD_COSTS.eod : 1, outcome: 'ok', http_status: httpStatus, job_id });
+    if (req.provider === 'eodhd') await recordProvider(db, 'eodhd', now, { endpoint: 'eod', job: `equity:${symbol}`, http_status: httpStatus, ok: true, cost: 0 });
   } catch (err) {
     const e = err instanceof EquityProviderError ? err : new EquityProviderError(req.provider, 'provider_error', (err as Error).message);
     sum.error = e.message;
@@ -136,6 +138,11 @@ export async function importEquityPrices(db: Db, fetchFn: FetchFn, keys: EquityK
     sum.error_category = e.category;
     if (charged) await logRequest(db, now, { provider_id: req.provider, category: quota!.category, endpoint: 'eod', target: req.providerSymbol ?? symbol, cost: req.provider === 'eodhd' ? EODHD_COSTS.eod : 1, outcome: 'error', http_status: httpStatus, error_category: e.category, job_id });
     if (e.category === 'quota_exhausted') await markExhausted(db, req.provider, now, e.message);
+    if (req.provider === 'eodhd' && e.category !== 'not_configured') {
+      // Shared provider state (status pages, operator console). The EODHD ledger above stays authoritative for quota.
+      const cat: FailureCategory = e.category === 'entitlement' ? 'not_found' : e.category === 'provider_error' ? 'server' : e.category === 'quota_exhausted' ? 'quota_exhausted' : (e.category as FailureCategory);
+      await recordProvider(db, 'eodhd', now, { endpoint: 'eod', job: `equity:${symbol}`, http_status: httpStatus, ok: false, category: cat, message: e.message, reset_at: e.category === 'quota_exhausted' ? nextReset(now) : null, cost: 0 });
+    }
     const health = e.category === 'rate_limited' ? 'rate_limited' : e.category === 'quota_exhausted' ? 'quota_exhausted' : e.category === 'entitlement' || e.category === 'auth' ? 'not_entitled' : e.category === 'not_found' ? 'degraded' : 'failing';
     await db.query(`UPDATE equity.providers SET health=$2, last_error_at=$3, last_error=$4, last_error_category=$5 WHERE provider_id=$1`, [req.provider, health, now.toISOString(), e.message.slice(0, 500), e.category === 'not_configured' ? null : e.category]);
     return finish();

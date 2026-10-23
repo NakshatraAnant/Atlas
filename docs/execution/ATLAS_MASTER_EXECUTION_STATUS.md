@@ -91,3 +91,21 @@ Backup before migration 012: `backups/atlas-backup-2026-10-23_09-26-22.tar.gz`. 
 | Real-data mode | verified live | starts with `ALLOW_SYNTHETIC_DATA=false` on an empty database; demo sections answer 403 |
 | Security hardening | verified | key handling, redaction of network errors, interrupted-job recovery; fastify advisory assessed (not exposed; upgrade deferred) |
 | Recovery | verified | backups taken before migrations 012 and 013; drill passed with 013 applied to a restored copy |
+
+## Session 11: production execution mandate (23 Oct 2026)
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Repository audit | verified | `docs/ATLAS_PRODUCTION_READINESS_AUDIT.md` |
+| Credentials (FRED, EIA, CoinGecko, EODHD) | verified | keys in `.env.local` only; each verified with a real response; none in git history, logs or API responses |
+| Shared durable quota and pause manager | verified | `lib/providerGate.ts`, migration 014; tests for 429 / Retry-After / quota with known and unknown resets / auth / 404 / single-probe recovery / restart persistence |
+| FRED API (macro + commodity vintages) | verified live | 18 macro series imported; vintages stored; revisions tracked |
+| EIA API | verified live | crude and gas inventories current to 16 Oct 2026; WTI futures history to 5 Apr 2024 (EIA stopped publishing) |
+| CoinGecko Demo | verified live | monthly pacing (10,000/month) and durable pause in the crypto client |
+| EODHD | verified live (indices) | shares answer 404 on the free plan; provider state mirrored |
+| NSE / BSE / MCX official reports | **blocked by terms** | terms quoted in `docs/ATLAS_DATA_SOURCE_REGISTER.md` |
+| data.gov.in mandi prices | implemented, **unverified** (needs your key) | adapter, parser tests, unavailable state |
+| Demo-data removal (real-data mode) | verified | live start with `ALLOW_SYNTHETIC_DATA=false`; demo APIs 403; real Home, landing, status, data sources; nav shows only working modules |
+| Admin diagnostics, backend-enforced | verified | `/admin/v1/providers`; customers 403; customer responses trimmed |
+| Freshness model | verified | schedule-aware states; calibrated on real lags; tests |
+| Reliability | verified | supervisor restart after a kill; interrupted jobs closed at start-up; backups before migrations 012–014 |

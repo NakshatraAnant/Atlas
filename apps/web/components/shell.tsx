@@ -12,16 +12,29 @@ const APP_NAV: [string, string][] = [
 /** Sections that show only the fictional development companies (API: DEMO_ONLY_PREFIXES in app.ts). */
 const DEMO_PATHS = ['/app/terminal', '/app/market', '/app/companies', '/app/assistant', '/app/screener', '/app/lab', '/app/briefings'];
 // My research mixes company watchlists (demo) with your own uploads (real): only its main page is flagged.
-export const isDemoPath = (path: string) => path === '/app/research' || DEMO_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
+export const isDemoPath = (path: string) => path === '/app/research' || path === '/app' || DEMO_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
+
+/** Real-data mode (demo data off): only modules that run on real, sourced data. */
+const REAL_NAV: [string, string][] = [
+  ['/app', 'Home'], ['/app/equities', 'Indian markets'], ['/app/crypto', 'Digital Assets'], ['/app/commodities', 'Commodities'], ['/app/macro', 'Macro'], ['/app/research-hub', 'Research hub'], ['/app/research/datasets', 'Your data'], ['/app/academy', 'Academy'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data sources'],
+];
 
 const PUBLIC_NAV: [string, string][] = [['/', 'Overview'], ['/app/academy', 'Academy'], ['/briefing-sample', 'Sample briefing'], ['/pricing', 'Pricing'], ['/methodology', 'Methodology'], ['/help', 'Help']];
+const PUBLIC_NAV_REAL: [string, string][] = PUBLIC_NAV.filter(([h]) => h !== '/briefing-sample');
+
+/** Demo mode as reported by the API (public /v1/status), for pages shown before sign-in. */
+export function useDemoMode(): boolean | null {
+  const s = useApi<{ demo_mode?: boolean }>('/v1/status');
+  return s.data ? s.data.demo_mode !== false : null;
+}
 
 export function Shell({ children }: { children: ReactNode }) {
   const path = usePathname() ?? '/';
   const router = useRouter();
   const { me, loading, refresh } = useApp();
   const inApp = path.startsWith('/app') || path.startsWith('/admin');
-  const nav = inApp ? APP_NAV : PUBLIC_NAV;
+  const publicDemo = useDemoMode();
+  const nav = inApp ? (me?.demo_mode === false ? REAL_NAV : APP_NAV) : publicDemo === false ? PUBLIC_NAV_REAL : PUBLIC_NAV;
   const notes = useApi<{ notifications: { notification_id: string; read_at: string | null }[] }>(me ? '/v1/notifications' : null, [me?.profile.user_id]);
   const unread = notes.data?.notifications.filter((n) => !n.read_at).length ?? 0;
   const [fb, setFb] = useState(false);
@@ -67,7 +80,7 @@ export function Shell({ children }: { children: ReactNode }) {
         {nav.map(([href, label]) => <a key={href} href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
       </nav>
       {me && !me.profile.email_verified_at && inApp && <div className="warn" style={{ margin: '0 auto', maxWidth: 1140 }}>Verify your email to save research, pay or receive alerts. <ResendLink /></div>}
-      {me && inApp && isDemoPath(path) && (me.demo_mode !== false
+      {me && inApp && isDemoPath(path) && !(me.demo_mode === false && path === '/app') && (me.demo_mode !== false
         ? <div className="warn" role="note" style={{ margin: '0 auto', maxWidth: 1140 }}><strong>Demo data.</strong> This section shows fictional development companies and generated figures, not real Indian market data. Real NSE/BSE prices are under <a href="/app/equities">Indian equities</a>.</div>
         : <div className="err" role="note" style={{ margin: '0 auto', maxWidth: 1140 }}>Demo mode is off (ALLOW_SYNTHETIC_DATA=false), so this section has no data. Real NSE/BSE prices are under <a href="/app/equities">Indian equities</a>.</div>)}
       <main id="main" tabIndex={-1}>{children}</main>

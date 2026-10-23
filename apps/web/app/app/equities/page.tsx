@@ -13,22 +13,23 @@ interface Budget { category: string; budget: number; spent: number; remaining: n
 interface Quota { usage_date: string; reset_note: string; next_reset_at: string; daily_limit: number; spent_local: number; provider_reported: number | null; provider_reported_at: string | null; remaining: number; exhausted: boolean; exhausted_reason: string | null; budgets: Budget[]; discrepancy_note: string | null }
 interface UItem { exchange: string; symbol: string; name: string | null; kind: string; provider_id: string; provider_symbol: string; verification: string | null; priority: number; enabled: boolean; note: string | null; last_date: string | null; observations: number; last_attempt_at: string | null; last_success_at: string | null; last_error: string | null; last_error_category: string | null; retry_after: string | null; state: string }
 interface Status {
+  diagnostics_visible?: boolean;
   providers: { provider_id: string; name: string; docs_url: string; terms_url: string; docs_checked_on: string; coverage_note: string; limits_note: string; licence_note: string; health: string; configured: boolean; env: string; last_success_at: string | null; last_error_at: string | null; last_error: string | null; last_error_category: string | null }[];
-  quota: { eodhd: Quota; alphavantage: Quota };
-  schedule: { enabled: boolean; next_run_at: string; slots_ist: string[]; running: boolean; note: string };
+  quota?: { eodhd: Quota; alphavantage: Quota };
+  schedule: { enabled: boolean; next_run_at: string; slots_ist: string[]; running?: boolean; note?: string };
   expected_session: string;
   expected_session_note: string;
   universe: UItem[];
   instruments: { exchange: string; symbol: string; name: string | null; kind: string; provider_id: string; classification: string; basis: string; first_date: string | null; last_date: string | null; observations: number; last_import_at: string | null }[];
-  jobs: { job_id: string; provider_id: string; dry_run: boolean; status: string; started_at: string; received: number; stored: number; unchanged: number; corrected: number; rejected: number; error: string | null; error_category: string | null; detail: { symbol?: string; exchange?: string } }[];
-  runs: { run_id: string; trigger: string; started_at: string; expected_session: string; status: string; attempted: number; succeeded: number; failed: number; up_to_date: number; deferred_budget: number; calls_spent: number; stop_reason: string | null }[];
-  requests: { requested_at: string; provider_id: string; category: string; endpoint: string; target: string | null; cost: number; outcome: string; http_status: number | null; error_category: string | null }[];
+  jobs?: { job_id: string; provider_id: string; dry_run: boolean; status: string; started_at: string; received: number; stored: number; unchanged: number; corrected: number; rejected: number; error: string | null; error_category: string | null; detail: { symbol?: string; exchange?: string } }[];
+  runs?: { run_id: string; trigger: string; started_at: string; expected_session: string; status: string; attempted: number; succeeded: number; failed: number; up_to_date: number; deferred_budget: number; calls_spent: number; stop_reason: string | null }[];
+  requests?: { requested_at: string; provider_id: string; category: string; endpoint: string; target: string | null; cost: number; outcome: string; http_status: number | null; error_category: string | null }[];
   calendar: { day: string; kind: string; description: string | null; source: string }[];
   calendar_note: string;
   counts: { instruments: number; prices: number; quarantined: number; revisions: number; corporate_actions: number };
+  synthetic_notice?: string;
   classification: Record<string, string>;
   market_status_note: string;
-  synthetic_notice: string;
 }
 
 const pct = (v: number | null | undefined, d = 1) => (v === null || v === undefined ? '—' : `${v >= 0 ? '+' : ''}${(v * 100).toFixed(d)}%`);
@@ -47,14 +48,29 @@ export default function Equities() {
   return (
     <>
       <h1>Indian equities: real data</h1>
-      <p className="mu">{d.synthetic_notice}</p>
+      {d.synthetic_notice && <p className="mu">{d.synthetic_notice}</p>}
       {!anyConfigured && <SetupSteps />}
-      <QuotaStrip q={d.quota.eodhd} configured={!!d.providers.find((p) => p.provider_id === 'eodhd')?.configured} schedule={d.schedule} expected={d.expected_session} />
-      <Tabs tabs={[['overview', 'Market overview'], ['explorer', 'Explorer and screen'], ['ops', 'Data operations']]} active={tab} onChange={setTab} />
+      {d.quota ? <QuotaStrip q={d.quota.eodhd} configured={!!d.providers.find((p) => p.provider_id === 'eodhd')?.configured} schedule={d.schedule} expected={d.expected_session} /> : <CustomerStrip d={d} />}
+      <Tabs tabs={[['overview', 'Market overview'], ['explorer', 'Explorer and screen'], ['ops', d.diagnostics_visible ? 'Data operations' : 'Coverage and sources']]} active={tab} onChange={setTab} />
       {tab === 'overview' && <Overview />}
       {tab === 'explorer' && <Explorer />}
       {tab === 'ops' && <Operations d={d} reload={s.reload} />}
     </>
+  );
+}
+
+/** Customer summary: when data updates and whether anything limits it, without operator diagnostics. */
+function CustomerStrip({ d }: { d: Status }) {
+  const eodhd = d.providers.find((p) => p.provider_id === 'eodhd') as (Status['providers'][number] & { status_note?: string | null }) | undefined;
+  return (
+    <section className="card" aria-label="Data status">
+      <div className="cx-kpis">
+        <div className="cx-kpi"><span className="k">Data</span><span className="v">End of day</span><span className="s">EODHD; not live prices</span></div>
+        <div className="cx-kpi"><span className="k">Next scheduled update</span><span className="v">{d.schedule.enabled ? ist(d.schedule.next_run_at) : 'off'}</span><span className="s">slots {d.schedule.slots_ist.join(' and ')} IST</span></div>
+        <div className="cx-kpi"><span className="k">Latest expected session</span><span className="v">{d.expected_session}</span><span className="s">weekdays minus evidenced holidays</span></div>
+      </div>
+      {eodhd?.status_note && <p className="warn">{eodhd.status_note}</p>}
+    </section>
   );
 }
 
@@ -184,10 +200,10 @@ function Operations({ d, reload }: { d: Status; reload: () => void }) {
       setBusy(null);
     }
   };
-  const q = d.quota.eodhd;
+  const q = d.quota?.eodhd;
   return (
     <>
-      <section className="card">
+      {q && <section className="card">
         <h2>Daily budget (EODHD, quota day {q.usage_date} UTC)</h2>
         <p className="mu">Every call is charged before it is sent. When a budget is spent, the work waits for the reset instead of calling. The reserve is used only when an administrator asks for it on a manual import.</p>
         <div className="wrap"><table className="term-table"><thead><tr><th scope="col" style={{ textAlign: 'left' }}>Purpose</th><th scope="col">Budget</th><th scope="col">Spent</th><th scope="col">Left</th></tr></thead>
@@ -199,7 +215,7 @@ function Operations({ d, reload }: { d: Status; reload: () => void }) {
             <button className="btn ghost" disabled={!!busy} onClick={() => act('usage', () => api('/admin/v1/equity/usage-check', { body: {} }), () => 'Usage checked (no calls spent)')}>Check provider usage</button>
           </div>
         )}
-      </section>
+      </section>}
 
       <section className="card">
         <h2>Tracked universe</h2>
@@ -237,18 +253,18 @@ function Operations({ d, reload }: { d: Status; reload: () => void }) {
         <Problem error={err} />
       </section>
 
-      <section className="card">
+      {d.runs && <section className="card">
         <h2>Refresh runs</h2>
         {d.runs.length ? <div className="wrap"><table className="term-table"><thead><tr><th scope="col">Started</th><th scope="col">Trigger</th><th scope="col">Expected session</th><th scope="col">Status</th><th scope="col">Updated</th><th scope="col">Failed</th><th scope="col">Deferred (budget)</th><th scope="col">Calls</th><th scope="col" style={{ textAlign: 'left' }}>Note</th></tr></thead>
           <tbody>{d.runs.map((r) => <tr key={r.run_id}><td>{ist(r.started_at)}</td><td>{r.trigger}</td><td>{r.expected_session}</td><td><span className={`t ${r.status === 'succeeded' ? 'o' : r.status === 'failed' ? 'r' : 'i'}`}>{r.status}</span></td><td className="num">{r.succeeded}</td><td className="num">{r.failed}</td><td className="num">{r.deferred_budget}</td><td className="num">{r.calls_spent}</td><td style={{ textAlign: 'left' }}>{r.stop_reason}</td></tr>)}</tbody></table></div> : <p className="mu">No refresh has run yet. {d.schedule.note}</p>}
-      </section>
+      </section>}
 
-      <section className="card">
+      {d.requests && <section className="card">
         <h2>Provider requests</h2>
         <p className="mu">Every request ATLAS made or decided not to make. URLs and keys are never stored.</p>
         {d.requests.length ? <div className="wrap"><table className="term-table"><thead><tr><th scope="col">Time</th><th scope="col">Purpose</th><th scope="col">Endpoint</th><th scope="col">Target</th><th scope="col">Calls</th><th scope="col">Outcome</th></tr></thead>
           <tbody>{d.requests.map((r, i) => <tr key={i}><td>{ist(r.requested_at)}</td><td>{r.category}</td><td>{r.endpoint}</td><td>{r.target}</td><td className="num">{r.cost}</td><td>{r.outcome.replace(/_/g, ' ')}{r.http_status ? ` (HTTP ${r.http_status})` : ''}{r.error_category ? `: ${r.error_category}` : ''}</td></tr>)}</tbody></table></div> : <p className="mu">No provider requests yet.</p>}
-      </section>
+      </section>}
 
       <section className="card">
         <h2>Exchange calendar (NSE)</h2>
@@ -281,11 +297,11 @@ function Operations({ d, reload }: { d: Status; reload: () => void }) {
         <ul>{Object.entries(d.classification).map(([k, v]) => <li key={k}><Classification c={k} /> {v}</li>)}</ul>
       </section>
 
-      <section className="card">
+      {d.jobs && <section className="card">
         <h2>Import jobs</h2>
         {d.jobs.length ? <div className="wrap"><table className="term-table"><thead><tr><th scope="col">Started</th><th scope="col">Instrument</th><th scope="col">Status</th><th scope="col">Received</th><th scope="col">Stored</th><th scope="col">Unchanged</th><th scope="col">Corrected</th><th scope="col">Rejected</th><th scope="col" style={{ textAlign: 'left' }}>Error</th></tr></thead>
           <tbody>{d.jobs.map((j) => <tr key={j.job_id}><td>{ist(j.started_at)}{j.dry_run ? ' (dry run)' : ''}</td><td>{j.detail.exchange}:{j.detail.symbol}</td><td><span className={`t ${j.status === 'succeeded' ? 'o' : j.status === 'partial' ? 'i' : 'r'}`}>{j.status}</span></td><td className="num">{j.received}</td><td className="num">{j.stored}</td><td className="num">{j.unchanged}</td><td className="num">{j.corrected}</td><td className="num">{j.rejected}</td><td style={{ textAlign: 'left' }}>{j.error ? `${j.error_category}: ${j.error}` : ''}</td></tr>)}</tbody></table></div> : <p className="mu">No imports yet.</p>}
-      </section>
+      </section>}
     </>
   );
 }

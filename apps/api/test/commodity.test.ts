@@ -136,7 +136,7 @@ describe('API', () => {
     expect(r.categories[1].note).toMatch(/Not available/);
     expect(r.unavailable.map((u: { what: string }) => u.what).join(' ')).toMatch(/Gold/);
     const wti = r.categories[0].series.find((s: { series_id: string }) => s.series_id === 'fred:DCOILWTICO');
-    expect(wti).toMatchObject({ unit: 'USD per barrel', price_type: 'spot', frequency: 'daily', freshness: { state: 'current' } });
+    expect(wti).toMatchObject({ unit: 'USD per barrel', price_type: 'spot', frequency: 'daily', freshness: { state: 'fresh' } });
   });
   it('series detail: stats by frequency, seasonality, correlations and provenance; drawdown refused across a negative price', async () => {
     const d = (await user.get('/v1/commodities/series/fred/DCOILWTICO')).json;

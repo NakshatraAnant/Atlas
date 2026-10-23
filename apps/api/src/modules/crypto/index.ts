@@ -29,7 +29,11 @@ export async function createCryptoModule(db: Db, cfg: Config, log: Logger, opts:
   const fetchImpl: FetchLike = opts.fetch ?? (cfg.NODE_ENV === 'test' ? offlineFetch : (globalThis.fetch as unknown as FetchLike));
   const client = new ProviderClient(db, fetchImpl, now);
   // A free Demo key raises CoinGecko's limit; ATLAS still stays well inside it.
-  if (cfg.COINGECKO_DEMO_API_KEY) client.setBudget('coingecko', 25);
+  if (cfg.COINGECKO_DEMO_API_KEY) {
+    client.setBudget('coingecko', 25);
+    // Demo plan: 10,000 calls a month (verified 23 Oct 2026).
+    client.setMonthlyCap('coingecko', 10_000);
+  }
   const rt: CryptoRuntime = {
     db, client, log: log.child({ module: 'crypto' }), now,
     settings: {

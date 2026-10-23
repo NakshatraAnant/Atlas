@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import type { Db } from '../../db/db.js';
 import { badRequest, conflict, notFound, parse } from '../../lib/http.js';
-import { requireRole, requireUser } from '../auth/service.js';
+import { isOperator, requireRole, requireUser } from '../auth/service.js';
 import { loadBars, metricsOf, missingSessionsFor, sessionsBehind, toObs, type Bars } from './analytics.js';
 import { importEquityPrices, type EquityKeys } from './ingest.js';
 import { addToUniverse, calendarFor, checkProviderUsage, expectedLatestSession, listUniverse, runEquityRefresh, splitConsistency, STARTER_UNIVERSE, updateUniverse, type Policies } from './operations.js';
@@ -85,7 +85,8 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
   const now = () => ctx.clock();
 
   app.get('/v1/equity/status', async (req) => {
-    requireUser(req);
+    const viewer = requireUser(req);
+    const ops = isOperator(viewer);
     const rt = equityRuntime(ctx);
     const t = now();
     const providers = await db.query(`SELECT provider_id, name, docs_url, terms_url, docs_checked_on, coverage_note, limits_note, licence_note, priority, health, last_success_at, last_error_at, last_error, last_error_category FROM equity.providers ORDER BY priority`);
@@ -99,9 +100,30 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
     const runs = await db.query(`SELECT run_id, trigger, started_at, finished_at, to_char(expected_session, 'YYYY-MM-DD') AS expected_session, status, attempted, succeeded, failed, up_to_date, deferred_budget, calls_spent, stop_reason FROM equity.refresh_runs ORDER BY started_at DESC LIMIT 10`);
     const requests = await db.query(`SELECT requested_at, provider_id, category, endpoint, target, cost, outcome, http_status, error_category FROM equity.provider_requests ORDER BY requested_at DESC LIMIT 30`);
     const universe = await listUniverse(db, t, expected);
+    const quota = { eodhd: await quotaStatus(db, rt.policies.eodhd, t), alphavantage: await quotaStatus(db, rt.policies.alphavantage, t) };
+    // Customers get a plain-language status; quota ledgers, request logs, run history and raw provider
+    // errors are operator diagnostics (admin or data_ops with two-step sign-in), shown in Admin → Data providers.
+    const plain = (p: any) => (p.health === 'quota_exhausted' || quota.eodhd.exhausted ? 'Today’s data allowance is used up; updates resume automatically after the daily reset.' : p.health === 'rate_limited' ? 'The provider is limiting requests; updates resume automatically.' : p.health === 'not_entitled' ? 'The data provider is refusing requests for some instruments.' : p.health === 'not_configured' ? 'Not connected.' : null);
+    if (!ops) {
+      return {
+        diagnostics_visible: false,
+        providers: providers.map((p: any) => ({ provider_id: p.provider_id, name: p.name, docs_url: p.docs_url, terms_url: p.terms_url, docs_checked_on: p.docs_checked_on, coverage_note: p.coverage_note, limits_note: p.limits_note, licence_note: p.licence_note, configured: !!keys[p.provider_id as keyof EquityKeys], health: p.health === 'healthy' ? 'healthy' : p.health === 'not_configured' ? 'not_configured' : p.health === 'unknown' ? 'unknown' : 'limited', status_note: plain(p), last_success_at: p.last_success_at })),
+        schedule: { enabled: ctx.cfg.equityRefresh, next_run_at: nextSlot(t).toISOString(), slots_ist: ['08:00', '20:30'] },
+        expected_session: expected,
+        expected_session_note: 'Latest weekday whose end-of-day data should be published (after 20:00 IST), skipping holidays ATLAS has evidence for. ATLAS does not claim to know whether the market is open now.',
+        universe: universe.map((u) => ({ exchange: u.exchange, symbol: u.symbol, name: u.name, kind: u.kind, enabled: u.enabled, last_date: u.last_date, observations: u.observations, state: u.state })),
+        instruments, counts,
+        calendar: cal.filter((c) => c.day >= iso(t.getTime() - 30 * 86_400_000)).slice(0, 60),
+        calendar_note: cal.some((c) => c.source === 'eodhd_exchange_details') ? 'Holidays from EODHD exchange details, plus days inferred from stored data.' : 'Holidays are inferred from stored data (days when no tracked index traded); no official holiday list is available on the current plan.',
+        classification: { REAL_VERIFIED: 'Cross-checked against a second independent source (none yet).', REAL_UNVERIFIED: 'From one permitted provider; not cross-checked.', USER_IMPORTED: 'Your own uploaded files; private to you.', SYNTHETIC_DEMO: 'Fictional development companies (demo mode only). Never mixed into this page, research, portfolios or alerts.' },
+        market_status_note: 'End-of-day provider closes, dated by the provider. Not live prices.',
+        synthetic_notice: ctx.cfg.allowSyntheticData ? 'Demo mode is on: some other sections show fictional development data, labelled as such. Prices on this page are real.' : 'Demo mode is off: only real, sourced data is shown.',
+      };
+    }
     return {
-      providers: providers.map((p: any) => ({ ...p, configured: !!keys[p.provider_id as keyof EquityKeys], env: EQUITY_PROVIDERS.find((d) => d.provider_id === p.provider_id)?.env })),
-      quota: { eodhd: await quotaStatus(db, rt.policies.eodhd, t), alphavantage: await quotaStatus(db, rt.policies.alphavantage, t) },
+      diagnostics_visible: true,
+      providers: providers.map((p: any) => ({ ...p, configured: !!keys[p.provider_id as keyof EquityKeys], env: EQUITY_PROVIDERS.find((d) => d.provider_id === p.provider_id)?.env, status_note: plain(p) })),
+      quota,
       schedule: { enabled: ctx.cfg.equityRefresh, next_run_at: nextSlot(t).toISOString(), slots_ist: ['08:00', '20:30'], running: rt.running, note: 'Each run first asks the provider for today’s usage (free), refreshes due instruments in priority order, then spends the validation budget.' },
       expected_session: expected,
       expected_session_note: 'Latest weekday whose end-of-day data should be published (after 20:00 IST), skipping holidays ATLAS has evidence for. ATLAS does not claim to know whether the market is open now.',
@@ -130,10 +152,11 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
     }
     const stocks = rows.filter((r) => r.kind === 'equity');
     const latest = stocks.reduce<string | null>((mx, r) => (r.last_date && (!mx || r.last_date > mx) ? r.last_date : mx), null);
+    const latestAny = rows.reduce<string | null>((mx, r) => (r.last_date && (!mx || r.last_date > mx) ? r.last_date : mx), null);
     const onLatest = stocks.filter((r) => r.last_date === latest && r.returns.d1 !== null);
     const movers = [...onLatest].sort((a, b) => (b.returns.d1 ?? 0) - (a.returns.d1 ?? 0));
     return {
-      as_of_session: latest, expected_session: expected,
+      as_of_session: latestAny, expected_session: expected,
       indices: rows.filter((r) => r.kind === 'index'),
       breadth: latest ? { session: latest, advancers: onLatest.filter((r) => r.returns.d1! > 0).length, decliners: onLatest.filter((r) => r.returns.d1! < 0).length, unchanged: onLatest.filter((r) => r.returns.d1 === 0).length, counted: onLatest.length, not_on_latest_session: stocks.length - onLatest.length } : null,
       gainers: movers.slice(0, 5), losers: movers.slice(-5).reverse(),

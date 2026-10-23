@@ -74,6 +74,11 @@ export function requireVerified(req: FastifyRequest): SessionUser {
   return u;
 }
 
+/** Operators (admin or data_ops with verified two-step sign-in) may see provider diagnostics. */
+export function isOperator(u: SessionUser | undefined | null): boolean {
+  return !!u && ['admin', 'data_ops'].includes(u.role) && !!u.totpEnabled && !!u.mfaVerified;
+}
+
 export function requireRole(req: FastifyRequest, roles: SessionUser['role'][]): SessionUser {
   const u = requireUser(req);
   if (!roles.includes(u.role)) throw forbidden();

@@ -3,10 +3,46 @@
 import { Loading, Problem, Synthetic, useApi, Value } from '@/components/ui';
 import { pct, cls, formatIndianNumber } from '@/lib/format';
 import { useApp } from '@/components/providers';
+import { useDemoMode } from '@/components/shell';
 
 interface Summary { date: string; as_of_label: string; indices: { index_code: string; name: string; close: number; returns: Record<string, number | null>; evidence_id: string; label: string }[]; breadth: { traded: number; advances: number; declines: number; unchanged: number } | null; freshness: { label: string; stale: boolean } | null }
 
 export default function Landing() {
+  const demo = useDemoMode();
+  if (demo === null) return <Loading lines={4} />;
+  return demo ? <DemoLanding /> : <RealLanding />;
+}
+
+/** Real-data mode: describes only what works, and shows no provider data on a public page. */
+function RealLanding() {
+  const { me } = useApp();
+  return (
+    <>
+      <section className="hero">
+        <h1>A research workspace for Indian markets, digital assets, commodities and the economy, built on named, dated sources.</h1>
+        <p className="mu" style={{ maxWidth: 760, fontSize: 15 }}>ATLAS stores data from permitted providers, shows where every number comes from and when it was observed, and says plainly when something is missing or out of date. It is a research and learning tool, not investment advice.</p>
+        <div className="row">{me ? <a className="btn" href="/app">Open your workspace</a> : <><a className="btn" href="/signup">Create free account</a><a className="btn s" href="/login">Sign in</a></>}<a className="btn s" href="/methodology">Methodology</a></div>
+      </section>
+      <section className="grid2">
+        <div className="card"><h2>What you can research</h2><ul>
+          <li><strong>Indian indices</strong>: NIFTY 50, SENSEX and NIFTY BANK, end of day, with returns, volatility, RSI, MACD and data-quality checks.</li>
+          <li><strong>Digital assets</strong>: crypto prices, market data, DeFi and on-chain statistics.</li>
+          <li><strong>Commodities</strong>: oil, gas, metals and agricultural benchmarks; US energy inventories; spreads and seasonality.</li>
+          <li><strong>Macro</strong>: inflation, rates, labour, financial conditions and the rupee.</li>
+          <li><strong>Research hub</strong>: portfolios, correlation, walk-forward backtests, notebooks, reports and alerts on the data above and your own files.</li>
+          <li><strong>Academy</strong>: structured courses with practical exercises.</li>
+        </ul></div>
+        <div className="card"><h2>What it does not claim</h2><ul>
+          <li>No live exchange prices: Indian data is end of day.</li>
+          <li>No individual NSE/BSE share prices, company financials or MCX futures: these need data licences ATLAS does not have.</li>
+          <li>No recommendations, targets or predictions. Past results do not predict future results.</li>
+        </ul><p className="mu">See <a href="/status">Status</a> for the current state of each data source.</p></div>
+      </section>
+    </>
+  );
+}
+
+function DemoLanding() {
   const { me } = useApp();
   const s = useApi<Summary>('/v1/market/summary');
   return (

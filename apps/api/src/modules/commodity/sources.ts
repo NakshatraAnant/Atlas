@@ -22,6 +22,10 @@ export interface SeriesDef {
   source_series: string;
   upstream: string;
   contract_position?: number;
+  /** EIA API v2 route for EIA series. */
+  eia_route?: string;
+  /** Set when the source has stopped publishing the series (observations end there). */
+  discontinued_after?: string;
   licence_note: string;
 }
 
@@ -59,21 +63,23 @@ export const SERIES: SeriesDef[] = [
   imf('PURANUSDM', 'uranium', 'Uranium (global price)', 'USD per pound'),
   imf('PALLFNFINDEXM', 'all_commodities', 'All-commodities price index (IMF)', 'Index, 2016 = 100', 'index'),
   // Physical and fundamental statistics, and futures by contract position: EIA open data (your own key).
-  { series_id: 'eia:WCESTUS1', category: 'physical_fundamental', commodity: 'crude_oil', name: 'US crude oil ending stocks excluding SPR (weekly)', price_type: 'inventory', unit: 'thousand barrels', currency: null, frequency: 'weekly', source_id: 'eia', source_series: 'WCESTUS1', upstream: 'EIA Weekly Petroleum Status Report', licence_note: EIA_API },
-  ...[1, 2, 3, 4].map((n): SeriesDef => ({ series_id: `eia:RCLC${n}`, category: 'physical_fundamental', commodity: 'crude_oil', name: `NYMEX WTI crude futures, contract ${n} (Cushing)`, price_type: 'futures_settlement', unit: 'USD per barrel', currency: 'USD', frequency: 'daily', source_id: 'eia', source_series: `RCLC${n}`, upstream: 'EIA (NYMEX futures prices by contract position)', contract_position: n, licence_note: EIA_API })),
+  { series_id: 'eia:WCESTUS1', category: 'physical_fundamental', commodity: 'crude_oil', name: 'US crude oil ending stocks excluding SPR (weekly)', price_type: 'inventory', unit: 'thousand barrels', currency: null, frequency: 'weekly', source_id: 'eia', source_series: 'WCESTUS1', eia_route: 'petroleum/stoc/wstk', upstream: 'EIA Weekly Petroleum Status Report', licence_note: EIA_API },
+  { series_id: 'eia:NW2_EPG0_SWO_R48_BCF', category: 'physical_fundamental', commodity: 'natural_gas', name: 'US Lower 48 natural gas in underground storage (weekly)', price_type: 'inventory', unit: 'billion cubic feet', currency: null, frequency: 'weekly', source_id: 'eia', source_series: 'NW2_EPG0_SWO_R48_BCF', eia_route: 'natural-gas/stor/wkly', upstream: 'EIA Weekly Natural Gas Storage Report', licence_note: EIA_API },
+  // EIA stopped publishing NYMEX futures prices after 5 Apr 2024 (verified 23 Oct 2026): history only.
+  ...[1, 2, 3, 4].map((n): SeriesDef => ({ series_id: `eia:RCLC${n}`, category: 'physical_fundamental', commodity: 'crude_oil', name: `NYMEX WTI crude futures, contract ${n} (Cushing; history to Apr 2024)`, price_type: 'futures_settlement', unit: 'USD per barrel', currency: 'USD', frequency: 'daily', source_id: 'eia', source_series: `RCLC${n}`, eia_route: 'petroleum/pri/fut', upstream: 'EIA (NYMEX futures prices by contract position)', contract_position: n, discontinued_after: '2024-04-05', licence_note: EIA_API })),
 ];
 
 export const CATEGORY_NOTES = {
   global_benchmark: 'Published benchmark prices: EIA daily spot assessments (US locations) and IMF monthly average world prices. Spot and monthly averages are different things and are labelled; neither is a futures price or an Indian price.',
   indian_futures: 'MCX and NCDEX contracts (Indian exchange-traded futures). Not available: historical exchange data is licensed and no permitted free source was found (MCX/NCDEX data products are paid; EODHD’s free plan returned no Indian derivatives). Nothing is shown in its place.',
-  physical_fundamental: 'Inventories and futures prices by contract position from the EIA open-data API. Needs your own free EIA key (EIA_API_KEY in .env.local); without it these series stay empty.',
+  physical_fundamental: 'US crude and natural-gas inventories from the EIA open-data API (weekly), and NYMEX WTI futures by contract position, which EIA published only until 5 April 2024 (history, not current prices). Needs your EIA key (EIA_API_KEY).',
 } as const;
 
 export const UNAVAILABLE = [
   { what: 'Gold and silver benchmark prices', why: 'The LBMA series were withdrawn from FRED (HTTP 404 on 23 Oct 2026) and no other free, permitted daily source was found.' },
   { what: 'Indian commodity futures (MCX, NCDEX)', why: 'Licensed exchange data; no permitted free source.' },
-  { what: 'Indian physical spot prices (mandi arrivals and prices)', why: 'Agmarknet data via data.gov.in needs a separate API key and was not evaluated in this release.' },
-  { what: 'Futures curves beyond WTI contract positions 1–4', why: 'Multi-expiry exchange data is licensed; EIA publishes only these four positions for WTI.' },
+  { what: 'Current futures curves (term structure)', why: 'EIA stopped publishing NYMEX futures prices after 5 April 2024; current multi-expiry exchange data is licensed. ATLAS shows the historical curve only.' },
+  { what: 'Indian agricultural mandi prices', why: 'Needs your free data.gov.in API key (DATA_GOV_IN_API_KEY); the shared sample key is rate-limited.' },
 ] as const;
 
 // ───────────── Parsing ─────────────
@@ -143,10 +149,21 @@ export function fredUrl(id: string): string {
   return `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(id)}`;
 }
 
-export function eiaUrl(def: SeriesDef, key: string, start?: string): string {
-  const route = def.price_type === 'inventory' ? 'petroleum/stoc/wstk' : 'petroleum/pri/fut';
+/** EIA API v2 data URL; responses hold at most 5,000 rows, so callers page with `offset`. */
+export function eiaUrl(def: SeriesDef, key: string, start?: string, offset = 0): string {
+  const route = def.eia_route ?? 'petroleum/pri/fut';
   const freq = def.frequency === 'weekly' ? 'weekly' : 'daily';
-  return `https://api.eia.gov/v2/${route}/data/?api_key=${encodeURIComponent(key)}&frequency=${freq}&data[0]=value&facets[series][]=${encodeURIComponent(def.source_series)}${start ? `&start=${start}` : ''}&sort[0][column]=period&sort[0][direction]=desc&length=5000`;
+  return `https://api.eia.gov/v2/${route}/data/?api_key=${encodeURIComponent(key)}&frequency=${freq}&data[0]=value&facets[series][]=${encodeURIComponent(def.source_series)}${start ? `&start=${start}` : ''}&sort[0][column]=period&sort[0][direction]=asc&offset=${offset}&length=5000`;
+}
+
+/** Total rows EIA reports for the query (for paging). */
+export function eiaTotal(body: string): number | null {
+  try {
+    const t = Number(JSON.parse(body)?.response?.total);
+    return Number.isFinite(t) ? t : null;
+  } catch {
+    return null;
+  }
 }
 
 export const redactUrl = (u: string) => u.replace(/(api_key|api_token|apikey)=[^&]+/g, '$1=REDACTED');

@@ -1,6 +1,8 @@
 import type { AppContext } from '../../context.js';
 import { refreshCommodities } from '../commodity/ingest.js';
 import { commodityKeys } from '../commodity/routes.js';
+import { refreshMacro } from '../macro/macro.js';
+import { refreshMandi } from '../commodity/mandi.js';
 import { scheduledEquityRefresh } from '../equity/routes.js';
 import { evaluateAlerts } from './objectRoutes.js';
 
@@ -33,6 +35,14 @@ export function startResearchJobs(ctx: AppContext): () => void {
     const commodities = guard('commodity_refresh', () => refreshCommodities(ctx.db, ctx.equityFetch, commodityKeys(ctx), ctx.clock(), { pauseMs: 1000 }));
     timers.push(setTimeout(() => void commodities(), 90_000));
     timers.push(setInterval(commodities, 3 * 3_600_000));
+    // Macro (FRED API): each series at most twice a day, and only re-downloaded when FRED reports a change.
+    const macro = guard('macro_refresh', () => refreshMacro(ctx.db, ctx.equityFetch, ctx.cfg.FRED_API_KEY, ctx.clock(), { pauseMs: 600 }));
+    timers.push(setTimeout(() => void macro(), 120_000));
+    timers.push(setInterval(macro, 3 * 3_600_000));
+    // Mandi prices (data.gov.in): at most twice a day, only with a key.
+    const mandi = guard('mandi_refresh', () => refreshMandi(ctx.db, ctx.equityFetch, ctx.cfg.DATA_GOV_IN_API_KEY, ctx.clock()));
+    timers.push(setTimeout(() => void mandi(), 150_000));
+    timers.push(setInterval(mandi, 3 * 3_600_000));
   }
   return () => timers.forEach((t) => clearInterval(t));
 }

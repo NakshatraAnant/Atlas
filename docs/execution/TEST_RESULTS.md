@@ -240,3 +240,24 @@ Verified downstream, on stored real data:
 | Live FRED commodity refresh | 25 series stored (8 daily/weekly EIA, 17 monthly IMF); WTI has 9,527 observations to 2026-10-20, including the −36.98 print of 2020-04-20 |
 | Secret checks | the key is in no commit (`git grep` over all revisions), no tracked file, no log and no API response; secret scan passed |
 | Dependency audit | 1 low: fastify header-schema advisory (GHSA-389g-gv7q-r4x8). Not exposed: ATLAS validates headers, bodies and queries with zod, not fastify schemas. The fix (5.12.7) is 10 days old; the upgrade is deferred until it is at least two weeks old |
+
+## 23 Oct 2026, session 11: production execution mandate (real-data mode)
+
+| Check | Result |
+|---|---|
+| Type-check (all workspaces) | pass (no linter is configured in this repository) |
+| Shared analytics | 125 passed |
+| API (`npm test -w apps/api`) | 31 files, 500 passed, 13 skipped (the PostgreSQL file, run separately). New: `providers.test.ts` (gate, FRED, EIA paging, mandi parsing, freshness, customer and operator views, real-data mode) |
+| PostgreSQL 17 | 13 passed (migrations 001–014 from empty; schema parity including `commodity` and `macro`) |
+| Web production build | pass |
+| E2E (Edge) | 24 passed. One spec updated because customers no longer see the quota ledger (operator-only by design) |
+| Live: FRED API | 18 macro series imported with vintages (e.g. DGS10 to 21 Oct 2026, CPI Sep 2026, GDP Q2 2026) |
+| Live: EIA API | crude stocks and natural-gas storage to week ending 16 Oct 2026; WTI futures contracts 1–4 to 5 Apr 2024 (EIA stopped publishing) |
+| Live: CoinGecko Demo | key valid; monthly pacing active (`/key` usage endpoint is paid-only: 401) |
+| Live: EODHD | NIFTY 50, SENSEX, NIFTY BANK to 23 Oct 2026 (an evening-refresh bug was found and fixed: NIFTY 50 was held back by an attempt earlier that day) |
+| Live: data.gov.in | not verified: the shared sample key answered 429; needs your key |
+| Live: NSE / BSE / MCX | not integrated; terms read in the browser prohibit automated collection or redistribution |
+| Real-data mode | throwaway API on an empty database with `ALLOW_SYNTHETIC_DATA=false`: ready, `synthetic_data:false`, demo APIs 403; the installation now runs in this mode; Home, Macro, Indian markets, Commodities and Data sources checked in the browser |
+| Supervisor | API server process killed by hand: restarted automatically in about 40 s, logged |
+| Secrets | none of the four configured keys appears in logs, git history, tracked files or 8 API responses (customer and operator) |
+| Backups | taken before migrations 013 and 014 (`atlas-backup-2026-10-23_10-39-22`, `…12-55-45`) |

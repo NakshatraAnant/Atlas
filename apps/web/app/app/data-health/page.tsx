@@ -1,6 +1,7 @@
 'use client';
 import { Loading, Problem, useApi } from '@/components/ui';
 import { formatIstDateTime } from '@/lib/format';
+import { useApp } from '@/components/providers';
 
 interface Assessment { provider_id: string; provider: string; datasets: string[]; site: string; terms_url: string; assessed_on: string; automated_retrieval: string; local_retention: string; commercial_display: string; redistribution: string; finding: string; atlas_action: string; next_step: string }
 interface Health {
@@ -18,7 +19,41 @@ interface Health {
 const RIGHT: Record<string, string> = { permitted: 'Permitted', prohibited: 'Prohibited', requires_consent: 'Needs written consent', requires_licence: 'Needs a licence', unverified: 'Unverified (treated as not permitted)' };
 const tone = (s: string) => (s === 'permitted' || s === 'succeeded' ? 'o' : s === 'prohibited' || s === 'failed' ? 'i' : 'm');
 
+interface Sources { providers: { provider_id: string; name: string; covers: string; attribution: string; frequency: string; status: string; last_update: string | null }[]; datasets: Record<string, Record<string, number>>; not_available: { what: string; why: string }[]; freshness_rule: string }
+
+/** Real-data mode: where the data comes from, how current it is, and what is not available. */
+function DataSources() {
+  const s = useApi<Sources>('/v1/data-sources');
+  if (s.loading && !s.data) return <Loading lines={6} />;
+  if (s.error) return <Problem error={s.error} retry={s.reload} />;
+  const d = s.data!;
+  return (
+    <>
+      <h1>Data sources</h1>
+      <section className="card">
+        <div className="wrap"><table className="term-table"><thead><tr><th scope="col" style={{ textAlign: 'left' }}>Source</th><th scope="col" style={{ textAlign: 'left' }}>What it covers</th><th scope="col">Update frequency</th><th scope="col">Status</th><th scope="col">Last update</th></tr></thead>
+          <tbody>{d.providers.map((p) => <tr key={p.provider_id}><td style={{ textAlign: 'left' }}>{p.name}<br /><span className="mu">{p.attribution}</span></td><td style={{ textAlign: 'left' }}>{p.covers}</td><td>{p.frequency}</td><td>{p.status}</td><td>{p.last_update ? formatIstDateTime(p.last_update) : '—'}</td></tr>)}</tbody></table></div>
+      </section>
+      <section className="card">
+        <h2>Freshness</h2>
+        <ul>{Object.entries(d.datasets).map(([k, v]) => <li key={k}>{k[0]!.toUpperCase() + k.slice(1)}: {Object.entries(v).map(([state, n]) => `${n} ${state.replace('_', ' ')}`).join(', ') || 'no series'}</li>)}</ul>
+        <p className="mu">{d.freshness_rule}</p>
+      </section>
+      <section className="card">
+        <h2>Not available</h2>
+        <ul>{d.not_available.map((n) => <li key={n.what}><strong>{n.what}</strong>: {n.why}</li>)}</ul>
+      </section>
+    </>
+  );
+}
+
 export default function DataHealth() {
+  const { me } = useApp();
+  if (me && me.demo_mode === false) return <DataSources />;
+  return <DemoDataHealth />;
+}
+
+function DemoDataHealth() {
   const h = useApi<Health>('/v1/data/health');
   if (h.loading) return <Loading lines={8} label="Loading data health" />;
   if (h.error) return <Problem error={h.error} retry={h.reload} />;

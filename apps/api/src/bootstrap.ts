@@ -16,6 +16,8 @@ import { schedulerTick } from './pipeline/daily.js';
 import { createCryptoModule, type CryptoOptions } from './modules/crypto/index.js';
 import { syncEquityProviders } from './modules/equity/ingest.js';
 import { syncCommoditySeries } from './modules/commodity/ingest.js';
+import { syncMacroSeries } from './modules/macro/macro.js';
+import { syncProviderState } from './lib/providerGate.js';
 import type { FetchFn } from './modules/equity/providers.js';
 import { NoVendor, SyntheticVendor, type VendorAdapter } from './pipeline/vendor.js';
 
@@ -51,7 +53,9 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   const crypto = await createCryptoModule(db, cfg, log, { now: () => clock().getTime(), ...opts.crypto });
   await syncEquityProviders(db, { eodhd: cfg.EODHD_API_TOKEN, alphavantage: cfg.ALPHAVANTAGE_API_KEY });
   await syncCommoditySeries(db);
-  const offline: FetchFn = async (url) => { throw new Error(`Network access is disabled in this environment (${url.replace(/(api_token|apikey|api_key)=[^&]+/g, '$1=REDACTED')})`); };
+  await syncMacroSeries(db);
+  await syncProviderState(db, { fred: !!cfg.FRED_API_KEY, fred_csv: true, eia: !!cfg.EIA_API_KEY, coingecko: true, eodhd: !!cfg.EODHD_API_TOKEN, data_gov_in: !!cfg.DATA_GOV_IN_API_KEY });
+  const offline: FetchFn = async (url) => { throw new Error(`Network access is disabled in this environment (${url.replace(/(api_token|apikey|api_key|api-key)=[^&]+/g, '$1=REDACTED')})`); };
   const equityFetch = opts.equityFetch ?? (cfg.NODE_ENV === 'test' ? offline : (globalThis.fetch as unknown as FetchFn));
   return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg), crypto, equityFetch };
 }
@@ -86,7 +90,8 @@ export function startBackgroundJobs(ctx: AppContext): () => void {
   const pctx = { db: ctx.db, store: ctx.store, cfg: ctx.cfg, log: ctx.log, now: ctx.clock };
   timers.push(setInterval(guard('backtests', () => processBacktestQueue(ctx, `api-${process.pid}`, 2)), 1500));
   timers.push(setInterval(guard('outbox', () => deliverOutbox(ctx.db, ctx.email)), 5000));
-  timers.push(setInterval(guard('scheduler', () => schedulerTick(pctx, ctx.vendor)), 60_000));
+  // The end-of-day pipeline serves the demo dataset only; in real-data mode it is not scheduled.
+  if (ctx.cfg.allowSyntheticData) timers.push(setInterval(guard('scheduler', () => schedulerTick(pctx, ctx.vendor)), 60_000));
   timers.push(setInterval(guard('reconcile', () => reconcileSubscriptions(ctx)), 10 * 60_000));
   timers.push(setInterval(guard('settle', () => settlePeriods(ctx)), 60 * 60_000));
   timers.push(setInterval(guard('ai_cost', () => checkAiCost(ctx)), 60 * 60_000));

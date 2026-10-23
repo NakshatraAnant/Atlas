@@ -1,0 +1,82 @@
+{
+ "warnings": [
+  {
+   "warning": "incomplete return",
+   "description": "The API can only return 5000 rows in JSON format.  Please consider constraining your request with facet, start, or end, or using offset to paginate results."
+  }
+ ],
+ "response": {
+  "total": "2299",
+  "dateFormat": "YYYY-MM-DD",
+  "frequency": "weekly",
+  "data": [
+   {
+    "period": "2026-10-16",
+    "duoarea": "NUS",
+    "area-name": "U.S.",
+    "product": "EPC0",
+    "product-name": "Crude Oil",
+    "process": "SAX",
+    "process-name": "Ending Stocks Excluding SPR",
+    "series": "WCESTUS1",
+    "series-description": "U.S. Ending Stocks excluding SPR of Crude Oil (Thousand Barrels)",
+    "value": "412517",
+    "units": "MBBL"
+   },
+   {
+    "period": "2026-10-09",
+    "duoarea": "NUS",
+    "area-name": "U.S.",
+    "product": "EPC0",
+    "product-name": "Crude Oil",
+    "process": "SAX",
+    "process-name": "Ending Stocks Excluding SPR",
+    "series": "WCESTUS1",
+    "series-description": "U.S. Ending Stocks excluding SPR of Crude Oil (Thousand Barrels)",
+    "value": "415577",
+    "units": "MBBL"
+   },
+   {
+    "period": "2026-10-02",
+    "duoarea": "NUS",
+    "area-name": "U.S.",
+    "product": "EPC0",
+    "product-name": "Crude Oil",
+    "process": "SAX",
+    "process-name": "Ending Stocks Excluding SPR",
+    "series": "WCESTUS1",
+    "series-description": "U.S. Ending Stocks excluding SPR of Crude Oil (Thousand Barrels)",
+    "value": "424134",
+    "units": "MBBL"
+   },
+   {
+    "period": "2026-09-25",
+    "duoarea": "NUS",
+    "area-name": "U.S.",
+    "product": "EPC0",
+    "product-name": "Crude Oil",
+    "process": "SAX",
+    "process-name": "Ending Stocks Excluding SPR",
+    "series": "WCESTUS1",
+    "series-description": "U.S. Ending Stocks excluding SPR of Crude Oil (Thousand Barrels)",
+    "value": "427320",
+    "units": "MBBL"
+   },
+   {
+    "period": "2026-09-18",
+    "duoarea": "NUS",
+    "area-name": "U.S.",
+    "product": "EPC0",
+    "product-name": "Crude Oil",
+    "process": "SAX",
+    "process-name": "Ending Stocks Excluding SPR",
+    "series": "WCESTUS1",
+    "series-description": "U.S. Ending Stocks excluding SPR of Crude Oil (Thousand Barrels)",
+    "value": "426398",
+    "units": "MBBL"
+   }
+  ]
+ },
+ "apiVersion": "2.1.14",
+ "ExcelAddInVersion": "2.1.0"
+}

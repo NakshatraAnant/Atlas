@@ -62,11 +62,12 @@ test('Indian equities: no provider configured is stated plainly, with setup step
   await expect(page.locator('main')).toContainText('No provider is configured');
   await expect(page.locator('main')).toContainText('EODHD_API_TOKEN');
   await expect(page.locator('main')).toContainText('Nothing imported yet.');
-  // Quota, schedule and data operations are visible without a key; no provider call is needed to show them.
-  await expect(page.locator('main')).toContainText('EODHD calls left today');
-  await page.getByRole('tab', { name: 'Data operations' }).click();
-  await expect(page.getByRole('heading', { name: /Daily budget \(EODHD/ })).toBeVisible();
+  // Customers see when data updates, not the operator quota ledger (that is in Admin → Data providers).
+  await expect(page.locator('main')).toContainText('Next scheduled update');
+  await expect(page.locator('main')).not.toContainText('EODHD calls left today');
+  await page.getByRole('tab', { name: 'Coverage and sources' }).click();
   await expect(page.getByRole('heading', { name: 'Tracked universe' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Daily budget/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Explorer and screen' }).click();
   await expect(page.getByRole('heading', { name: 'Explorer and screen' })).toBeVisible();
   w.assertClean();

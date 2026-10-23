@@ -2,6 +2,12 @@
 
 Updated: 2026-10-23, session 10 (mandate: "Master Indian equity data integration & zero-dummy-data execution").
 
+## Session 11 state (production mandate)
+- Migrations 001–014 applied. Real-data mode on (`ALLOW_SYNTHETIC_DATA=false` in `.env.local`).
+- Keys configured: EODHD, FRED, EIA, CoinGecko Demo. Not configured: data.gov.in (mandi), Alpha Vantage.
+- Backup before migration 014: `backups/atlas-backup-2026-10-23_12-55-45.tar.gz`.
+- Documents: `docs/ATLAS_*` (audit, data source register, quality and freshness, quota and recovery, security and secrets, customer feature readiness, operations runbook).
+
 ## Session 10 state
 - Migrations 001–012 applied to ./data (backup before 012: `backups/atlas-backup-2026-10-23_09-26-22.tar.gz`).
 - Migrations 001–013 applied. A rotated EODHD key is configured in `.env.local` (never committed).

@@ -339,7 +339,12 @@ describe('API', () => {
     expect(after.snapshot_freshness.state).toBe('stale');
     const src = (await c.get('/v1/crypto/sources')).json.sources.find((s: { source_id: string }) => s.source_id === 'coingecko');
     expect(['degraded', 'failing']).toContain(src.health);
-    expect(src.last_error).toMatch(/500/);
+    // Customers see the health label; the raw error text is an operator diagnostic.
+    expect(src.last_error).toBeUndefined();
+    const op = new Client(app);
+    expect((await op.login('admin@atlas.test', DEV_PASSWORD, totpCode(DEV_ADMIN_TOTP_SECRET, clockMs))).status).toBe(200);
+    const opSrc = (await op.get('/v1/crypto/sources')).json.sources.find((s: { source_id: string }) => s.source_id === 'coingecko');
+    expect(opSrc.last_error).toMatch(/500/);
     outage = false;
   });
   it('watchlist and notes are private to each user', async () => {

@@ -41,6 +41,12 @@ const schema = z.object({
   RATE_LIMIT_MULTIPLIER: z.coerce.number().min(1).max(100000).default(1),
   // ATLAS Digital Assets (docs/crypto). Free public sources; an optional free CoinGecko Demo key raises its limit.
   COINGECKO_DEMO_API_KEY: z.string().optional().default(''),
+  /** Accepted as an alias of COINGECKO_DEMO_API_KEY (the canonical name). */
+  COINGECKO_API_KEY: z.string().optional().default(''),
+  /** Official FRED API key (macro series; commodity series with vintages). Without it, commodities use the public CSV download. */
+  FRED_API_KEY: z.string().optional().default(''),
+  /** data.gov.in Open Government Data API key (Agmarknet mandi prices). */
+  DATA_GOV_IN_API_KEY: z.string().optional().default(''),
   /** Scheduled crypto ingestion. Defaults to on outside tests. */
   CRYPTO_INGESTION: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()),
   /** Binance WebSocket price feed for CRYPTO_LIVE_SYMBOLS. Defaults to on outside tests. */
@@ -82,9 +88,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const commodityRefresh = parsed.COMMODITY_REFRESH ? parsed.COMMODITY_REFRESH === 'true' : !isTest;
   // The alias is folded in here so every caller reads one name; neither value is ever logged.
   const EODHD_API_TOKEN = (parsed.EODHD_API_TOKEN || parsed.EODHD_API_KEY).trim();
+  const COINGECKO_DEMO_API_KEY = (parsed.COINGECKO_DEMO_API_KEY || parsed.COINGECKO_API_KEY).trim();
   const eodhdBudgets = parsed.EODHD_QUOTA_BUDGETS ? parseBudgets(parsed.EODHD_QUOTA_BUDGETS, parsed.EODHD_DAILY_LIMIT)
     : parsed.EODHD_DAILY_LIMIT === 20 ? DEFAULT_EODHD_BUDGETS : scaleBudgets(parsed.EODHD_DAILY_LIMIT);
-  const cfg: Config = { ...parsed, EODHD_API_TOKEN, EODHD_API_KEY: '', allowSyntheticData, isProduction, academyShowDrafts, cryptoIngestion, cryptoLiveFeed, equityRefresh, commodityRefresh, eodhdBudgets };
+  const cfg: Config = { ...parsed, EODHD_API_TOKEN, EODHD_API_KEY: '', COINGECKO_DEMO_API_KEY, COINGECKO_API_KEY: '', FRED_API_KEY: parsed.FRED_API_KEY.trim(), EIA_API_KEY: parsed.EIA_API_KEY.trim(), DATA_GOV_IN_API_KEY: parsed.DATA_GOV_IN_API_KEY.trim(), allowSyntheticData, isProduction, academyShowDrafts, cryptoIngestion, cryptoLiveFeed, equityRefresh, commodityRefresh, eodhdBudgets };
   if (isProduction) assertProductionSafe(cfg);
   return cfg;
 }

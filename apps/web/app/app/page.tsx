@@ -1,5 +1,6 @@
 'use client';
 import { BriefingView } from '@/components/briefing';
+import { RealHome } from '@/components/real-home';
 import { useApp } from '@/components/providers';
 import { Empty, Loading, Problem, useApi } from '@/components/ui';
 import { dateOrDash, formatDate } from '@/lib/format';
@@ -11,6 +12,13 @@ interface LearnProgress { courses: { course_id: string; title: string; lessons: 
 interface CalEvent { event_date: string; kind: string; title: string; status: string; company_id: string | null; source: string }
 
 export default function Home() {
+  const { me } = useApp();
+  // Real-data mode: no fictional companies, briefings or watchlists on Home.
+  if (me && me.demo_mode === false) return <RealHome name={me.profile.display_name} />;
+  return <DemoHome />;
+}
+
+function DemoHome() {
   const { me } = useApp();
   const changed = useApi<{ items: Change[]; empty_state?: string }>('/v1/home/what-changed');
   const recent = useApi<{ items: Recent[] }>('/v1/home/recent');

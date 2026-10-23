@@ -1,5 +1,33 @@
 # ATLAS changelog
 
+## Session 11 (23 Oct 2026): production execution, real-data mode
+
+### Added
+- **Shared durable provider gate** (`lib/providerGate.ts`, migration 014): provider state, request log, pause and auto-resume with a single health-check probe; used by FRED, the FRED CSV fallback, EIA, CoinGecko and data.gov.in; EODHD outcomes mirrored.
+- **Macro module** (`modules/macro`, `/app/macro`): 18 FRED series with vintages, revisions and year-on-year change.
+- **FRED API** for commodity series (vintages); **EIA paging**; natural-gas storage series; WTI futures marked discontinued.
+- **CoinGecko monthly pacing** (Demo: 10,000/month).
+- **data.gov.in mandi adapter** (needs your key).
+- **Freshness model** (`lib/freshness.ts`).
+- **Real-data mode:**
+  - navigation shows only working modules;
+  - real Home, public landing, Status and Data sources pages;
+  - Academy tasks on demo pages marked unavailable;
+  - demo pipeline not scheduled.
+- **Admin → Data providers** (backend-enforced).
+- **Supervisor** that restarts a crashed API; fatal-error logging.
+- **Docs:** `docs/ATLAS_*.md`.
+
+### Fixed
+- Customer responses no longer include quota ledgers, request logs, raw provider errors or budgets.
+- The evening equity refresh was blocked by an attempt made earlier the same day, before the session was final (found live).
+- The market overview "as of" date was empty when only indices are tracked.
+- The FRED CSV fallback was blocked by the gate without an API key.
+- Request-log timestamps used the run's start time.
+- Commodity rows imported before the FRED API key lacked vintages (now backfilled).
+- The public Status page reported only the demo pipeline.
+
+
 ## Session 10, continued (23 Oct 2026): live EODHD, commodities, Academy commodities track
 
 ### Added

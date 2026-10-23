@@ -4,17 +4,17 @@ import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import type { Db } from '../../db/db.js';
 import { badRequest, conflict, notFound, parse } from '../../lib/http.js';
-import { requireRole, requireUser } from '../auth/service.js';
+import { isOperator, requireRole, requireUser } from '../auth/service.js';
 import { refreshCommodities, type CommodityKeys } from './ingest.js';
+import { freshnessOf } from '../../lib/freshness.js';
 import { CATEGORY_NOTES, SERIES, UNAVAILABLE } from './sources.js';
 
 // Commodity research over stored source series. Categories stay separate; every figure states its source,
 // frequency, unit and price type. Analytics run only on what is stored and say when data is insufficient.
 
-export const commodityKeys = (ctx: AppContext): CommodityKeys => ({ eia: ctx.cfg.EIA_API_KEY });
+export const commodityKeys = (ctx: AppContext): CommodityKeys => ({ eia: ctx.cfg.EIA_API_KEY, fred: ctx.cfg.FRED_API_KEY });
 
 const DAY = 86_400_000;
-const STALE_DAYS: Record<A.Frequency, number> = { daily: 6, weekly: 12, monthly: 70 };
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 
 interface Row { series_id: string; category: string; commodity: string; name: string; price_type: string; unit: string; currency: string | null; frequency: A.Frequency; source_id: string; source_series: string; upstream: string; contract_position: number | null; licence_note: string; classification: string; first_date: string | null; last_date: string | null; observations: number; last_import_at: string | null; last_error: string | null; last_error_at: string | null }
@@ -40,10 +40,9 @@ function changeOver(obs: A.Obs[], days: number): number | null {
   return last.v / base.v - 1;
 }
 
-function freshness(lastDate: string | null, frequency: A.Frequency, now: Date): { state: 'current' | 'stale' | 'no_data'; age_days: number | null } {
-  if (!lastDate) return { state: 'no_data', age_days: null };
-  const age = Math.floor((now.getTime() - Date.parse(`${lastDate}T00:00:00Z`)) / DAY);
-  return { state: age > STALE_DAYS[frequency] ? 'stale' : 'current', age_days: age };
+/** The shared schedule-aware freshness (lib/freshness.ts), with discontinued series marked as such. */
+function freshness(lastDate: string | null, frequency: A.Frequency, now: Date, seriesId?: string, lastError?: string | null) {
+  return freshnessOf(lastDate, frequency, now, lastError, { discontinuedAfter: SERIES.find((s) => s.series_id === seriesId)?.discontinued_after });
 }
 
 function stats(obs: A.Obs[], frequency: A.Frequency) {
@@ -77,18 +76,18 @@ export async function commodityRoutes(app: FastifyInstance, ctx: AppContext): Pr
   let running = false;
 
   app.get('/v1/commodities', async (req) => {
-    requireUser(req);
+    const ops = isOperator(requireUser(req));
     const rows = await seriesRows(db);
     const t = now();
     const items: (Row & Record<string, unknown>)[] = [];
     for (const r of rows) {
       const obs = r.observations ? await loadObs(db, r.series_id, iso(t.getTime() - 6 * 366 * DAY)) : [];
-      items.push({ ...r, freshness: freshness(r.last_date, r.frequency, t), last: obs.length ? obs[obs.length - 1]!.v : null, change: obs.length ? { m1: changeOver(obs, 30), y1: changeOver(obs, 365) } : null, configured: r.source_id === 'fred' || !!ctx.cfg.EIA_API_KEY });
+      items.push({ ...r, freshness: freshness(r.last_date, r.frequency, t, r.series_id, r.last_error), last: obs.length ? obs[obs.length - 1]!.v : null, change: obs.length ? { m1: changeOver(obs, 30), y1: changeOver(obs, 365) } : null, configured: r.source_id === 'fred' || !!ctx.cfg.EIA_API_KEY });
     }
     const jobs = await db.query(`SELECT job_id, series_id, started_at, status, received, stored, unchanged, corrected, missing_values, rejected, error, error_category FROM commodity.import_jobs ORDER BY started_at DESC LIMIT 15`);
     return {
       categories: (Object.keys(CATEGORY_NOTES) as (keyof typeof CATEGORY_NOTES)[]).map((c) => ({ category: c, note: CATEGORY_NOTES[c], series: items.filter((i) => i.category === c) })),
-      unavailable: UNAVAILABLE, jobs, eia_configured: !!ctx.cfg.EIA_API_KEY,
+      unavailable: UNAVAILABLE, jobs: ops ? jobs : [], diagnostics_visible: ops, eia_configured: !!ctx.cfg.EIA_API_KEY,
       notice: 'Benchmark spot prices and monthly averages are published assessments, not tradable quotes; none is an Indian price or live data. Values are in the source’s currency and unit.',
     };
   });
@@ -119,7 +118,7 @@ export async function commodityRoutes(app: FastifyInstance, ctx: AppContext): Pr
     }
     correlations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
     return {
-      series: r, freshness: freshness(r.last_date, r.frequency, t),
+      series: r, freshness: freshness(r.last_date, r.frequency, t, r.series_id, r.last_error),
       analysis: {
         stats: stats(obs, r.frequency), seasonality: A.seasonality(obs.filter((o) => o.t >= t.getTime() - 15 * 366 * DAY), r.frequency),
         inventory_vs_history: r.price_type === 'inventory' ? A.seasonalZ(obs, 5) : null,
@@ -161,7 +160,8 @@ export async function commodityRoutes(app: FastifyInstance, ctx: AppContext): Pr
     }
     const complete = [...byDate.entries()].filter(([, ps]) => ps.length === legs.length).sort(([a], [b]) => a.localeCompare(b));
     const history = complete.map(([d, ps]) => ({ t: d, ...A.termStructure(ps)! }));
-    return { available: !!history.length, latest: history[history.length - 1] ?? null, history: history.map((h) => ({ t: h.t, slope: h.slope, slope_pct: h.slope_pct, state: h.state, roll_yield_annualised: h.roll_yield_annualised })), method: 'Positions 1–4 are the nearest four NYMEX WTI contracts as published by EIA; a position rolls to the next contract after expiry, so a position series is not one contract. Contango/backwardation from position 4 vs 1 (±0.25% band).' };
+    const stoppedAfter = legs.find((l) => l.discontinued_after)?.discontinued_after ?? null;
+    return { available: !!history.length, historical_only: !!stoppedAfter, history_note: stoppedAfter ? `EIA stopped publishing NYMEX futures prices after ${stoppedAfter}. This is the last curve it published, not today’s market; current curves need licensed exchange data.` : null, latest: history[history.length - 1] ?? null, history: history.map((h) => ({ t: h.t, slope: h.slope, slope_pct: h.slope_pct, state: h.state, roll_yield_annualised: h.roll_yield_annualised })), method: 'Positions 1–4 are the nearest four NYMEX WTI contracts as published by EIA; a position rolls to the next contract after expiry, so a position series is not one contract. Contango/backwardation from position 4 vs 1 (±0.25% band).' };
   });
 
   app.post('/admin/v1/commodities/refresh', async (req) => {

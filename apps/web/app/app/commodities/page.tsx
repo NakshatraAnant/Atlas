@@ -50,6 +50,7 @@ export default function Commodities() {
           ) : <p>Not available. Nothing is shown in its place.</p>}
         </section>
       ))}
+      {tab === 'series' && <Mandi />}
       {tab === 'series' && (
         <section className="card">
           <h2>Not available</h2>
@@ -60,6 +61,23 @@ export default function Commodities() {
       {tab === 'curve' && <Curve />}
       {tab === 'ops' && <Ops d={d} reload={l.reload} />}
     </>
+  );
+}
+
+/** Indian agricultural (mandi) spot prices from data.gov.in: physical market prices, not futures. */
+function Mandi() {
+  const m = useApi<{ configured: boolean; verified: boolean; status_note: string; summary: { commodity: string; latest: string; markets: number; median_modal: number; days: number; freshness: { state: string } }[]; units: string; attribution: string; method: string }>('/v1/commodities/mandi');
+  if (!m.data) return null;
+  const d = m.data;
+  return (
+    <section className="card">
+      <h2>Indian mandi prices (physical spot, Agmarknet)</h2>
+      {d.summary.length ? (
+        <div className="wrap"><table className="term-table"><thead><tr><th scope="col" style={{ textAlign: 'left' }}>Commodity</th><th scope="col">Median modal price</th><th scope="col">Markets reporting</th><th scope="col">Date</th><th scope="col">Days stored</th><th scope="col">Freshness</th></tr></thead>
+          <tbody>{d.summary.map((r) => <tr key={r.commodity}><td style={{ textAlign: 'left' }}>{r.commodity}</td><td className="num">₹{r.median_modal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td><td className="num">{r.markets}</td><td>{r.latest}</td><td className="num">{r.days}</td><td><Fresh f={{ state: r.freshness.state === 'fresh' ? 'current' : r.freshness.state, age_days: null }} /></td></tr>)}</tbody></table></div>
+      ) : <p>{d.status_note}</p>}
+      <p className="mu">{d.units} {d.method} {d.attribution}</p>
+    </section>
   );
 }
 
@@ -95,6 +113,7 @@ function Curve() {
   return (
     <section className="card">
       <h2>WTI term structure (contract positions 1–4)</h2>
+      {(d as { history_note?: string | null }).history_note && <p className="warn">{(d as { history_note?: string | null }).history_note}</p>}
       {!d.available ? <p>{d.reason}</p> : d.latest && (
         <>
           <p><strong>{d.latest.state}</strong> on {d.latest.t}: positions {d.latest.positions.map((p) => `${p.position}: ${p.value.toFixed(2)}`).join(' · ')} USD/bbl. Position 4 − 1 = {d.latest.slope.toFixed(2)} ({pct(d.latest.slope_pct)}). Roll-yield proxy {d.latest.roll_yield_annualised === null ? '—' : pct(d.latest.roll_yield_annualised)} a year.</p>
@@ -133,8 +152,8 @@ function Ops({ d, reload }: { d: List; reload: () => void }) {
       </ul>
       {admin && <p><button className="btn" disabled={busy} onClick={refresh}>{busy ? 'Refreshing…' : 'Refresh due series now'}</button></p>}
       <Problem error={err} />
-      <h3>Recent imports</h3>
-      {d.jobs.length ? <div className="wrap"><table className="term-table"><thead><tr><th scope="col">Started</th><th scope="col">Series</th><th scope="col">Status</th><th scope="col">New</th><th scope="col">Corrected</th><th scope="col">Missing days</th><th scope="col" style={{ textAlign: 'left' }}>Error</th></tr></thead>
+      {(d as List & { diagnostics_visible?: boolean }).diagnostics_visible && <h3>Recent imports</h3>}
+      {!(d as List & { diagnostics_visible?: boolean }).diagnostics_visible ? null : d.jobs.length ? <div className="wrap"><table className="term-table"><thead><tr><th scope="col">Started</th><th scope="col">Series</th><th scope="col">Status</th><th scope="col">New</th><th scope="col">Corrected</th><th scope="col">Missing days</th><th scope="col" style={{ textAlign: 'left' }}>Error</th></tr></thead>
         <tbody>{d.jobs.map((j, i) => <tr key={i}><td>{j.started_at.slice(0, 16).replace('T', ' ')} UTC</td><td>{j.series_id}</td><td>{j.status}</td><td className="num">{j.stored}</td><td className="num">{j.corrected}</td><td className="num">{j.missing_values}</td><td style={{ textAlign: 'left' }}>{j.error ?? ''}</td></tr>)}</tbody></table></div> : <p className="mu">No imports yet; the first refresh runs about 90 seconds after ATLAS starts.</p>}
     </section>
   );

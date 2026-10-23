@@ -1,3 +1,4 @@
+import { admit, categoryFor, record } from '../../lib/providerGate.js';
 import type { Db } from '../../db/db.js';
 import { SOURCES } from './registry.js';
 
@@ -36,6 +37,9 @@ interface CacheEntry { at: number; value: unknown }
 const RESERVED_SHARE = 0.25;
 const MAX_CACHE_ENTRIES = 500;
 
+/** Crypto sources that go through the durable provider gate (ops.provider_state). */
+const GATED: Record<string, string> = { coingecko: 'coingecko' };
+
 export class ProviderClient {
   private readonly windows = new Map<string, number[]>();
   private readonly backoffUntil = new Map<string, number>();
@@ -45,6 +49,30 @@ export class ProviderClient {
   private readonly budgets = new Map<string, number>(SOURCES.map((s) => [s.source_id, s.budget_per_minute]));
 
   constructor(private readonly db: Db, private readonly fetchImpl: FetchLike, private readonly now: () => number = () => Date.now(), private readonly sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {}
+
+  private readonly monthlyCaps = new Map<string, number>();
+  /**
+   * Monthly call cap (CoinGecko Demo: 10,000/month). ATLAS keeps 5% in hand, paces usage evenly over the
+   * days left in the calendar month (UTC), and refuses non-critical calls beyond that pace.
+   */
+  setMonthlyCap(sourceId: string, calls: number): void {
+    this.monthlyCaps.set(sourceId, calls);
+  }
+
+  /** Month-to-date use and today's allowance for a capped source (null when uncapped). */
+  async monthlyState(sourceId: string): Promise<{ cap: number; used_month: number; used_today: number; allowance_today: number; month: string } | null> {
+    const cap = this.monthlyCaps.get(sourceId);
+    if (!cap) return null;
+    const d = new Date(this.now());
+    const month = d.toISOString().slice(0, 7);
+    const today = d.toISOString().slice(0, 10);
+    const r = await this.db.one<{ m: number; t: number }>(`SELECT coalesce(sum(requests),0)::int AS m, coalesce(sum(requests) FILTER (WHERE day=$3),0)::int AS t FROM crypto.request_usage WHERE source_id=$1 AND to_char(day,'YYYY-MM')=$2`, [sourceId, month, today]);
+    const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    const daysLeft = daysInMonth - d.getUTCDate() + 1;
+    const usable = Math.floor(cap * 0.95);
+    const allowance = Math.max(0, Math.floor((usable - (r.m - r.t)) / daysLeft));
+    return { cap, used_month: r.m, used_today: r.t, allowance_today: allowance, month };
+  }
 
   setBudget(sourceId: string, perMinute: number): void {
     this.budgets.set(sourceId, perMinute);
@@ -105,6 +133,18 @@ export class ProviderClient {
   }
 
   private async doRequest<T>(sourceId: string, url: string, opts: RequestOptions): Promise<T> {
+    const gated = GATED[sourceId];
+    if (gated) {
+      // Durable pause (survives restarts) and the monthly pace.
+      const a = await admit(this.db, gated, new Date(this.now()), 'request');
+      if (!a.allowed) throw new ProviderError(sourceId, 'backing_off', `${sourceId} requests are paused (${a.reason}) until ${a.next_eligible_at ?? 'reconfigured'}.`);
+      const m = await this.monthlyState(sourceId);
+      if (m && !opts.critical && m.used_today >= m.allowance_today) {
+        await this.usage(sourceId, 'refused_budget');
+        throw new ProviderError(sourceId, 'budget_exhausted', `${sourceId} monthly budget: ${m.used_today} calls today reaches today's share (${m.allowance_today}) of ${m.cap} a month (${m.used_month} used in ${m.month}).`);
+      }
+      if (m && m.used_month >= m.cap) throw new ProviderError(sourceId, 'budget_exhausted', `${sourceId} monthly cap of ${m.cap} calls is used up for ${m.month}.`);
+    }
     const until = this.backoffUntil.get(sourceId) ?? 0;
     if (until > this.now()) throw new ProviderError(sourceId, 'backing_off', `Backing off ${sourceId} after earlier failures for ${Math.ceil((until - this.now()) / 1000)} s.`, undefined, until - this.now());
     if (!(await this.acquire(sourceId, !!opts.critical, 65_000))) {
@@ -121,6 +161,7 @@ export class ProviderClient {
     } catch (err) {
       const timeout = (err as Error).name === 'AbortError';
       await this.fail(sourceId, at, timeout ? 'timeout' : 'network', `${timeout ? 'Timed out' : 'Network error'}: ${(err as Error).message}`);
+      if (gated) await record(this.db, gated, new Date(this.now()), { endpoint: 'request', ok: false, category: timeout ? 'timeout' : 'network', message: (err as Error).message });
       throw new ProviderError(sourceId, timeout ? 'timeout' : 'network', `${sourceId}: ${timeout ? 'request timed out' : (err as Error).message}`);
     } finally {
       clearTimeout(timer);
@@ -131,12 +172,14 @@ export class ProviderClient {
       this.backoffUntil.set(sourceId, this.now() + ms);
       await this.usage(sourceId, 'rate_limited');
       await this.fail(sourceId, at, 'rate_limited', `HTTP ${res.status} rate limited; backing off ${Math.round(ms / 1000)} s`);
+      if (gated) await record(this.db, gated, new Date(this.now()), { endpoint: 'request', http_status: res.status, ok: false, category: 'rate_limited', retry_after_s: Number.isFinite(ra) && ra > 0 ? ra : null, message: `HTTP ${res.status}` });
       throw new ProviderError(sourceId, 'rate_limited', `${sourceId} rate limited (HTTP ${res.status}).`, res.status, ms);
     }
     const body = await res.text();
     if (!res.ok) {
       if (res.status >= 500) this.backoffUntil.set(sourceId, this.now() + this.nextBackoff(sourceId));
       await this.fail(sourceId, at, 'http', `HTTP ${res.status}: ${body.slice(0, 200)}`);
+      if (gated) await record(this.db, gated, new Date(this.now()), { endpoint: 'request', http_status: res.status, ok: false, category: categoryFor(res.status), message: `HTTP ${res.status}` });
       throw new ProviderError(sourceId, 'http', `${sourceId} returned HTTP ${res.status}: ${body.slice(0, 200)}`, res.status);
     }
     let value: unknown = body;
@@ -149,6 +192,7 @@ export class ProviderClient {
       }
     }
     this.failures.set(sourceId, 0);
+    if (gated) await record(this.db, gated, new Date(this.now()), { endpoint: 'request', http_status: res.status, ok: true });
     await this.db.query(`UPDATE crypto.sources SET last_request_at=$2, last_success_at=$2, consecutive_failures=0, health=CASE WHEN enabled THEN 'healthy' ELSE 'disabled' END WHERE source_id=$1`, [sourceId, at]);
     return value as T;
   }

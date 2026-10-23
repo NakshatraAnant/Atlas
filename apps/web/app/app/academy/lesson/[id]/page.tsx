@@ -3,6 +3,8 @@ import { use, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { answered, DraftBanner, Lab, QuestionInput, StageStepper, type Answer, type PublicQuestion } from '@/components/academy';
 import { Loading, Problem, useApi } from '@/components/ui';
+import { useApp } from '@/components/providers';
+import { isDemoPath } from '@/components/shell';
 
 type Block =
   | { stage: 'discover'; kind: 'text'; title: string; body: string[] }
@@ -109,6 +111,7 @@ function VideoPanel({ v }: { v: LessonVideo }) {
 const stageTitle = (b: Block) => ('title' in b ? b.title : b.stage === 'predict' ? 'Make a prediction' : b.stage === 'decide' ? 'Try it yourself' : b.stage === 'explain' ? 'Explain it in your words' : 'Key points');
 
 function BlockView({ b }: { b: Block }) {
+  const { me } = useApp();
   const [pick, setPick] = useState<number | null>(null);
   const [show, setShow] = useState(false);
   const [text, setText] = useState('');
@@ -118,6 +121,13 @@ function BlockView({ b }: { b: Block }) {
     case 'interactive':
       return <><p>{b.intro}</p><Lab widget={b.widget} /><p className="sr-only">{b.alt_text}</p></>;
     case 'atlas_task':
+      // Exercises built on the fictional practice companies cannot run when demo data is switched off.
+      if (me?.demo_mode === false && isDemoPath(b.href)) return (
+        <div className="atlas-task">
+          <p><strong>Practical exercise unavailable here.</strong> It uses the fictional practice companies, which are switched off in this installation (it shows only real, sourced data). Read the steps to follow the method:</p>
+          <ol>{b.steps.map((st) => <li key={st}>{st}</li>)}</ol>
+        </div>
+      );
       return (
         <div className="atlas-task">
           <p>Practise in ATLAS itself. Open the page below in a new tab, work through the steps, then come back.</p>

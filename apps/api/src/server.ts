@@ -29,6 +29,19 @@ const shutdown = async (reason: string) => {
 };
 process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
+// A failed promise somewhere in a background job is logged, not fatal; an uncaught exception is logged
+// with its stack and the process exits so the launcher's supervisor can restart it cleanly.
+process.on('unhandledRejection', (reason) => {
+  ctx.log.error('unhandled promise rejection', { error: reason instanceof Error ? `${reason.message}\n${reason.stack ?? ''}`.slice(0, 2000) : String(reason).slice(0, 500) });
+});
+process.on('uncaughtException', (err) => {
+  ctx.log.error('uncaught exception: exiting', { error: `${err.message}\n${err.stack ?? ''}`.slice(0, 2000) });
+  void ctx.db.close().finally(() => process.exit(1));
+  setTimeout(() => process.exit(1), 3000).unref();
+});
+process.on('exit', (code) => {
+  if (!stopping) process.stderr.write(`${new Date().toISOString()} ATLAS API exiting unexpectedly with code ${code}\n`);
+});
 
 // Local hosting (scripts/atlas.mjs) asks for a graceful stop by creating a file, because Windows
 // cannot deliver SIGTERM to a detached process. This adds no network surface.

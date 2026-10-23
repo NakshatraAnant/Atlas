@@ -1,12 +1,15 @@
 import type { Db } from '../../db/db.js';
 import type { FetchFn } from '../equity/providers.js';
-import { CommodityError, eiaUrl, fredUrl, parseEiaV2, parseFredCsv, redactUrl, SERIES, type SeriesDef } from './sources.js';
+import { admit, categoryFor, record } from '../../lib/providerGate.js';
+import { FredError, fredObservations } from '../macro/fred.js';
+import { CommodityError, eiaTotal, eiaUrl, fredUrl, parseEiaV2, parseFredCsv, redactUrl, SERIES, type Parsed, type SeriesDef } from './sources.js';
 
 // Imports commodity series. Each run is a job with counts; writes are idempotent upserts; a changed value
 // keeps its previous value in commodity.revisions; blanks are counted as missing, never stored as zero.
 // Negative prices are valid data (WTI spot settled at −36.98 USD on 20 Apr 2020) and are stored as given.
 
-export interface CommodityKeys { eia: string }
+/** fred: the official FRED API is used when a key is set (with observation vintages); otherwise the public CSV download. */
+export interface CommodityKeys { eia: string; fred?: string }
 
 export async function syncCommoditySeries(db: Db): Promise<void> {
   // A job still "running" at start-up was interrupted by a stop or crash: say so instead of leaving it open.
@@ -53,13 +56,54 @@ export async function importCommoditySeries(db: Db, fetchFn: FetchFn, keys: Comm
     sum.error_category = 'not_configured';
     return finish();
   }
-  let parsed;
+  let parsed: Parsed;
+  // FRED vintage (realtime_start) per observation date: the date from which FRED shows that value.
+  const published = new Map<string, string>();
+  const job = `commodity:${seriesId}`;
+  /** One gated request: admitted by the provider gate first, outcome recorded after. */
+  const gated = async (provider: 'fred_csv' | 'eia', endpoint: string, url: string) => {
+    const a = await admit(db, provider, now, endpoint, job);
+    if (!a.allowed) throw new CommodityError('rate_limited', `${provider.toUpperCase()} requests are paused (${a.reason}); next attempt after ${a.next_eligible_at ?? 'configuration'}.`);
+    try {
+      const r = await fetchText(fetchFn, url);
+      const ok = r.status < 400;
+      await record(db, provider, now, { endpoint, job, http_status: r.status, ok, category: ok ? undefined : categoryFor(r.status), message: ok ? undefined : `HTTP ${r.status}` });
+      return r;
+    } catch (err) {
+      const e = err as CommodityError;
+      await record(db, provider, now, { endpoint, job, ok: false, category: e.category === 'timeout' ? 'timeout' : 'network', message: e.message });
+      throw err;
+    }
+  };
   try {
-    const url = def.source_id === 'fred' ? fredUrl(def.source_series) : eiaUrl(def, keys.eia);
-    const r = await fetchText(fetchFn, url);
-    parsed = def.source_id === 'fred' ? parseFredCsv(r.status, r.body, def.source_series) : parseEiaV2(r.status, r.body, def.source_series);
+    if (def.source_id === 'fred' && keys.fred) {
+      const obs = await fredObservations(db, fetchFn, keys.fred, def.source_series, now, undefined, job);
+      parsed = { rows: [], missing: 0, invalid: [] };
+      for (const o of obs) {
+        if (o.value === null) { parsed.missing++; continue; }
+        parsed.rows.push({ date: o.date, value: o.value });
+        if (/^\d{4}-\d{2}-\d{2}$/.test(o.realtime_start)) published.set(o.date, o.realtime_start);
+      }
+    } else if (def.source_id === 'fred') {
+      const r = await gated('fred_csv', 'fredgraph.csv', fredUrl(def.source_series));
+      parsed = parseFredCsv(r.status, r.body, def.source_series);
+    } else {
+      // EIA returns at most 5,000 rows per response: page through (bounded at 10 pages).
+      parsed = { rows: [], missing: 0, invalid: [] };
+      for (let offset = 0, page = 0; page < 10; page++) {
+        const r = await gated('eia', def.eia_route ?? 'eia', eiaUrl(def, keys.eia, undefined, offset));
+        const p = parseEiaV2(r.status, r.body, def.source_series);
+        parsed.rows.push(...p.rows);
+        parsed.missing += p.missing;
+        parsed.invalid.push(...p.invalid);
+        const total = eiaTotal(r.body);
+        offset += 5000;
+        if (total === null || offset >= total) break;
+      }
+      parsed.rows.sort((a, b) => a.date.localeCompare(b.date));
+    }
   } catch (err) {
-    const e = err instanceof CommodityError ? err : new CommodityError('provider_error', redactUrl((err as Error).message));
+    const e = err instanceof CommodityError ? err : err instanceof FredError ? new CommodityError(err.category === 'not_configured' ? 'not_configured' : err.category === 'paused' || err.category === 'quota_exhausted' ? 'rate_limited' : err.category === 'auth' ? 'auth' : err.category === 'not_found' ? 'not_found' : err.category === 'timeout' ? 'timeout' : err.category === 'network' ? 'network' : 'provider_error', err.message) : new CommodityError('provider_error', redactUrl((err as Error).message));
     sum.error = e.message;
     sum.error_category = e.category;
     return finish();
@@ -92,12 +136,18 @@ export async function importCommoditySeries(db: Db, fetchFn: FetchFn, keys: Comm
   }
   sum.first_date = valid[0]!.date;
   sum.last_date = valid[valid.length - 1]!.date;
-  const existing = new Map((await db.query<{ d: string; v: number }>(`SELECT to_char(obs_date, 'YYYY-MM-DD') AS d, value::float8 AS v FROM commodity.observations WHERE series_id=$1`, [seriesId])).map((x) => [x.d, x.v]));
+  const existing = new Map((await db.query<{ d: string; v: number; p: string | null }>(`SELECT to_char(obs_date, 'YYYY-MM-DD') AS d, value::float8 AS v, to_char(published_at, 'YYYY-MM-DD') AS p FROM commodity.observations WHERE series_id=$1`, [seriesId])).map((x) => [x.d, x]));
   const changed: { date: string; value: number }[] = [];
   const revised: { date: string; previous: number }[] = [];
   for (const r of valid) {
-    const old = existing.get(r.date);
-    if (old !== undefined && Math.abs(old - r.value) < 1e-9) { sum.unchanged++; continue; }
+    const e = existing.get(r.date);
+    const old = e?.v;
+    if (old !== undefined && Math.abs(old - r.value) < 1e-9) {
+      sum.unchanged++;
+      // Same value, but a vintage date is now known (e.g. first import via the FRED API): record it.
+      if (published.has(r.date) && e!.p !== published.get(r.date)) changed.push(r);
+      continue;
+    }
     if (old !== undefined) { sum.corrected++; revised.push({ date: r.date, previous: old }); } else sum.stored++;
     changed.push(r);
   }
@@ -110,8 +160,8 @@ export async function importCommoditySeries(db: Db, fetchFn: FetchFn, keys: Comm
     }
     for (let i = 0; i < changed.length; i += CHUNK) {
       const c = changed.slice(i, i + CHUNK);
-      await t.query(`INSERT INTO commodity.observations (series_id, obs_date, value, job_id, imported_at) SELECT $1, d::date, v, $4, $5 FROM unnest($2::text[], $3::float8[]) AS u(d, v)
-        ON CONFLICT (series_id, obs_date) DO UPDATE SET value=EXCLUDED.value, job_id=EXCLUDED.job_id, revised_at=EXCLUDED.imported_at`, [seriesId, c.map((x) => x.date), c.map((x) => x.value), job_id, now.toISOString()]);
+      await t.query(`INSERT INTO commodity.observations (series_id, obs_date, value, job_id, imported_at, published_at) SELECT $1, d::date, v, $4, $5, nullif(pub, '')::date FROM unnest($2::text[], $3::float8[], $6::text[]) AS u(d, v, pub)
+        ON CONFLICT (series_id, obs_date) DO UPDATE SET value=EXCLUDED.value, job_id=EXCLUDED.job_id, revised_at=EXCLUDED.imported_at, published_at=EXCLUDED.published_at`, [seriesId, c.map((x) => x.date), c.map((x) => x.value), job_id, now.toISOString(), c.map((x) => published.get(x.date) ?? '')]);
     }
     await t.query(`UPDATE commodity.series s SET first_date=x.f, last_date=x.l, observations=x.n, last_import_at=$2 FROM (SELECT min(obs_date) f, max(obs_date) l, count(*)::int n FROM commodity.observations WHERE series_id=$1) x WHERE s.series_id=$1`, [seriesId, now.toISOString()]);
   });
@@ -137,12 +187,15 @@ export async function refreshCommodities(db: Db, fetchFn: FetchFn, keys: Commodi
 }
 
 async function runRefresh(db: Db, fetchFn: FetchFn, keys: CommodityKeys, now: Date, opts: { pauseMs?: number; max?: number }): Promise<{ attempted: number; results: CommodityImport[] }> {
-  const due = await db.query<{ series_id: string; source_id: string }>(
-    `SELECT series_id, source_id FROM commodity.series WHERE enabled AND (last_import_at IS NULL OR last_import_at < $1) ORDER BY last_import_at NULLS FIRST, series_id LIMIT $2`,
+  const due = await db.query<{ series_id: string; source_id: string; last_date: string | null }>(
+    `SELECT series_id, source_id, to_char(last_date, 'YYYY-MM-DD') AS last_date FROM commodity.series WHERE enabled AND (last_import_at IS NULL OR last_import_at < $1) ORDER BY last_import_at NULLS FIRST, series_id LIMIT $2`,
     [new Date(now.getTime() - 20 * 3_600_000).toISOString(), opts.max ?? 40]);
   const results: CommodityImport[] = [];
   for (const d of due) {
     if (d.source_id === 'eia' && !keys.eia) continue;
+    // A series the source no longer publishes is complete once its last observation is stored.
+    const def = SERIES.find((x) => x.series_id === d.series_id);
+    if (def?.discontinued_after && d.last_date && d.last_date >= def.discontinued_after) continue;
     if (results.length && opts.pauseMs) await new Promise((r) => setTimeout(r, opts.pauseMs));
     results.push(await importCommoditySeries(db, fetchFn, keys, d.series_id, now));
     // Stop at the first rate-limit answer instead of hammering the source.

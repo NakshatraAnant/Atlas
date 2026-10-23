@@ -220,6 +220,14 @@ describe('universe and the refresh run', () => {
     expect(r2.items[0]).toMatchObject({ outcome: 'waiting' });
     clockMs = Date.parse('2026-10-26T16:00:00Z');
   });
+  it('an attempt made before the session was final does not block the evening refresh (found live)', async () => {
+    await addToUniverse(ctx.db, { exchange: 'NSE', symbol: 'AAA', priority: 1 }, null);
+    await ctx.db.query(`UPDATE equity.universe u SET last_attempt_at='2026-10-27T10:15:00Z' FROM equity.instruments i WHERE i.instrument_id=u.instrument_id AND i.symbol='AAA'`);
+    clockMs = Date.parse('2026-10-27T16:00:00Z'); // 21:30 IST; the 15:45 IST attempt preceded the 20:00 IST cutoff
+    routes['eod/'] = () => json([]);
+    expect((await run()).attempted).toBe(1);
+    clockMs = Date.parse('2026-10-26T16:00:00Z');
+  });
   it('an entitlement refusal marks the mapping failed and waits a week; removal keeps the data', async () => {
     await addToUniverse(ctx.db, { exchange: 'NSE', symbol: 'AAA', priority: 1 }, null);
     await addToUniverse(ctx.db, { exchange: 'NSE', symbol: 'NOPE', priority: 1 }, null);
@@ -343,10 +351,13 @@ describe('API', () => {
     admin = new Client(app);
     expect((await admin.login('admin@atlas.test', DEV_PASSWORD, totpCode(DEV_ADMIN_TOTP_SECRET, clockMs))).status).toBe(200);
   });
-  it('status shows the quota, schedule, universe, calendar and request log, and never a key', async () => {
+  it('status shows the quota, schedule, universe, calendar and request log to operators, and never a key', async () => {
     const c = new Client(app);
     await c.login('pro@atlas.test', DEV_PASSWORD);
-    const s = (await c.get('/v1/equity/status')).json;
+    const customer = (await c.get('/v1/equity/status')).json;
+    expect(customer.quota).toBeUndefined();
+    expect(customer.schedule.slots_ist).toEqual(['08:00', '20:30']);
+    const s = (await admin.get('/v1/equity/status')).json;
     expect(s.quota.eodhd).toMatchObject({ daily_limit: 20, reset_time_zone: 'UTC' });
     expect(s.quota.eodhd.budgets.map((b: { category: string }) => b.category)).toEqual(['refresh', 'backfill', 'validation', 'manual', 'reserve']);
     expect(s.schedule.slots_ist).toEqual(['08:00', '20:30']);

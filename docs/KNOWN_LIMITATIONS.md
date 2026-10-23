@@ -70,3 +70,11 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
   - term structure and inventories until you add a free EIA key (the EIA parser has not been checked against a real response).
 - **Academy:** the commodities course is a draft awaiting a named reviewer, like all Academy content.
 - **Dependencies:** a low-severity fastify advisory (not exposed) has its upgrade deferred until the fixed release is two weeks old.
+
+## Production execution mandate (23 Oct 2026, session 11)
+- **Indian exchange data.** NSE, BSE and MCX terms (re-read 23 Oct 2026) prohibit automated collection and redistribution. ATLAS does not collect from them. Individual Indian shares, F&O, open interest, breadth and MCX futures need licences.
+- **Indian mandi prices** (data.gov.in) are implemented but unverified until a `DATA_GOV_IN_API_KEY` is configured.
+- **Freshness windows** are calibrated on observed release lags, not on provider release calendars (ATLAS does not ingest release calendars).
+- **CoinGecko Demo:** usage is counted by ATLAS (the usage endpoint is for paid plans), so the monthly figure is an estimate. The calendar-month pacing is ATLAS's assumption, since CoinGecko does not state the reset day for Demo keys.
+- **Demo-only sections** (Terminal, Market, Companies, Assistant, Screener, Quant Lab, Briefings) are hidden in real-data mode: their workflows run only on the fictional dataset.
+- **Pasted keys.** The provider keys were configured from values pasted into a conversation; rotating them is recommended.

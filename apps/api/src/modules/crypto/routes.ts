@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import type { Db } from '../../db/db.js';
 import { badRequest, notFound, parse, unavailable } from '../../lib/http.js';
-import { requireRole, requireUser } from '../auth/service.js';
+import { requireRole, requireUser, isOperator } from '../auth/service.js';
 import { runNamed, JOBS, lastRuns } from './scheduler.js';
 import { freshness } from './validate.js';
 import { syncDetails, runJob } from './ingest.js';
@@ -423,7 +423,8 @@ export async function cryptoRoutes(app: FastifyInstance, ctx: AppContext): Promi
   });
 
   app.get('/v1/crypto/sources', async (req) => {
-    requireUser(req);
+    const viewer = requireUser(req);
+    const ops = isOperator(viewer);
     const sources = await db.query(`SELECT s.*, u.requests AS requests_today, u.errors AS errors_today, u.rate_limited AS rate_limited_today, u.cache_hits AS cache_hits_today, u.refused_budget AS refused_today
         FROM crypto.sources s LEFT JOIN crypto.request_usage u ON u.source_id=s.source_id AND u.day=$1 ORDER BY s.category, s.source_id`, [new Date(now()).toISOString().slice(0, 10)]);
     const last = await lastRuns(db);
@@ -442,7 +443,10 @@ export async function cryptoRoutes(app: FastifyInstance, ctx: AppContext): Promi
     const failures = await db.query(`SELECT job_id, job_type, source_id, started_at, finished_at, error FROM crypto.ingestion_jobs WHERE status='failed' ORDER BY started_at DESC LIMIT 10`);
     const quarantine = await db.query(`SELECT dataset, record_key, reasons, created_at, source_id FROM crypto.quarantine ORDER BY created_at DESC LIMIT 15`);
     const budgets = Object.fromEntries((sources as { source_id: string }[]).map((s) => [s.source_id, ctx.crypto?.rt.client.budgetState(s.source_id) ?? null]));
-    return { sources, jobs, coverage, series_coverage: seriesCoverage, recent_failures: failures, quarantine, budgets, live: ctx.crypto?.live?.snapshot() ?? null, ingestion_enabled: !!ctx.crypto?.rt.settings.ingestion, coingecko_key_configured: !!ctx.crypto?.rt.settings.coingeckoDemoKey };
+    // Customers see sources, attribution, freshness and coverage; request counts, error text, quarantine
+    // and budgets are operator diagnostics.
+    const publicSources = ops ? sources : (sources as Record<string, unknown>[]).map(({ requests_today, errors_today, rate_limited_today, cache_hits_today, refused_today, last_error, last_error_at, consecutive_failures, budget_per_minute, ...rest }) => rest);
+    return { sources: publicSources, jobs, coverage, series_coverage: seriesCoverage, recent_failures: ops ? failures : [], quarantine: ops ? quarantine : [], budgets: ops ? budgets : {}, diagnostics_visible: ops, live: ctx.crypto?.live?.snapshot() ?? null, ingestion_enabled: !!ctx.crypto?.rt.settings.ingestion, coingecko_key_configured: !!ctx.crypto?.rt.settings.coingeckoDemoKey };
   });
 
   // ───────────── Watchlist and notes (private to the user) ─────────────
