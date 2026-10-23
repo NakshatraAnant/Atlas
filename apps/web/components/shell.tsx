@@ -7,7 +7,7 @@ import { Disclosure, useApi } from './ui';
 import { useApp } from './providers';
 
 const APP_NAV: [string, string][] = [
-  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/terminal', 'Terminal (demo)'], ['/app/market', 'Market (demo)'], ['/app/crypto', 'Digital Assets'], ['/app/equities', 'Indian equities'], ['/app/research-hub', 'Research hub'], ['/app/companies', 'Companies (demo)'], ['/app/assistant', 'Assistant (demo)'], ['/app/screener', 'Screener (demo)'], ['/app/lab', 'Quant Lab (demo)'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
+  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/terminal', 'Terminal (demo)'], ['/app/market', 'Market (demo)'], ['/app/crypto', 'Digital Assets'], ['/app/equities', 'Indian equities'], ['/app/commodities', 'Commodities'], ['/app/research-hub', 'Research hub'], ['/app/companies', 'Companies (demo)'], ['/app/assistant', 'Assistant (demo)'], ['/app/screener', 'Screener (demo)'], ['/app/lab', 'Quant Lab (demo)'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
 ];
 /** Sections that show only the fictional development companies (API: DEMO_ONLY_PREFIXES in app.ts). */
 const DEMO_PATHS = ['/app/terminal', '/app/market', '/app/companies', '/app/assistant', '/app/screener', '/app/lab', '/app/briefings'];

@@ -9,3 +9,4 @@ export * from './crypto-analytics.js';
 export * from './crypto-sims.js';
 export * from './research-analytics.js';
 export * from './technical-indicators.js';
+export * from './commodity-analytics.js';

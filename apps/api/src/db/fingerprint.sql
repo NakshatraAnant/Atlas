@@ -1,6 +1,6 @@
 -- Schema fingerprint: one hash over every ATLAS column, constraint, index and RLS flag.
 -- Run against local PGlite and hosted Supabase; equal hashes mean identical schemas.
-WITH s(name) AS (VALUES ('ref'),('market'),('fund'),('disc'),('calc'),('bt'),('ai'),('app'),('ops'),('acad'),('crypto'),('equity'),('research')),
+WITH s(name) AS (VALUES ('ref'),('market'),('fund'),('disc'),('calc'),('bt'),('ai'),('app'),('ops'),('acad'),('crypto'),('equity'),('research'),('commodity')),
 cols AS (
   SELECT format('col %s.%s.%s %s %s %s', c.table_schema, c.table_name, c.column_name, c.data_type, c.is_nullable, coalesce(c.column_default, '')) AS line
   FROM information_schema.columns c JOIN s ON s.name = c.table_schema

@@ -15,6 +15,7 @@ import { deliverOutbox, OutboxOnlyTransport } from './modules/notify/email.js';
 import { schedulerTick } from './pipeline/daily.js';
 import { createCryptoModule, type CryptoOptions } from './modules/crypto/index.js';
 import { syncEquityProviders } from './modules/equity/ingest.js';
+import { syncCommoditySeries } from './modules/commodity/ingest.js';
 import type { FetchFn } from './modules/equity/providers.js';
 import { NoVendor, SyntheticVendor, type VendorAdapter } from './pipeline/vendor.js';
 
@@ -49,7 +50,8 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   if (vendor.isSynthetic && !cfg.allowSyntheticData) throw new Error('A synthetic vendor cannot be used in this environment');
   const crypto = await createCryptoModule(db, cfg, log, { now: () => clock().getTime(), ...opts.crypto });
   await syncEquityProviders(db, { eodhd: cfg.EODHD_API_TOKEN, alphavantage: cfg.ALPHAVANTAGE_API_KEY });
-  const offline: FetchFn = async (url) => { throw new Error(`Network access is disabled in this environment (${url.replace(/(api_token|apikey)=[^&]+/g, '$1=REDACTED')})`); };
+  await syncCommoditySeries(db);
+  const offline: FetchFn = async (url) => { throw new Error(`Network access is disabled in this environment (${url.replace(/(api_token|apikey|api_key)=[^&]+/g, '$1=REDACTED')})`); };
   const equityFetch = opts.equityFetch ?? (cfg.NODE_ENV === 'test' ? offline : (globalThis.fetch as unknown as FetchFn));
   return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg), crypto, equityFetch };
 }

@@ -1,4 +1,6 @@
 import type { AppContext } from '../../context.js';
+import { refreshCommodities } from '../commodity/ingest.js';
+import { commodityKeys } from '../commodity/routes.js';
 import { scheduledEquityRefresh } from '../equity/routes.js';
 import { evaluateAlerts } from './objectRoutes.js';
 
@@ -26,5 +28,11 @@ export function startResearchJobs(ctx: AppContext): () => void {
   const refresh = guard('equity_refresh', () => scheduledEquityRefresh(ctx));
   timers.push(setTimeout(() => void refresh(), 60_000));
   timers.push(setInterval(refresh, 10 * 60_000));
+  // Commodities: each series at most once per 20 hours (FRED publishes daily); checked every 3 hours.
+  if (ctx.cfg.commodityRefresh) {
+    const commodities = guard('commodity_refresh', () => refreshCommodities(ctx.db, ctx.equityFetch, commodityKeys(ctx), ctx.clock(), { pauseMs: 1000 }));
+    timers.push(setTimeout(() => void commodities(), 90_000));
+    timers.push(setInterval(commodities, 3 * 3_600_000));
+  }
   return () => timers.forEach((t) => clearInterval(t));
 }

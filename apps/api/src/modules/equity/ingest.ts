@@ -62,6 +62,9 @@ export async function withdrawPlaceholderRows(db: Db): Promise<number> {
 }
 
 export async function syncEquityProviders(db: Db, keys: EquityKeys): Promise<void> {
+  // Jobs and runs still "running" at start-up were interrupted by a stop or crash.
+  await db.query(`UPDATE equity.import_jobs SET status='failed', finished_at=now(), error='Interrupted: ATLAS stopped before the import finished.' WHERE status='running'`);
+  await db.query(`UPDATE equity.refresh_runs SET status='failed', finished_at=now(), stop_reason='Interrupted: ATLAS stopped during the run.' WHERE status='running'`);
   for (const p of EQUITY_PROVIDERS) {
     const configured = !!keys[p.provider_id];
     await db.query(

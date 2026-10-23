@@ -22,10 +22,14 @@ export function alignSeries(series: Obs[][]): { dates: number[]; values: number[
   return { dates, values: maps.map((m) => dates.map((d) => m.get(d)!)) };
 }
 
-/** Simple returns between consecutive aligned observations; an interval longer than maxGapDays breaks the chain (null). */
+/**
+ * Simple returns between consecutive aligned observations; an interval longer than maxGapDays breaks the
+ * chain (null). A return is undefined (null) when either price is zero or negative (e.g. WTI spot on
+ * 20 Apr 2020), because a percentage change across zero has no meaning.
+ */
 export function alignedReturns(dates: number[], values: number[], maxGapDays: number): (number | null)[] {
   const out: (number | null)[] = [];
-  for (let i = 1; i < dates.length; i++) out.push((dates[i]! - dates[i - 1]!) / DAY > maxGapDays ? null : values[i]! / values[i - 1]! - 1);
+  for (let i = 1; i < dates.length; i++) out.push((dates[i]! - dates[i - 1]!) / DAY > maxGapDays || !(values[i]! > 0) || !(values[i - 1]! > 0) ? null : values[i]! / values[i - 1]! - 1);
   return out;
 }
 

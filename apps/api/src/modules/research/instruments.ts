@@ -15,7 +15,7 @@ export type Freshness = 'fresh' | 'stale' | 'missing';
 export interface Instrument {
   key: string;
   label: string;
-  asset_class: 'crypto' | 'equity' | 'index' | 'upload';
+  asset_class: 'crypto' | 'equity' | 'index' | 'upload' | 'commodity';
   calendar: 'continuous' | 'sessions';
   currency: string;
   classification: Classification;
@@ -30,7 +30,7 @@ export interface Instrument {
   notes: string[];
 }
 
-const KEY = /^(crypto:[a-z0-9._-]{1,120}(@[0-9a-f-]{36})?|equity:(NSE|BSE|INDEX):[A-Z0-9&_.-]{1,30}(@(raw|adjusted_split_dividend))?|upload:[0-9a-f-]{36})$/;
+const KEY = /^(crypto:[a-z0-9._-]{1,120}(@[0-9a-f-]{36})?|equity:(NSE|BSE|INDEX):[A-Z0-9&_.-]{1,30}(@(raw|adjusted_split_dividend))?|upload:[0-9a-f-]{36}|commodity:(fred|eia):[A-Za-z0-9_.-]{2,40})$/;
 export const isInstrumentKey = (k: string) => KEY.test(k);
 
 /** Freshness of a daily series relative to its calendar (crypto days are complete at 00:00 UTC; sessions allow a long weekend). */
@@ -82,6 +82,26 @@ export async function resolveInstrument(db: Db, userId: string, key: string, now
       notes: inst.kind === 'index' ? ['Index level as published by the index provider (a price-return index unless its name says total return): dividends are not included.'] : s.basis === 'raw' ? ['Raw prices: returns are price returns that ignore dividends and can jump on splits or bonuses.'] : ['Provider-adjusted series: returns approximate total return (dividends reinvested).'],
     };
   }
+  if (key.startsWith('commodity:')) {
+    // Daily commodity series only: weekly and monthly series cannot be aligned with daily instruments
+    // without changing their meaning (they are analysed on the Commodities pages instead).
+    const id = key.slice(10);
+    const c = await db.maybeOne<{ name: string; currency: string | null; unit: string; frequency: string; price_type: string; upstream: string; source_series: string; source_id: string; first_date: string | null; last_date: string | null }>(
+      `SELECT name, currency, unit, frequency, price_type, upstream, source_series, source_id, to_char(first_date,'YYYY-MM-DD') AS first_date, to_char(last_date,'YYYY-MM-DD') AS last_date FROM commodity.series WHERE series_id=$1`, [id]);
+    if (!c) throw notFound('Unknown commodity series.');
+    if (c.frequency !== 'daily') throw badRequest(`${c.name} is ${c.frequency}; the research hub compares daily series only. Use the Commodities page for it.`);
+    const rows = await db.query<{ d: string; v: number }>(`SELECT to_char(obs_date,'YYYY-MM-DD') AS d, value::float8 AS v FROM commodity.observations WHERE series_id=$1 AND ($2::date IS NULL OR obs_date >= $2::date) ORDER BY obs_date`, [id, from ? from.slice(0, 10) : null]);
+    const nonPositive = rows.filter((r) => !(r.v > 0)).length;
+    if (!rows.length) throw notFound(`No stored observations for ${c.name}.`);
+    return {
+      key, label: `${c.name}`, asset_class: 'commodity', calendar: 'sessions', currency: c.currency ?? 'USD', classification: 'REAL_UNVERIFIED',
+      source: `${c.source_id === 'fred' ? 'FRED' : 'EIA'} ${c.source_series} (${c.upstream})`, basis: `${c.price_type} price, ${c.unit}`, annualisation: 252,
+      // A zero or negative price makes percentage returns meaningless; such days are left out and counted.
+      observations: rows.filter((r) => r.v > 0).map((r) => ({ t: Date.parse(`${r.d}T00:00:00Z`), v: r.v })), volumes: rows.filter((r) => r.v > 0).map(() => null),
+      first: c.first_date, last: c.last_date, freshness: dailyFreshness(c.last_date ? `${c.last_date}T00:00:00Z` : null, 'sessions', now),
+      notes: [`Benchmark ${c.price_type} assessment on business days (not a tradable quote, not an Indian price).`, ...(nonPositive ? [`${nonPositive} zero or negative price(s) left out: returns are undefined across them.`] : [])],
+    };
+  }
   const datasetId = key.slice(7);
   const d = await db.maybeOne<{ name: string; instrument_label: string; currency: string; first_date: string | null; last_date: string | null }>(`SELECT name, instrument_label, currency, first_date, last_date FROM app.user_datasets WHERE dataset_id=$1 AND user_id=$2 AND deleted_at IS NULL`, [datasetId, userId]);
   // Another user's dataset is indistinguishable from a missing one (no existence leak).
@@ -108,5 +128,7 @@ export async function searchInstruments(db: Db, userId: string, q: string, limit
        FROM equity.instruments i JOIN equity.price_series s USING (instrument_id) WHERE s.observations > 0 AND (lower(i.symbol) LIKE $1 OR lower(coalesce(i.name,'')) LIKE $1) GROUP BY i.exchange, i.symbol, i.name LIMIT $2`, [like, limit]);
   const uploads = await db.query<{ key: string; label: string; observations: number }>(
     `SELECT 'upload:' || dataset_id AS key, instrument_label || ' (your file)' AS label, rows_valid AS observations FROM app.user_datasets WHERE user_id=$1 AND deleted_at IS NULL AND (lower(name) LIKE $2 OR lower(instrument_label) LIKE $2) ORDER BY created_at DESC LIMIT $3`, [userId, like, limit]);
-  return [...crypto.map((x) => ({ ...x, asset_class: 'crypto', classification: 'REAL_UNVERIFIED' })), ...equity.map((x) => ({ ...x, asset_class: 'equity', classification: 'REAL_UNVERIFIED' })), ...uploads.map((x) => ({ ...x, asset_class: 'upload', classification: 'USER_IMPORTED' }))];
+  const commodities = await db.query<{ key: string; label: string; observations: number }>(
+    `SELECT 'commodity:' || series_id AS key, name AS label, observations FROM commodity.series WHERE enabled AND frequency='daily' AND observations > 0 AND (lower(name) LIKE $1 OR commodity LIKE $1 OR lower(source_series) LIKE $1) ORDER BY name LIMIT $2`, [like, limit]);
+  return [...crypto.map((x) => ({ ...x, asset_class: 'crypto', classification: 'REAL_UNVERIFIED' })), ...commodities.map((x) => ({ ...x, asset_class: 'commodity', classification: 'REAL_UNVERIFIED' })), ...equity.map((x) => ({ ...x, asset_class: 'equity', classification: 'REAL_UNVERIFIED' })), ...uploads.map((x) => ({ ...x, asset_class: 'upload', classification: 'USER_IMPORTED' }))];
 }

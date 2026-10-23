@@ -60,11 +60,15 @@ const schema = z.object({
   /** Scheduled refresh of the tracked Indian equity universe. Defaults to on outside tests. */
   EQUITY_REFRESH: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()),
   ALPHAVANTAGE_API_KEY: z.string().optional().default(''),
+  // Commodities (docs/commodity/COMMODITY_DATA.md): FRED needs no key; EIA (inventories, futures by contract) needs your free key.
+  EIA_API_KEY: z.string().optional().default(''),
+  /** Scheduled refresh of commodity series (FRED daily). Defaults to on outside tests. */
+  COMMODITY_REFRESH: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()),
   /** Annual risk-free rate used for Sharpe/Sortino (decimal, e.g. 0.065). Shown next to every ratio. */
   RESEARCH_RISK_FREE_RATE: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().min(0).max(0.5).default(0)),
 });
 
-export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean; academyShowDrafts: boolean; cryptoIngestion: boolean; cryptoLiveFeed: boolean; equityRefresh: boolean; eodhdBudgets: Record<QuotaCategory, number> };
+export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean; academyShowDrafts: boolean; cryptoIngestion: boolean; cryptoLiveFeed: boolean; equityRefresh: boolean; commodityRefresh: boolean; eodhdBudgets: Record<QuotaCategory, number> };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = schema.parse(env);
@@ -75,11 +79,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const cryptoIngestion = parsed.CRYPTO_INGESTION ? parsed.CRYPTO_INGESTION === 'true' : !isTest;
   const cryptoLiveFeed = parsed.CRYPTO_LIVE_FEED ? parsed.CRYPTO_LIVE_FEED === 'true' : !isTest;
   const equityRefresh = parsed.EQUITY_REFRESH ? parsed.EQUITY_REFRESH === 'true' : !isTest;
+  const commodityRefresh = parsed.COMMODITY_REFRESH ? parsed.COMMODITY_REFRESH === 'true' : !isTest;
   // The alias is folded in here so every caller reads one name; neither value is ever logged.
   const EODHD_API_TOKEN = (parsed.EODHD_API_TOKEN || parsed.EODHD_API_KEY).trim();
   const eodhdBudgets = parsed.EODHD_QUOTA_BUDGETS ? parseBudgets(parsed.EODHD_QUOTA_BUDGETS, parsed.EODHD_DAILY_LIMIT)
     : parsed.EODHD_DAILY_LIMIT === 20 ? DEFAULT_EODHD_BUDGETS : scaleBudgets(parsed.EODHD_DAILY_LIMIT);
-  const cfg: Config = { ...parsed, EODHD_API_TOKEN, EODHD_API_KEY: '', allowSyntheticData, isProduction, academyShowDrafts, cryptoIngestion, cryptoLiveFeed, equityRefresh, eodhdBudgets };
+  const cfg: Config = { ...parsed, EODHD_API_TOKEN, EODHD_API_KEY: '', allowSyntheticData, isProduction, academyShowDrafts, cryptoIngestion, cryptoLiveFeed, equityRefresh, commodityRefresh, eodhdBudgets };
   if (isProduction) assertProductionSafe(cfg);
   return cfg;
 }
