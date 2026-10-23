@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 
@@ -44,5 +45,18 @@ describe('digital-assets settings', () => {
     expect(test.cryptoLiveFeed).toBe(false);
     expect(loadConfig({ NODE_ENV: 'development', CRYPTO_INGESTION: 'false' } as NodeJS.ProcessEnv).cryptoIngestion).toBe(false);
     expect(() => loadConfig({ NODE_ENV: 'development', CRYPTO_UNIVERSE_SIZE: '5000' } as NodeJS.ProcessEnv)).toThrow();
+  });
+  it('the real .env.example loads as-is, with the free EODHD plan defaults and demo mode on in development', () => {
+    const env: Record<string, string> = {};
+    for (const line of readFileSync(new URL('../../../.env.example', import.meta.url), 'utf8').split('\n')) {
+      const m = /^([A-Z0-9_]+)=(.*?)\s*$/.exec(line);
+      if (m) env[m[1]!] = m[2]!;
+    }
+    const c = loadConfig({ ...env, NODE_ENV: 'development' } as NodeJS.ProcessEnv);
+    expect(c.EODHD_DAILY_LIMIT).toBe(20);
+    expect(c.eodhdBudgets).toEqual({ refresh: 12, backfill: 2, validation: 2, manual: 2, reserve: 2 });
+    expect(c.allowSyntheticData).toBe(true);
+    expect(c.equityRefresh).toBe(true);
+    expect(c.EODHD_API_TOKEN).toBe('');
   });
 });

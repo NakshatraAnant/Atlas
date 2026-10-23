@@ -216,12 +216,13 @@ export async function crossRoutes(app: FastifyInstance, ctx: AppContext): Promis
       fee_bps: z.number().min(0).max(200), slippage_bps: z.number().min(0).max(200),
     }), req.body);
     const [inst] = await load(u.userId, [b.key], 'max');
-    if (inst!.calendar === 'sessions') throw badRequest('Walk-forward backtests are available for continuously traded (crypto) series; session calendars need a session-aware engine that is not built yet.');
-    // Daily rule on calendar days: only consecutive-day observations count as returns (gaps leave equity unchanged).
-    const r = A.walkForward(inst!.observations, b.grid, b.train_days, b.test_days, { fee_bps: b.fee_bps, slippage_bps: b.slippage_bps });
+    // Crypto: calendar days, only consecutive-day observations count as returns. Equities and uploads:
+    // exchange sessions, windows counted in sessions, a gap longer than 5 calendar days earns nothing.
+    const calendar = inst!.calendar === 'sessions' ? 'sessions' : 'days';
+    const r = A.walkForward(inst!.observations, b.grid, b.train_days, b.test_days, { fee_bps: b.fee_bps, slippage_bps: b.slippage_bps, calendar });
     if (!r.ok) throw badRequest(r.reason);
     await recordActivity(db, u.userId, 'walkforward_backtest', `${inst!.key.split('@')[0]}|${b.train_days}|${b.test_days}`, now(), { folds: r.folds.length });
-    const config = { ...b, key: inst!.key, engine: 'sma-trend-walkforward-1' };
+    const config = { ...b, key: inst!.key, engine: calendar === 'sessions' ? 'sma-trend-walkforward-sessions-1' : 'sma-trend-walkforward-1', calendar };
     return {
       instrument: describe(inst!), config, ...r,
       folds: r.folds.map((f) => ({ ...f, train_from: iso(f.train_from), train_to: iso(f.train_to), test_from: iso(f.test_from), test_to: iso(f.test_to) })),

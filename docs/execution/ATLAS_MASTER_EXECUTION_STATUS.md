@@ -62,3 +62,26 @@ Updated 23 Oct 2026. Branch `feat/atlas-mvp`. Session start `206a354`; recovery 
 2. A licensed fundamentals and corporate-actions source for Feature 18 and equity value/quality factors.
 3. Session-calendar walk-forward engine (equities).
 4. Expert review of Academy content (all drafts).
+
+## Session 10: Indian equity data integration and zero-dummy-data mandate (23 Oct 2026)
+
+Backup before migration 012: `backups/atlas-backup-2026-10-23_09-26-22.tar.gz`. Runbook: `docs/equity/INDIAN_EQUITY_DATA_RUNBOOK.md`.
+
+| Area | Status | Evidence / notes |
+|---|---|---|
+| Credential handling | verified | key read from `.env.local` only (`EODHD_API_TOKEN`, alias `EODHD_API_KEY`); never sent to the browser; URLs not stored; redaction tests; the key pasted in conversation was treated as exposed and not used or written anywhere |
+| Provider entitlement research | verified (docs) | limits, reset (midnight GMT), endpoint costs, 402/429/401 semantics, no fundamentals on free plan; shapes of `/api/user`, splits, dividends recorded from the demo token |
+| Persistent quota ledger, budgets, reserve | verified | `equity.quota_days`; atomic charge before send; 30 concurrent spends → exactly 12; provider-reported reconciliation; 402 exhaustion; next-day reset (`equity-ops.test.ts`) |
+| Priority universe and registry | verified | priorities, backfill vs refresh budgets, deferral when budget spent, mapping verification/failed, effective dates, removal keeps data |
+| Circuit breaker and retry policy | verified | 401 stops all calls until restart; 403/404 wait 7 days; timeouts 6 h; no loops |
+| Calendar and expected session | verified (partial source) | expected-session logic, inferred no-session days, user entries; **official NSE holiday list unverified** (exchange-details response for NSE not yet seen) |
+| Daily refresh scheduling | verified | 08:00/20:30 IST slots, survives restarts; manual refresh within budget |
+| Corrections and audit history | verified (session 9) | revisions, quarantine, jobs, request log |
+| Analytics: RSI, MACD, momentum, relative strength, gaps, rolling returns, risk | verified | shared tests with hand calculations; instrument page |
+| Screening on real data | verified | explorer filters with counted exclusions |
+| Equity backtests on session calendars | verified | walk-forward accepts equities (`sma-trend-walkforward-sessions-1`) |
+| Fundamentals | implemented (user-imported only) | no permitted free source; CSV import with per-row validation, citation, privacy, ratios, P/E with stated dates |
+| Zero-dummy-data audit | verified | synthetic data never in equity/research endpoints (session 9 tests); demo mode explicit: banner on demo pages, "(demo)" nav labels, `ALLOW_SYNTHETIC_DATA=false` runs with `NoVendor` and demo sections answer 403 (tests) |
+| UI: overview, explorer, instrument research, data operations, empty/error states | verified | browser check on the running app (no key: setup steps, quota strip, empty states, no console errors); e2e |
+| Account erasure of research data | verified (fixed) | defect found and fixed in this session |
+| **Live provider acceptance test** | **blocked: needs your rotated key in `.env.local`** | runbook §10 lists the exact steps |

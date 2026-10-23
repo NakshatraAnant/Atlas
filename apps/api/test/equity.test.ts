@@ -5,7 +5,8 @@ import { buildApp } from '../src/app.js';
 import type { AppContext } from '../src/context.js';
 import { importEquityPrices } from '../src/modules/equity/ingest.js';
 import { adjustRow, checkRow, EquityProviderError, parseAlphaVantage, parseEodhd, type FetchFn } from '../src/modules/equity/providers.js';
-import { refreshEquities } from '../src/modules/equity/routes.js';
+import { addToUniverse, runEquityRefresh } from '../src/modules/equity/operations.js';
+import { ALPHAVANTAGE_POLICY, eodhdPolicy } from '../src/modules/equity/quota.js';
 import { DEV_PASSWORD } from '../src/seed.js';
 import { Client } from './http.js';
 import { fixtureContext } from './fixture.js';
@@ -133,12 +134,15 @@ describe('import (idempotent, corrections, quarantine, dry run)', () => {
     expect(dump).not.toContain(KEYS.eodhd);
     expect(seenUrls.some((u) => u.includes('TCS.NSE'))).toBe(true);
   });
-  it('the daily refresh does nothing without a key and resumes from the last stored date with one', async () => {
-    expect((await refreshEquities(ctx.db, fakeFetch, { eodhd: '', alphavantage: '' }, new Date('2026-10-25T00:00:00Z'))).attempted).toBe(0);
+  it('the refresh does nothing without a key and resumes a tracked instrument from its last stored date with one', async () => {
+    const policies = { eodhd: eodhdPolicy(), alphavantage: ALPHAVANTAGE_POLICY };
+    await addToUniverse(ctx.db, { exchange: 'NSE', symbol: 'TCS', priority: 1 }, null);
+    const at = new Date('2026-10-26T16:00:00Z');
+    expect((await runEquityRefresh(ctx.db, fakeFetch, { eodhd: '', alphavantage: '' }, at, { trigger: 'manual', policies, validation: false })).status).toBe('skipped');
     seenUrls.length = 0;
-    const r = await refreshEquities(ctx.db, fakeFetch, KEYS, new Date('2026-10-25T00:00:00Z'));
+    const r = await runEquityRefresh(ctx.db, fakeFetch, KEYS, at, { trigger: 'manual', policies, validation: false });
     expect(r.attempted).toBe(1);
-    expect(seenUrls[0]).toMatch(/TCS\.NSE.*from=2026-02-11/);
+    expect(seenUrls.find((u) => u.includes('/eod/'))).toMatch(/TCS\.NSE.*from=2026-02-11/);
   });
 });
 

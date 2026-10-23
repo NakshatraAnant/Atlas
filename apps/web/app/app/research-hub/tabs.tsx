@@ -252,10 +252,11 @@ export function WalkForward() {
     <section className="card">
       <h2>Walk-forward backtest (SMA trend rule)</h2>
       <p className="mu">Parameters are chosen on each training window and evaluated only on the following, unseen test window. Grid: {grid.map((g) => `${g.fast}/${g.slow}`).join(', ')}.</p>
-      <OnePicker value={key} onChange={setKey} label="Instrument (crypto)" />
+      <OnePicker value={key} onChange={setKey} label="Instrument" />
+      <p className="mu">Crypto windows count calendar days; Indian equities and your uploads count trading sessions (one year of free-plan history is about 250 sessions, so use e.g. 150 training and 30 test sessions with a short grid).</p>
       <div className="cx-filters">
-        <label className="field">Training days<input type="number" value={train} min={230} onChange={(e) => setTrain(Number(e.target.value))} /></label>
-        <label className="field">Test days<input type="number" value={test} min={30} onChange={(e) => setTest(Number(e.target.value))} /></label>
+        <label className="field">Training days / sessions<input type="number" value={train} min={230} onChange={(e) => setTrain(Number(e.target.value))} /></label>
+        <label className="field">Test days / sessions<input type="number" value={test} min={30} onChange={(e) => setTest(Number(e.target.value))} /></label>
         <label className="field">Fee (bp)<input type="number" value={fee} onChange={(e) => setFee(Number(e.target.value))} /></label>
         <label className="field">Slippage (bp)<input type="number" value={slip} onChange={(e) => setSlip(Number(e.target.value))} /></label>
         <button className="btn" disabled={!key || r.busy} onClick={() => r.run(() => api('/v1/research/walkforward', { body: { key, train_days: train, test_days: test, grid, fee_bps: fee, slippage_bps: slip } }))}>{r.busy ? 'Running…' : 'Run'}</button>

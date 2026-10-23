@@ -148,7 +148,7 @@ export interface WalkForwardResult { folds: WalkForwardFold[]; oos_curve: { t: n
  * windows do not overlap and are chained into one out-of-sample curve. Each test run includes `slow`
  * days of warm-up taken from the end of the training window, so signals use only past prices.
  */
-export function walkForward(obs: Obs[], grid: { fast: number; slow: number }[], trainDays: number, testDays: number, costs: { fee_bps: number; slippage_bps: number }): Result<WalkForwardResult> {
+export function walkForward(obs: Obs[], grid: { fast: number; slow: number }[], trainDays: number, testDays: number, costs: { fee_bps: number; slippage_bps: number; calendar?: 'days' | 'sessions' }): Result<WalkForwardResult> {
   const valid = grid.filter((g) => g.fast >= 2 && g.slow > g.fast);
   if (!valid.length) return no('the parameter grid has no valid (fast < slow) pair', 1, 0);
   const maxSlow = Math.max(...valid.map((g) => g.slow));
@@ -186,6 +186,7 @@ export function walkForward(obs: Obs[], grid: { fast: number; slow: number }[], 
       'Parameters are chosen on each training window only and evaluated on the next, unseen test window.',
       'In-sample results are optimistic by construction; compare them with the out-of-sample results.',
       `Costs: ${costs.fee_bps} bp fees + ${costs.slippage_bps} bp slippage per position change. No taxes, funding or cash interest.`,
+      costs.calendar === 'sessions' ? 'Training and test windows are counted in trading sessions (stored observations), not calendar days.' : 'Training and test windows are counted in daily observations.',
       'One instrument with today’s history: survivorship bias applies, and the parameter grid itself was chosen by a person (data snooping).',
       'Past results do not predict future results.',
     ],

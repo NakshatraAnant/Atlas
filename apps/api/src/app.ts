@@ -22,6 +22,7 @@ import { cryptoRoutes } from './modules/crypto/routes.js';
 import { equityRoutes } from './modules/equity/routes.js';
 import { crossRoutes } from './modules/research/crossRoutes.js';
 import { objectRoutes } from './modules/research/objectRoutes.js';
+import { fundamentalsRoutes } from './modules/research/fundamentalsRoutes.js';
 
 // HTTP application (Blueprint §7). Versioned under /v1; RFC 9457 errors; secure cookies;
 // CSRF double-submit check on state-changing requests; per-route rate limits; idempotency keys;
@@ -63,6 +64,14 @@ export function createMetrics(): RequestMetrics {
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/**
+ * API sections backed only by the synthetic development companies. With demo mode off they answer 403
+ * "demo data disabled" instead of serving fictional figures. Real-data sections (crypto, Indian equities,
+ * research hub, uploads, Academy) are unaffected.
+ */
+export const DEMO_ONLY_PREFIXES = ['/v1/companies', '/v1/market/', '/v1/screener', '/v1/screens', '/v1/backtests', '/v1/assistant', '/v1/home/what-changed', '/v1/home/worth-investigating', '/v1/evidence', '/v1/documents', '/v1/watchlists', '/v1/me/peer-sets', '/v1/hypotheses'];
+export const isDemoOnly = (url: string) => DEMO_ONLY_PREFIXES.some((p) => url === p || url.startsWith(p.endsWith('/') ? p : `${p}/`) || url.startsWith(`${p}?`));
 /** Exact loopback host match (a prefix test would accept http://localhost.attacker.example). */
 export function isLoopbackOrigin(origin: string): boolean {
   try {
@@ -105,6 +114,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
     reply.header('cross-origin-opener-policy', 'same-origin');
     reply.header('cache-control', 'no-store');
     if (ctx.cfg.isProduction) reply.header('strict-transport-security', 'max-age=31536000; includeSubDomains');
+    if (!ctx.cfg.allowSyntheticData && isDemoOnly(req.url)) throw new ApiError(403, 'Demo data disabled', 'This section shows only the fictional development companies, and demo mode is off (ALLOW_SYNTHETIC_DATA=false). Real Indian prices are under Indian equities.', {}, 'https://atlas.example/problems/demo-disabled');
     req.user = await resolveSession(ctx, req.cookies[SESSION_COOKIE]);
     const cfg = req.routeOptions.config;
     // CSRF: SameSite=Lax cookies plus a double-submit token header on state-changing requests.
@@ -198,6 +208,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
   await equityRoutes(app, ctx, ctx.equityFetch);
   await crossRoutes(app, ctx);
   await objectRoutes(app, ctx);
+  await fundamentalsRoutes(app, ctx);
   await adminRoutes(app, ctx);
   return app;
 }

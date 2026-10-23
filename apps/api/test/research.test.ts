@@ -117,12 +117,17 @@ describe('screener, factors, correlation, regimes, walk-forward, integrity, disc
     expect(r.result.current).toMatch(/trend/);
     expect(r.method).toMatch(/200-observation/);
   });
-  it('walk-forward runs on crypto and is refused for session calendars', async () => {
+  it('walk-forward runs on crypto (calendar days) and on equities (trading sessions)', async () => {
     const ok = await c.post('/v1/research/walkforward', { key: 'crypto:bitcoin', train_days: 250, test_days: 60, grid: [{ fast: 10, slow: 50 }, { fast: 20, slow: 100 }], fee_bps: 10, slippage_bps: 5 });
     expect(ok.status).toBe(200);
     expect(ok.json.folds.length).toBeGreaterThan(1);
     for (const f of ok.json.folds) expect(f.test_from > f.train_to).toBe(true);
-    expect((await c.post('/v1/research/walkforward', { key: 'equity:NSE:TESTCO', train_days: 250, test_days: 60, grid: [{ fast: 10, slow: 50 }], fee_bps: 10, slippage_bps: 5 })).status).toBe(400);
+    expect(ok.json.config.calendar).toBe('days');
+    const eq = await c.post('/v1/research/walkforward', { key: 'equity:NSE:TESTCO', train_days: 250, test_days: 60, grid: [{ fast: 10, slow: 50 }], fee_bps: 10, slippage_bps: 5 });
+    expect(eq.status, JSON.stringify(eq.json)).toBe(200);
+    expect(eq.json.config).toMatchObject({ calendar: 'sessions', engine: 'sma-trend-walkforward-sessions-1' });
+    expect(eq.json.assumptions.join(' ')).toMatch(/trading sessions/);
+    expect((await c.post('/v1/research/walkforward', { key: 'equity:NSE:TESTCO', train_days: 2000, test_days: 700, grid: [{ fast: 10, slow: 50 }], fee_bps: 10, slippage_bps: 5 })).status).toBe(400);
   });
   it('integrity lists the real gap; a finding must match it', async () => {
     const r = (await c.post('/v1/research/integrity', { key: 'crypto:ethereum' })).json;

@@ -21,7 +21,7 @@ export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Prom
     const plan = await userPlan(ctx.db, u.userId, ctx.clock());
     const used = await usage(ctx.db, u.userId, ctx.clock());
     const plans = await listPlans(ctx.db);
-    return { profile, plan: { code: plan.plan, name: plans.find((p) => p.code === plan.plan)?.name, status: plan.status, grace_until: plan.graceUntil, period_end: plan.periodEnd }, entitlements: plan.entitlements, usage: used, usage_resets_on: nextReset(ctx.clock()), mfa_verified: u.mfaVerified };
+    return { profile, plan: { code: plan.plan, name: plans.find((p) => p.code === plan.plan)?.name, status: plan.status, grace_until: plan.graceUntil, period_end: plan.periodEnd }, entitlements: plan.entitlements, usage: used, usage_resets_on: nextReset(ctx.clock()), mfa_verified: u.mfaVerified, demo_mode: ctx.cfg.allowSyntheticData };
   });
 
   app.patch('/v1/me', async (req) => {

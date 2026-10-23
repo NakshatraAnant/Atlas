@@ -12,6 +12,8 @@ export interface Me {
   usage: Record<string, number>;
   usage_resets_on: string;
   mfa_verified: boolean;
+  /** Synthetic development data is served (ALLOW_SYNTHETIC_DATA); demo pages carry a persistent warning. */
+  demo_mode?: boolean;
 }
 
 interface Ctx {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_EODHD_BUDGETS, parseBudgets, type QuotaCategory } from './modules/equity/quota.js';
 
 // Centralised configuration (engineering standard 5.1). Every setting is validated at
 // start-up; production refuses unsafe defaults instead of silently continuing.
@@ -31,7 +32,7 @@ const schema = z.object({
   SUPPLIER_GSTIN: z.string().optional().default(''),
   GOOGLE_CLIENT_ID: z.string().optional().default(''),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(''),
-  ALLOW_SYNTHETIC_DATA: z.enum(['true', 'false']).optional(),
+  ALLOW_SYNTHETIC_DATA: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()),
   /** Serve Academy content that is still in review (labelled as draft). Defaults to on outside production. */
   ACADEMY_SHOW_DRAFTS: z.enum(['true', 'false']).optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
@@ -51,12 +52,19 @@ const schema = z.object({
   ETHEREUM_RPC_URL: z.string().url().default('https://ethereum-rpc.publicnode.com'),
   // Indian equity reference data (your own keys; docs/equity/SOURCE_CAPABILITY_MATRIX.md). Never sent to the browser.
   EODHD_API_TOKEN: z.string().optional().default(''),
+  /** Accepted as an alias of EODHD_API_TOKEN (EODHD_API_TOKEN wins when both are set). */
+  EODHD_API_KEY: z.string().optional().default(''),
+  /** Daily API-call allowance of your EODHD plan (free plan: 20) and how it is split by purpose. */
+  EODHD_DAILY_LIMIT: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().int().min(1).max(10_000_000).default(20)),
+  EODHD_QUOTA_BUDGETS: z.string().optional().default(''),
+  /** Scheduled refresh of the tracked Indian equity universe. Defaults to on outside tests. */
+  EQUITY_REFRESH: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()),
   ALPHAVANTAGE_API_KEY: z.string().optional().default(''),
   /** Annual risk-free rate used for Sharpe/Sortino (decimal, e.g. 0.065). Shown next to every ratio. */
   RESEARCH_RISK_FREE_RATE: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().min(0).max(0.5).default(0)),
 });
 
-export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean; academyShowDrafts: boolean; cryptoIngestion: boolean; cryptoLiveFeed: boolean };
+export type Config = z.infer<typeof schema> & { allowSyntheticData: boolean; isProduction: boolean; academyShowDrafts: boolean; cryptoIngestion: boolean; cryptoLiveFeed: boolean; equityRefresh: boolean; eodhdBudgets: Record<QuotaCategory, number> };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = schema.parse(env);
@@ -66,9 +74,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const isTest = parsed.NODE_ENV === 'test';
   const cryptoIngestion = parsed.CRYPTO_INGESTION ? parsed.CRYPTO_INGESTION === 'true' : !isTest;
   const cryptoLiveFeed = parsed.CRYPTO_LIVE_FEED ? parsed.CRYPTO_LIVE_FEED === 'true' : !isTest;
-  const cfg: Config = { ...parsed, allowSyntheticData, isProduction, academyShowDrafts, cryptoIngestion, cryptoLiveFeed };
+  const equityRefresh = parsed.EQUITY_REFRESH ? parsed.EQUITY_REFRESH === 'true' : !isTest;
+  // The alias is folded in here so every caller reads one name; neither value is ever logged.
+  const EODHD_API_TOKEN = (parsed.EODHD_API_TOKEN || parsed.EODHD_API_KEY).trim();
+  const eodhdBudgets = parsed.EODHD_QUOTA_BUDGETS ? parseBudgets(parsed.EODHD_QUOTA_BUDGETS, parsed.EODHD_DAILY_LIMIT)
+    : parsed.EODHD_DAILY_LIMIT === 20 ? DEFAULT_EODHD_BUDGETS : scaleBudgets(parsed.EODHD_DAILY_LIMIT);
+  const cfg: Config = { ...parsed, EODHD_API_TOKEN, EODHD_API_KEY: '', allowSyntheticData, isProduction, academyShowDrafts, cryptoIngestion, cryptoLiveFeed, equityRefresh, eodhdBudgets };
   if (isProduction) assertProductionSafe(cfg);
   return cfg;
+}
+
+/** Default split for a non-default limit: the free-plan proportions (60/10/10/10/10), remainder to refresh. */
+function scaleBudgets(limit: number): Record<QuotaCategory, number> {
+  const tenth = Math.floor(limit / 10);
+  return { refresh: limit - 4 * tenth, backfill: tenth, validation: tenth, manual: tenth, reserve: tenth };
 }
 
 export function assertProductionSafe(cfg: Config): void {

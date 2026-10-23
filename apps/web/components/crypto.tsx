@@ -127,7 +127,7 @@ export function PriceChart({ data, title, note, quote = 'USD', height = 320 }: {
   const volTop = pad.t + priceH + 8;
   const cw = Math.max(1, Math.min(9, ((W - pad.l - pad.r) / Math.max(1, (t1 - t0) / 86_400_000)) * 0.7));
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => lo + f * (hi - lo));
-  const fmt = (v: number) => (quote === 'USD' || quote === 'USDT' ? usd(v) : v.toPrecision(6));
+  const fmt = (v: number) => (quote === 'USD' || quote === 'USDT' ? usd(v) : quote === 'INR' ? `₹${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : v.toPrecision(6));
   const xticks = [0, Math.floor(data.length / 3), Math.floor((2 * data.length) / 3), data.length - 1];
   let line = '';
   let pen = false;

@@ -182,3 +182,15 @@ Windows 11, Node 24.16.0, Microsoft Edge. Baseline at session start (`206a354`):
 | Secret scan | `npm run check:secrets` | pass (389 files) |
 
 Runtime on the real database after `atlas start` (migration 011 applied): `/readyz` ready; browser pane checks of the research hub (workbench on real BTC/ETH data, no console errors), Indian equities (not-configured state with setup steps), progress (rank, skill map); 375 px width: no horizontal overflow. Timings (signed-in, real data): workbench 3 assets × 3 years 1.15 s; screener 2.4 s first run, 0.5 s cached; discovery 2.4 s; rolling correlation 0.6 s; walk-forward (30 folds) 0.38 s; integrity with reconciliation 0.58 s. Scheduler running (markets, global, candles, on-chain jobs within 15 minutes of start); live feed `live`.
+
+## 23 Oct 2026, session 10 (Indian equity data integration)
+
+| Suite | Result |
+|---|---|
+| Shared (`packages/shared`) | 118 passed (12 new: technical indicators, session-calendar backtests) |
+| API (`npm test -w apps/api`) | 463 passed, 13 skipped (the PostgreSQL file, run separately) |
+| PostgreSQL 17 (`npm run test:postgres`) | 13 passed, including migration 012, schema parity and concurrent quota charges on real connections (exactly 20 of 60 succeed) |
+| E2E (Playwright, Edge) | 22 passed, including Indian equities tabs/quota strip, statement import, demo banner |
+| Secret scan | passed |
+| Browser check, running app | `/app/equities` (no key: setup steps, quota strip, empty states, Data operations sections), `/app/market` demo banner; no console errors |
+| Live EODHD acceptance test | **blocked**: no rotated key configured in `.env.local` (runbook §10) |

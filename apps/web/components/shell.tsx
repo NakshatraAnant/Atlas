@@ -7,8 +7,13 @@ import { Disclosure, useApi } from './ui';
 import { useApp } from './providers';
 
 const APP_NAV: [string, string][] = [
-  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/terminal', 'Terminal'], ['/app/market', 'Market'], ['/app/crypto', 'Digital Assets'], ['/app/equities', 'Indian equities'], ['/app/research-hub', 'Research hub'], ['/app/companies', 'Companies (demo)'], ['/app/assistant', 'Assistant'], ['/app/screener', 'Screener'], ['/app/lab', 'Quant Lab'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
+  ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/terminal', 'Terminal (demo)'], ['/app/market', 'Market (demo)'], ['/app/crypto', 'Digital Assets'], ['/app/equities', 'Indian equities'], ['/app/research-hub', 'Research hub'], ['/app/companies', 'Companies (demo)'], ['/app/assistant', 'Assistant (demo)'], ['/app/screener', 'Screener (demo)'], ['/app/lab', 'Quant Lab (demo)'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
 ];
+/** Sections that show only the fictional development companies (API: DEMO_ONLY_PREFIXES in app.ts). */
+const DEMO_PATHS = ['/app/terminal', '/app/market', '/app/companies', '/app/assistant', '/app/screener', '/app/lab', '/app/briefings'];
+// My research mixes company watchlists (demo) with your own uploads (real): only its main page is flagged.
+export const isDemoPath = (path: string) => path === '/app/research' || DEMO_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
+
 const PUBLIC_NAV: [string, string][] = [['/', 'Overview'], ['/app/academy', 'Academy'], ['/briefing-sample', 'Sample briefing'], ['/pricing', 'Pricing'], ['/methodology', 'Methodology'], ['/help', 'Help']];
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -62,6 +67,9 @@ export function Shell({ children }: { children: ReactNode }) {
         {nav.map(([href, label]) => <a key={href} href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
       </nav>
       {me && !me.profile.email_verified_at && inApp && <div className="warn" style={{ margin: '0 auto', maxWidth: 1140 }}>Verify your email to save research, pay or receive alerts. <ResendLink /></div>}
+      {me && inApp && isDemoPath(path) && (me.demo_mode !== false
+        ? <div className="warn" role="note" style={{ margin: '0 auto', maxWidth: 1140 }}><strong>Demo data.</strong> This section shows fictional development companies and generated figures, not real Indian market data. Real NSE/BSE prices are under <a href="/app/equities">Indian equities</a>.</div>
+        : <div className="err" role="note" style={{ margin: '0 auto', maxWidth: 1140 }}>Demo mode is off (ALLOW_SYNTHETIC_DATA=false), so this section has no data. Real NSE/BSE prices are under <a href="/app/equities">Indian equities</a>.</div>)}
       <main id="main" tabIndex={-1}>{children}</main>
       <footer className="foot">
         <nav aria-label="Footer">

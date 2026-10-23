@@ -47,6 +47,19 @@ export interface SyntheticVendorOptions extends WorldOptions {
 
 const endOfDay = (d: string) => `${d}T18:29:59.999Z`; // 23:59:59 IST
 
+/**
+ * No vendor: used when demo data is switched off (ALLOW_SYNTHETIC_DATA=false) and no licensed vendor is
+ * configured. Every fetch answers "nothing delivered", so the daily pipeline records an honest gap instead
+ * of generating anything.
+ */
+export class NoVendor implements VendorAdapter {
+  readonly name = 'none';
+  readonly isSynthetic = false;
+  async fetch(): Promise<VendorFile | null> {
+    return null;
+  }
+}
+
 export class SyntheticVendor implements VendorAdapter {
   readonly name = 'synthetic';
   readonly isSynthetic = true;

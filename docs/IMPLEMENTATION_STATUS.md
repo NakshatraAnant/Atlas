@@ -91,3 +91,7 @@ See `docs/execution/NEXT_ACTIONS.md`.
 ## Session 9 (23 Oct 2026)
 
 Research hub (20 features: 16 verified, 3 partial, 1 blocked on licensed fundamentals), Indian equity data path (blocked only on your provider key), progress engine v2, PostgreSQL concurrency, recovery drill. Full table: `docs/execution/ATLAS_MASTER_EXECUTION_STATUS.md`.
+
+## Session 10 (23 Oct 2026)
+
+Indian equity data on the EODHD free plan: quota ledger, priority universe, calendar, refresh, analytics, explorer, instrument pages, user-imported statements, explicit demo mode. Live provider test blocked pending your rotated key. Table: `docs/execution/ATLAS_MASTER_EXECUTION_STATUS.md` (session 10); runbook `docs/equity/INDIAN_EQUITY_DATA_RUNBOOK.md`.

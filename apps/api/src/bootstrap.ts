@@ -16,7 +16,7 @@ import { schedulerTick } from './pipeline/daily.js';
 import { createCryptoModule, type CryptoOptions } from './modules/crypto/index.js';
 import { syncEquityProviders } from './modules/equity/ingest.js';
 import type { FetchFn } from './modules/equity/providers.js';
-import { SyntheticVendor, type VendorAdapter } from './pipeline/vendor.js';
+import { NoVendor, SyntheticVendor, type VendorAdapter } from './pipeline/vendor.js';
 
 export interface ContextOptions {
   cfg?: Config;
@@ -43,7 +43,9 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   if (cfg.PAYMENT_GATEWAY === 'razorpay') payments = new RazorpayGateway(cfg.RAZORPAY_KEY_ID, cfg.RAZORPAY_KEY_SECRET, cfg.RAZORPAY_WEBHOOK_SECRET, JSON.parse(process.env.RAZORPAY_PLAN_IDS ?? '{}'));
   else payments = new SandboxGateway(db, cfg.SANDBOX_WEBHOOK_SECRET, cfg.WEB_ORIGIN, clock);
   const ai = opts.ai ?? (cfg.AI_PROVIDER === 'anthropic' && cfg.ANTHROPIC_API_KEY ? new AnthropicGateway(cfg.ANTHROPIC_API_KEY, cfg.AI_MODEL, cfg.AI_USD_INR) : new DeterministicGateway());
-  const vendor = opts.vendor ?? new SyntheticVendor({ companies: await syntheticUniverseSize(db, log), injectFaults: process.env.SYNTHETIC_INJECT_FAULTS === 'true' });
+  // Demo data is an explicit mode: with ALLOW_SYNTHETIC_DATA=false nothing synthetic is generated (NoVendor)
+  // and the demo sections are disabled (app.ts); production refuses demo mode altogether (config.ts).
+  const vendor = opts.vendor ?? (cfg.allowSyntheticData ? new SyntheticVendor({ companies: await syntheticUniverseSize(db, log), injectFaults: process.env.SYNTHETIC_INJECT_FAULTS === 'true' }) : new NoVendor());
   if (vendor.isSynthetic && !cfg.allowSyntheticData) throw new Error('A synthetic vendor cannot be used in this environment');
   const crypto = await createCryptoModule(db, cfg, log, { now: () => clock().getTime(), ...opts.crypto });
   await syncEquityProviders(db, { eodhd: cfg.EODHD_API_TOKEN, alphavantage: cfg.ALPHAVANTAGE_API_KEY });
@@ -114,6 +116,11 @@ export async function runRetention(ctx: AppContext): Promise<Record<string, numb
       // Academy learning records are personal data too (answers, progress, ledger). Enrolments go before
       // the diagnostic attempts they reference.
       for (const tbl of ['acad.enrolments', 'acad.quiz_attempts', 'acad.lesson_progress', 'acad.objective_mastery', 'acad.review_schedule', 'acad.capstone_submissions', 'acad.completion_records', 'acad.game_scores', 'acad.learning_events', 'acad.achievement_unlocks', 'acad.learner_settings', 'acad.diagnostic_attempts']) {
+        await t.query(`DELETE FROM ${tbl} WHERE user_id=$1`, [e.user_id]);
+      }
+      // Research hub, Digital Assets notes and uploaded price files (sessions 8–10). Alert events go before
+      // their rules; portfolio holdings and uploaded price rows cascade with their parents.
+      for (const tbl of ['research.alert_events', 'research.alert_rules', 'research.portfolios', 'research.saved_views', 'research.notebook_entries', 'research.reports', 'research.activity', 'research.user_fundamentals', 'crypto.watchlist_items', 'crypto.research_notes', 'app.user_datasets']) {
         await t.query(`DELETE FROM ${tbl} WHERE user_id=$1`, [e.user_id]);
       }
       await t.query(`UPDATE app.analytics_events SET user_id=NULL, anon_id='erased' WHERE user_id=$1`, [e.user_id]);

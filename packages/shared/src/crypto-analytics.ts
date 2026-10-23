@@ -323,7 +323,13 @@ export function cagr(obs: Obs[]): Result<{ value: number; years: number }> {
   return { ok: true, value: (obs[obs.length - 1]!.v / obs[0]!.v) ** (365.25 / days) - 1, years: days / 365.25 };
 }
 
-export interface BacktestParams { fast: number; slow: number; fee_bps: number; slippage_bps: number }
+/**
+ * calendar 'days' (default): crypto, one observation per calendar day; a return needs consecutive days.
+ * calendar 'sessions': exchange sessions; consecutive observations are consecutive sessions unless more
+ * than MAX_SESSION_GAP apart (weekends and holidays are shorter than that; a longer gap is missing data).
+ */
+export interface BacktestParams { fast: number; slow: number; fee_bps: number; slippage_bps: number; calendar?: 'days' | 'sessions' }
+export const MAX_SESSION_GAP = 5 * DAY;
 export interface BacktestResult {
   params: BacktestParams;
   strategy: { t: number; v: number }[];
@@ -354,6 +360,7 @@ export function backtestSma(obs: Obs[], p: BacktestParams): Result<BacktestResul
   const f = sma(obs, p.fast);
   const s = sma(obs, p.slow);
   const cost = (p.fee_bps + p.slippage_bps) / 10_000;
+  const sessions = p.calendar === 'sessions';
   let pos = 0;
   let pending: number | null = null;
   let eq = 1;
@@ -365,7 +372,8 @@ export function backtestSma(obs: Obs[], p: BacktestParams): Result<BacktestResul
   const strategy: { t: number; v: number }[] = [{ t: obs[start]!.t, v: 1 }];
   const buyHold: { t: number; v: number }[] = [{ t: obs[start]!.t, v: 1 }];
   for (let i = start + 1; i < obs.length; i++) {
-    const r = obs[i]!.t - obs[i - 1]!.t === DAY ? obs[i]!.v / obs[i - 1]!.v - 1 : 0;
+    const dt = obs[i]!.t - obs[i - 1]!.t;
+    const r = (sessions ? dt > 0 && dt <= MAX_SESSION_GAP : dt === DAY) ? obs[i]!.v / obs[i - 1]!.v - 1 : 0;
     eq *= 1 + pos * r;
     bh *= 1 + r;
     if (pos) longDays++;
@@ -383,11 +391,14 @@ export function backtestSma(obs: Obs[], p: BacktestParams): Result<BacktestResul
     buyHold.push({ t: obs[i]!.t, v: bh });
   }
   const dd = (xs: { t: number; v: number }[]) => (drawdowns(xs) as { ok: true } & DrawdownInfo).max_drawdown;
-  const vol = (xs: { t: number; v: number }[]) => stdev(logReturns(xs).map((x) => x.r)) * Math.sqrt(365);
+  const vol = (xs: { t: number; v: number }[]) => stdev(sessions ? xs.slice(1).map((x, i) => Math.log(x.v / xs[i]!.v)) : logReturns(xs).map((x) => x.r)) * Math.sqrt(sessions ? 252 : 365);
   return {
     ok: true, params: p, strategy, buy_hold: buyHold, trades, exposure: longDays / (obs.length - start - 1), costs_paid: costs,
     strategy_total_return: eq - 1, buy_hold_total_return: bh - 1, strategy_max_drawdown: dd(strategy), buy_hold_max_drawdown: dd(buyHold), strategy_vol: vol(strategy), buy_hold_vol: vol(buyHold),
     assumptions: [
+      sessions
+        ? 'Session calendar: one observation per trading session; returns run session to session, a gap of more than 5 calendar days (missing data) earns nothing, and volatility is annualised with √252.'
+        : 'Calendar days: returns only between consecutive days; volatility is annualised with √365.',
       'Signals use closing prices up to the signal day; trades execute at the next day\'s close (no look-ahead).',
       `Each position change costs ${p.fee_bps} bp in fees plus ${p.slippage_bps} bp in slippage; real costs vary by venue, size and liquidity.`,
       'Cash earns no interest; no taxes, funding rates or borrowing are modelled.',

@@ -122,6 +122,18 @@ describe.skipIf(!url)('PostgreSQL integration (node-postgres driver)', () => {
       expect(n).toEqual({ raw: 40, series: 2 });
     });
 
+    it('concurrent quota charges on real connections never exceed a budget or the daily limit', async () => {
+      const { spend, eodhdPolicy, quotaStatus } = await import('../src/modules/equity/quota.js');
+      const policy = eodhdPolicy();
+      const t = new Date('2026-10-23T12:00:00Z');
+      const cats = ['refresh', 'backfill', 'validation', 'manual'] as const;
+      const results = await Promise.all(Array.from({ length: 60 }, (_, i) => spend(pgDb, policy, cats[i % 4]!, 1, t, { useReserve: true })));
+      // refresh 12 + backfill 2 + validation 2 + manual 2 + reserve 2 (manual only) = 20.
+      expect(results.filter((r) => r.ok)).toHaveLength(20);
+      const q = await quotaStatus(pgDb, policy, t);
+      expect(q).toMatchObject({ spent_local: 20, remaining: 0 });
+    });
+
     it('the same research activity and XP award recorded concurrently exist once', async () => {
       const { recordActivity } = await import('../src/modules/research/activity.js');
       const { syncLearningEvents } = await import('../src/modules/academy/learning.js');
