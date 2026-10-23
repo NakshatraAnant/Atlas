@@ -244,11 +244,11 @@ describe('research progress (XP, cap, achievements, rank)', () => {
   it('achievements unlock from recorded research with their evidence; rank needs mastery as well as XP', async () => {
     const me = (await c.get('/v1/academy/me')).json;
     const unlocked = me.achievements.filter((a: { unlocked_at: string | null }) => a.unlocked_at).map((a: { id: string }) => a.id);
-    expect(unlocked).toEqual(expect.arrayContaining(['first-research-note', 'benchmark-builder', 'data-detective', 'backtest-auditor', 'thesis-reviewer', 'first-report', 'risk-analyst']));
+    expect(unlocked, JSON.stringify({ xp: me.xp, a: me.achievements.slice(0, 3), n: me.achievements.length })).toEqual(expect.arrayContaining(['first-research-note', 'benchmark-builder', 'data-detective', 'backtest-auditor', 'thesis-reviewer', 'first-report', 'risk-analyst']));
     expect(me.xp.xp).toBeGreaterThan(100);
     expect(me.rank.rank).toBeLessThanOrEqual(2); // no mastered objectives yet
     expect(me.rank.next.mastered_ok).toBe(false);
-    expect(me.skill_map.map((s: { id: string }) => s.id)).toEqual(['foundations', 'statements', 'equity', 'crypto', 'microstructure', 'quant', 'risk', 'data', 'communication']);
+    expect(me.skill_map.map((s: { id: string }) => s.id)).toEqual(['foundations', 'statements', 'equity', 'crypto', 'microstructure', 'quant', 'risk', 'data', 'commodities', 'communication']);
     expect(me.skill_map.find((s: { id: string }) => s.id === 'data').practices[0].done).toBe(true);
     expect(me.missions.some((m: { id: string }) => m.id.startsWith('research-'))).toBe(true);
   });

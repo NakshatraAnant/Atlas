@@ -61,3 +61,12 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 - No automated accessibility audit (axe). Coverage is semantic markup, keyboard focus, reduced-motion support and a table fallback for the 3D lab.
 - No independent penetration test (B-SEC-01).
 - `npm audit --omit=dev` reports 0 advisories since the upgrade to Next 16 (the postcss 8.4.31 that Next 15 pinned is gone; see SECURITY_AND_PRIVACY.md). Development-only test tooling (vitest / vite / esbuild / tinypool) still has advisories; it is not shipped.
+
+## Session 10: live data and commodities
+- **EODHD free plan:** Indian indices only. NSE/BSE shares answer 404 "Ticker Not Found" (verified 23 Oct 2026), and `exchange-details/NSE` answers 404, so holidays are inferred from stored data. The history is one year (247 sessions), so 1-year returns (252 sessions) are not available.
+- **Commodities, global benchmarks:** EIA spot assessments and IMF monthly averages via FRED. They are not tradable quotes, not Indian prices and not live data.
+- **Commodities, not available:**
+  - MCX and NCDEX futures (licensed), gold and silver, and Indian physical spot prices;
+  - term structure and inventories until you add a free EIA key (the EIA parser has not been checked against a real response).
+- **Academy:** the commodities course is a draft awaiting a named reviewer, like all Academy content.
+- **Dependencies:** a low-severity fastify advisory (not exposed) has its upgrade deferred until the fixed release is two weeks old.

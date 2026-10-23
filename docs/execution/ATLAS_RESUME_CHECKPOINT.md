@@ -4,7 +4,11 @@ Updated: 2026-10-23, session 10 (mandate: "Master Indian equity data integration
 
 ## Session 10 state
 - Migrations 001–012 applied to ./data (backup before 012: `backups/atlas-backup-2026-10-23_09-26-22.tar.gz`).
-- Indian equity pipeline complete and tested with recorded response shapes; **live acceptance test blocked until you configure a rotated EODHD key in `.env.local`** (runbook §10). The key pasted in conversation was treated as exposed and never used or stored.
+- Migrations 001–013 applied. A rotated EODHD key is configured in `.env.local` (never committed).
+- **Live:** Indian indices (NIFTY 50, SENSEX, NIFTY BANK) and 25 FRED commodity series.
+- **Free plan:** NSE/BSE shares answer 404.
+- **Commodities:** `docs/commodity/COMMODITY_DATA.md`.
+- **Optional next steps:** an EIA key (term structure, inventories); a paid EODHD plan for Indian shares.
 - Runbook: `docs/equity/INDIAN_EQUITY_DATA_RUNBOOK.md`. Ledger: `ATLAS_MASTER_EXECUTION_STATUS.md` (session 10 table).
 
 ## Where things stand

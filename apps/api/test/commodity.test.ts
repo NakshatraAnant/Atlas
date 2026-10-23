@@ -108,6 +108,10 @@ describe('import', () => {
   it('EIA series without a key fail with what to configure, and send nothing', async () => {
     const before = calls.length;
     const s = await importCommoditySeries(ctx.db, fetchFn, { eia: '' }, 'eia:RCLC1', new Date(clockMs));
+    // An empty series still states where it would come from.
+    const d = (await user.get('/v1/commodities/series/eia/RCLC1')).json;
+    expect(d).toMatchObject({ analysis: null, provenance: { source: 'EIA series RCLC1' } });
+    expect(d.empty_reason).toMatch(/EIA_API_KEY/);
     expect(s).toMatchObject({ status: 'failed', error_category: 'not_configured' });
     expect(calls.length).toBe(before);
   });

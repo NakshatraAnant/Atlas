@@ -8,6 +8,8 @@ Research workspace and learning academy for Indian equities and digital assets: 
 
 **Indian equities** (`/app/equities`): real NSE/BSE end-of-day prices from your own EODHD key, within the free plan's 20 calls a day (quota ledger, priority universe, refresh at 08:00/20:30 IST, calendar, data operations), market overview, explorer and screen, instrument research pages, and financial statements you import. Setup and operation: `docs/equity/INDIAN_EQUITY_DATA_RUNBOOK.md`. Demo pages with fictional companies are labelled "(demo)"; `ALLOW_SYNTHETIC_DATA=false` turns them off.
 
+**Commodities** (`/app/commodities`): 25 benchmark series from FRED (EIA daily spot prices, IMF monthly prices) with spreads, seasonality, correlations and provenance. Indian futures and gold are stated as unavailable; term structure and inventories need a free EIA key. Details: `docs/commodity/COMMODITY_DATA.md`.
+
 **Research hub** (`/app/research-hub`): cross-asset workbench, screener, portfolios and risk, correlation regimes, walk-forward backtests, event studies, data integrity, discovery, notebook, reports and alerts on real crypto data, real Indian equities (with your own EODHD or Alpha Vantage key; `docs/equity/SOURCE_CAPABILITY_MATRIX.md`) and your uploaded files. Methods: `docs/research/METHODS.md`. Progress rules: `docs/GAMIFICATION.md`. Database and recovery: `docs/DATABASE.md`. Status: `docs/IMPLEMENTATION_STATUS.md`.
 
 ATLAS is a research and education product. It does not give investment advice or recommendations, and Academy completion is not a professional qualification.

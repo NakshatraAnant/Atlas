@@ -65,14 +65,14 @@ async function getText(provider: string, fetchFn: FetchFn, url: string, timeoutM
     return { status: r.status, body: await r.text() };
   } catch (err) {
     const timeout = (err as Error).name === 'AbortError';
-    throw new EquityProviderError(provider, timeout ? 'timeout' : 'network', timeout ? 'The provider did not answer in time.' : `Network error: ${(err as Error).message}`);
+    throw new EquityProviderError(provider, timeout ? 'timeout' : 'network', timeout ? 'The provider did not answer in time.' : `Network error: ${redact((err as Error).message)}`);
   } finally {
     clearTimeout(timer);
   }
 }
 
 /** URL with the secret removed, for logs and job records. */
-export const redact = (url: string) => url.replace(/(api_token|apikey)=[^&]+/g, '$1=REDACTED');
+export const redact = (url: string) => url.replace(/(api_token|apikey|api_key)=[^&\s]+/g, '$1=REDACTED');
 
 // ───────────── EODHD ─────────────
 export function eodhdTicker(exchange: string, symbol: string, explicit?: string): string {

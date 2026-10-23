@@ -84,4 +84,10 @@ Backup before migration 012: `backups/atlas-backup-2026-10-23_09-26-22.tar.gz`. 
 | Zero-dummy-data audit | verified | synthetic data never in equity/research endpoints (session 9 tests); demo mode explicit: banner on demo pages, "(demo)" nav labels, `ALLOW_SYNTHETIC_DATA=false` runs with `NoVendor` and demo sections answer 403 (tests) |
 | UI: overview, explorer, instrument research, data operations, empty/error states | verified | browser check on the running app (no key: setup steps, quota strip, empty states, no console errors); e2e |
 | Account erasure of research data | verified (fixed) | defect found and fixed in this session |
-| **Live provider acceptance test** | **blocked: needs your rotated key in `.env.local`** | runbook §10 lists the exact steps |
+| Live provider acceptance test | **verified for indices; Indian shares not in the free plan** | rotated key configured in `.env.local`; NIFTY 50, SENSEX and NIFTY BANK imported (247 sessions each after cleaning); RELIANCE.NSE and .BSE answer 404; TEST_RESULTS session 10b |
+| Provider behaviours handled | verified | provisional same-day rows withdrawn until 20:00 IST; holiday filler rows quarantined; 15 holidays inferred from data |
+| Commodities vertical | verified (FRED) / implemented, unverified (EIA) / unavailable (MCX, NCDEX, gold) | `docs/commodity/COMMODITY_DATA.md`; 25 live series; spreads; seasonality; term structure needs an EIA key |
+| Academy commodities pathway | implemented (draft, in review) | COMMODITY MARKETS DECODER: 6 lessons, 18 quiz items, 10-item diagnostic, practical tasks on real series; passes the content-policy tests |
+| Real-data mode | verified live | starts with `ALLOW_SYNTHETIC_DATA=false` on an empty database; demo sections answer 403 |
+| Security hardening | verified | key handling, redaction of network errors, interrupted-job recovery; fastify advisory assessed (not exposed; upgrade deferred) |
+| Recovery | verified | backups taken before migrations 012 and 013; drill passed with 013 applied to a restored copy |

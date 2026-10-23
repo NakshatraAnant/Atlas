@@ -225,3 +225,18 @@ Verified downstream, on stored real data:
 - **Series:** NIFTY 50, SENSEX and NIFTY BANK, 247 sessions each (2025-10-23 → 2026-10-22), no unexplained missing sessions.
 - **Volatility (1y):** 13.9% / 14.2% / 17.1%.
 - **Research hub:** instrument search, workbench (with crypto, on shared session dates), portfolio analysis (246 shared sessions, two currencies stated), and an alert rule evaluated and triggered.
+
+## 23 Oct 2026, session 10c: final verification (commodities, Academy, hardening)
+
+| Suite | Result |
+|---|---|
+| Shared (`packages/shared`) | 125 passed (indicators, session backtests, commodity analytics) |
+| API (`npm test -w apps/api`) | 30 files passed, 1 skipped (the PostgreSQL file, run separately); two consecutive full runs green. One earlier full run had a single failure in `research.test.ts` (achievements list empty); it did not reproduce in 5 later runs (3 of the file alone, 2 of the full suite). Recorded as unexplained, not hidden |
+| PostgreSQL 17 (`npm run test:postgres`) | 13 passed, including migrations 001–013 from empty, schema parity including `commodity`, and concurrency |
+| Web type-check / production build | pass / pass (`next build`) |
+| E2E (Playwright, Edge) | 24 passed. The new commodities spec first failed on a real defect (an empty series showed no source), which was fixed, regression-tested and re-run: 2/2 |
+| Recovery drill (`atlas verify-backup`, backup 2026-10-23 10:39) | passed: checksum, restore to a temporary copy, migration 013 applied to an existing installation, integrity checks (0 invalid OHLC, 0 duplicates, 1,482 real equity prices), API ready on the copy |
+| Real-data mode, live | API started on an empty database with `ALLOW_SYNTHETIC_DATA=false`: `/readyz` ready with `synthetic_data:false`; `/v1/market/summary` → 403 "Demo data disabled" |
+| Live FRED commodity refresh | 25 series stored (8 daily/weekly EIA, 17 monthly IMF); WTI has 9,527 observations to 2026-10-20, including the −36.98 print of 2020-04-20 |
+| Secret checks | the key is in no commit (`git grep` over all revisions), no tracked file, no log and no API response; secret scan passed |
+| Dependency audit | 1 low: fastify header-schema advisory (GHSA-389g-gv7q-r4x8). Not exposed: ATLAS validates headers, bodies and queries with zod, not fastify schemas. The fix (5.12.7) is 10 days old; the upgrade is deferred until it is at least two weeks old |

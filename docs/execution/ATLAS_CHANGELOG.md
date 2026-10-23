@@ -1,5 +1,29 @@
 # ATLAS changelog
 
+## Session 10, continued (23 Oct 2026): live EODHD, commodities, Academy commodities track
+
+### Added
+- **Live EODHD integration** with your rotated key (`.env.local`, canonical name `EODHD_API_TOKEN`): Indian indices NIFTY 50, SENSEX and NIFTY BANK.
+- **Commodities** (migration 013, `modules/commodity`, `/app/commodities`):
+  - 25 FRED series (EIA daily spot, IMF monthly);
+  - optional EIA inventories and WTI futures by contract position;
+  - spreads and cracks, seasonality, term structure, correlations, provenance;
+  - daily series in the Research hub.
+- **Shared** `commodity-analytics.ts` (frequency-aware returns, seasonality, spreads, term structure, inventory z-score).
+- **Academy**: COMMODITY MARKETS DECODER (Track 3 · Commodities); skill area "Commodity markets".
+- **E2E**: `e2e/commodities.spec.ts`.
+
+### Fixed
+- Same-day provisional EODHD rows (served 15 minutes after the close) are no longer stored; stored ones are withdrawn with history kept.
+- EODHD holiday filler rows (flat, zero volume) are quarantined, not stored.
+- Indices are no longer labelled as total-return series.
+- Validation no longer spends calls on corporate actions for indices.
+- Percentage returns across zero or negative prices are refused in the shared alignment helper.
+- Commodity imports use set-based inserts (one-minute imports were found on the live run).
+- Interrupted jobs are marked failed at start-up.
+- Network error messages are redacted.
+- An empty commodity series now states its source (found by e2e).
+
 ## Session 10 (23 Oct 2026): Indian equity data on a free plan, zero-dummy-data audit
 
 ### Added
