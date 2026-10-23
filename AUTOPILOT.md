@@ -6,6 +6,7 @@ This file is the entry point for any agent or engineer resuming work on ATLAS.
 
 | What | Where |
 |---|---|
+| **Session 9 status (start here)** | `docs/execution/ATLAS_MASTER_EXECUTION_STATUS.md`, `docs/execution/ATLAS_RESUME_CHECKPOINT.md` |
 | **Digital Assets (session 8)** | `docs/IMPLEMENTATION_STATUS.md`, `docs/crypto/SOURCE_CAPABILITY_MATRIX.md` |
 | **Current state (start here)** | `docs/execution/RECOVERY_2026-10-22.md`, then `docs/execution/MASTER_EXECUTION_STATE.md` |
 | Next actions | `docs/execution/NEXT_ACTIONS.md` |

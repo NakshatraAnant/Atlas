@@ -17,6 +17,15 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 - The PGlite single-process limit applies: run `atlas crypto …` only while ATLAS is stopped.
 - Crypto Academy content (27 lessons, 4 videos) is AI-drafted and in review, like the equity courses.
 
+## Research platform and Indian equities (session 9)
+- Real Indian equity prices need your own provider key (EODHD for NSE, Alpha Vantage for BSE); without one, the Indian equities page says so and nothing is imported. Live imports have not been exercised against an Indian ticker (no key available); adapters are tested on real response shapes from the providers' demo keys.
+- No real fundamentals, corporate-action records, index constituents, intraday, derivatives or market breadth for Indian equities; company pages, the equity screener and Market remain synthetic and labelled. REAL_VERIFIED (two-source cross-check) is defined but no second equity source exists yet.
+- Walk-forward backtests run on continuously traded (crypto) series only; session-calendar backtests are not built.
+- Factor research covers crypto momentum, relative strength, volatility, volume trend and size; value and quality factors need real fundamentals.
+- Token unlock schedules, holder concentration and Solana on-chain data remain unavailable (no free verified source).
+- Alerts are in-app only (no email); evaluated every 5 minutes while ATLAS runs.
+- No leaderboards (no opt-in community); retention analytics are personal (single-user local install).
+
 ## Infrastructure
 - **Embedded database (PGlite) memory ceiling: fixed** (ADR-018). Seeds of 40, 120 and 602 companies complete, and the daily catch-up is covered by tests. Limits that remain:
   - A 500-company seed takes about 97 minutes (disk mode, peak RSS about 960 MB, database 1.7 GB). That size is for stress testing; the default is 120.

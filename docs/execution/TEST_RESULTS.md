@@ -163,3 +163,22 @@ Real-data verification (local database `./data/pglite`, free public sources, 22 
 - Imported: 100 assets (CoinGecko top 100), 241 verified venue pairs (Binance 124, Coinbase 117), daily OHLCV and reference observations (77,078 stored across 45 series by the second restart; Binance back to 2017-08-17, Coinbase back to 2015-07-20, CoinGecko last 365 days), 300 DeFi protocols, 37,720 DeFi metric points, rolling Bitcoin/Ethereum blocks, 668 source-linked events, 0 quarantined.
 - Browser pane (signed in as `pro@atlas.test`): overview with CoinGecko totals and freshness; Binance WebSocket "Live: receiving messages"; asset page with CoinGecko 365-day chart; correlation matrix from Binance candles (BTC/ETH 0.89 over 90 days); backtest on Coinbase BTC-USD; on-chain blocks; sources & health; crypto lesson cd-l1 with video (poster, captions) and the 3D transaction-journey scene (WebGL canvas; tamper detection works). 375 px width: no horizontal scroll on overview and explorer.
 - `atlas stop` → "API stopped cleanly"; `restart` → healthy; persisted crypto data intact; scheduler resumed (markets_inr, asset_details, onchain_bitcoin ran within a minute). One `onchain_ethereum` run failed on a transient "fetch failed" from the public RPC: recorded, source marked degraded, retried on schedule.
+
+## 23 Oct 2026, session 9 (research platform, equity data path, progress, reliability)
+
+Windows 11, Node 24.16.0, Microsoft Edge. Baseline at session start (`206a354`): typecheck pass; shared 92; API 392 passed, 8 skipped; `npm run test:postgres` 8/8.
+
+| Check | Command | Result |
+|---|---|---|
+| Type checking | `npm run typecheck` (via build) | pass |
+| Unit + integration (under concurrent e2e load) | `npm test` | shared **106 passed**; API **430 passed, 12 skipped** (the real-PostgreSQL file; run separately below) |
+| New: equity reference data | `apps/api/test/equity.test.ts` | 13 passed (real response shapes from provider demo keys; entitlement/auth/rate-limit/malformed errors; dry run; idempotency; corrections; quarantine; token never stored) |
+| New: research API and progress | `apps/api/test/research.test.ts` | 25 passed (alignment, screener nulls, factors, correlation, regimes, walk-forward, integrity findings, discovery, portfolios/scenario, notebook/hypotheses, reports, alerts dedupe/cooldown, XP cap of 3/day exact, achievements, rank gating, no client XP path, http(s)-only links, sign-in required, stale-series regression) |
+| New: research analytics | `packages/shared/test/research-analytics.test.ts` | 14 passed (hand-calculated) |
+| Real PostgreSQL 17 (embedded server) | `npm run test:postgres` | **12 passed** (migrations 001–011 from empty, idempotent, schema parity incl. `equity`/`research`, RLS, rollback, full seed, and 4 new concurrency tests) — run concurrently with e2e run 2 |
+| Browser end-to-end, run 1 (unit suite running concurrently) | `npm run test:e2e` | 20 passed, 1 failed: the progress-heading assertion expected the old "Level N" text after the deliberate change to "{rank} · level N"; assertion updated to the new exact format. **Both video tests passed** (observed progress, seek, `ended`). Restart check passed. |
+| Browser end-to-end, run 2 (PostgreSQL suite running concurrently) | `npm run test:e2e` | **21 passed**, restart check passed |
+| Recovery drill | `node scripts/atlas.mjs verify-backup` | passed on `atlas-backup-2026-10-22_20-56-27.tar.gz`: checksum OK; copy at migration 010 upgraded to 011; 5 users, 101 crypto assets, 79,514 observations, 0 invalid OHLC, 0 duplicates; API on port 4100 answered `/readyz` |
+| Secret scan | `npm run check:secrets` | pass (389 files) |
+
+Runtime on the real database after `atlas start` (migration 011 applied): `/readyz` ready; browser pane checks of the research hub (workbench on real BTC/ETH data, no console errors), Indian equities (not-configured state with setup steps), progress (rank, skill map); 375 px width: no horizontal overflow. Timings (signed-in, real data): workbench 3 assets × 3 years 1.15 s; screener 2.4 s first run, 0.5 s cached; discovery 2.4 s; rolling correlation 0.6 s; walk-forward (30 folds) 0.38 s; integrity with reconciliation 0.58 s. Scheduler running (markets, global, candles, on-chain jobs within 15 minutes of start); live feed `live`.

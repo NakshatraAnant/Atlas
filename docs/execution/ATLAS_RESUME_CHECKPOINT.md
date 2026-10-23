@@ -31,3 +31,6 @@ Next actions, in order:
 2. Learning engine: derive research XP kinds from `research.activity`, level names, research achievements/missions, skill map.
 3. Web: Research hub pages (workbench, screener, portfolios, notebook, reports, alerts, discovery), Indian equities page, Progress additions; nav.
 4. Docs: `docs/equity/SOURCE_CAPABILITY_MATRIX.md`, ledger, changelog, test results; full e2e ×2 under load; backup/restore drill into a separate directory; start app and verify.
+
+## Session 9 complete (23 Oct 2026)
+All phases implemented and verified except live Indian equity import (needs the owner's provider key) and Feature 18 (needs licensed fundamentals). Migrations 001–011 applied to ./data. ATLAS left running at http://localhost:3000 (API 127.0.0.1:4000). Status and next actions: docs/execution/ATLAS_MASTER_EXECUTION_STATUS.md.

@@ -109,3 +109,11 @@ node scripts/atlas.mjs crypto run markets global candles_binance
 Settings in `.env.local` (all optional): `COINGECKO_DEMO_API_KEY` (free Demo key: higher limit), `CRYPTO_INGESTION=false` (no scheduled refresh), `CRYPTO_LIVE_FEED=false` (no WebSocket), `CRYPTO_LIVE_SYMBOLS`, `CRYPTO_UNIVERSE_SIZE` (default 100), `CRYPTO_HISTORY_ASSETS` (default 25), `CRYPTO_BACKFILL_REQUESTS_PER_RUN` (default 30), `ETHEREUM_RPC_URL`.
 
 If a provider fails: the job is recorded as failed with the error, the source is marked degraded/failing/rate-limited, the last stored values stay in place and are labelled stale once past their freshness target, and the scheduler retries after a fifth of the interval (at least 2 minutes). Jobs interrupted by a stop are closed as failed at the next start-up. Nothing is ever filled with invented values.
+
+## Session 9 additions
+
+- **All tests including real PostgreSQL**: `npm run test:all` (unit/integration, then `test:postgres`).
+- **Recovery drill**: `node scripts/atlas.mjs verify-backup [backups/<file>]` restores into a temporary folder, checks integrity, starts an API on port 4100 against the copy and removes it. Details: `docs/DATABASE.md`.
+- **Indian equities (real data)**: add `EODHD_API_TOKEN` and/or `ALPHAVANTAGE_API_KEY` to `.env.local`, restart, then import as an administrator at `/app/equities` (dry run first). Imported instruments refresh about daily. Sources: `docs/equity/SOURCE_CAPABILITY_MATRIX.md`.
+- **Research alerts** are evaluated every 5 minutes while ATLAS runs and appear in Notices; users can also press "Check now".
+- **Risk-free rate** for Sharpe/Sortino: `RESEARCH_RISK_FREE_RATE` (decimal, default 0; shown with every ratio).
