@@ -344,12 +344,17 @@ const marketArchitect: SourceCourse = {
 // Digital-assets track (ATLAS Digital Assets). Imported at the end: the content modules import types from here.
 import { CRYPTO_DECODER } from './content/crypto-decoder.js';
 import { ASSET_ARCHITECT, ONCHAIN_ENGINEER, TOKENOMICS_DETECTIVE } from './content/crypto-advanced.js';
+import { COMMODITY_DECODER } from './content/commodity-decoder.js';
 
-export const CURRICULUM: SourceCourse[] = [marketDecoder, equityDetective, signalEngineer, marketArchitect, CRYPTO_DECODER, TOKENOMICS_DETECTIVE, ONCHAIN_ENGINEER, ASSET_ARCHITECT];
+export const CURRICULUM: SourceCourse[] = [marketDecoder, equityDetective, signalEngineer, marketArchitect, CRYPTO_DECODER, TOKENOMICS_DETECTIVE, ONCHAIN_ENGINEER, ASSET_ARCHITECT, COMMODITY_DECODER];
 
-/** Learning tracks: the four equity courses and the four digital-asset courses. Level is the position within the track. */
+/** Learning tracks: equities, digital assets and commodities. Level is the position within the track. */
 export const DIGITAL_ASSET_COURSES = new Set(['crypto-decoder', 'tokenomics-detective', 'onchain-engineer', 'asset-architect']);
-export function courseTrack(courseId: string): { track: 'equities' | 'digital_assets'; level: number } {
-  const ids = CURRICULUM.filter((c) => DIGITAL_ASSET_COURSES.has(c.id) === DIGITAL_ASSET_COURSES.has(courseId)).map((c) => c.id);
-  return { track: DIGITAL_ASSET_COURSES.has(courseId) ? 'digital_assets' : 'equities', level: ids.indexOf(courseId) + 1 };
+export const COMMODITY_COURSES = new Set(['commodity-decoder']);
+export type Track = 'equities' | 'digital_assets' | 'commodities';
+const trackOf = (id: string): Track => (DIGITAL_ASSET_COURSES.has(id) ? 'digital_assets' : COMMODITY_COURSES.has(id) ? 'commodities' : 'equities');
+export function courseTrack(courseId: string): { track: Track; level: number } {
+  const track = trackOf(courseId);
+  const ids = CURRICULUM.filter((c) => trackOf(c.id) === track).map((c) => c.id);
+  return { track, level: ids.indexOf(courseId) + 1 };
 }

@@ -2,7 +2,7 @@
 import { Empty, Loading, Problem, useApi } from '@/components/ui';
 
 interface Course {
-  course_id: string; title: string; tagline: string; description: string; audience: string; position: number; track: 'equities' | 'digital_assets'; level: number; draft: boolean; status: string; available: boolean;
+  course_id: string; title: string; tagline: string; description: string; audience: string; position: number; track: 'equities' | 'digital_assets' | 'commodities'; level: number; draft: boolean; status: string; available: boolean;
   modules: number; lessons: number; minutes: number; enrolment: { entry_route: string } | null; last_diagnostic: { readiness: string | null } | null;
 }
 interface Progress { courses: { course_id: string; title: string; lessons: number; lessons_completed: number; objectives: number; mastered: number }[]; reviews_due: number; note: string }
@@ -48,9 +48,9 @@ export default function AcademyHome() {
       {cat.courses.length === 0 ? (
         <Empty>No courses are set up in this environment yet. The curriculum loads when the API starts; if this persists, check the API log for the curriculum sync.</Empty>
       ) : (
-        <>{(['equities', 'digital_assets'] as const).map((t) => (
+        <>{(['equities', 'digital_assets', 'commodities'] as const).map((t) => cat.courses.some((c) => c.track === t) && (
           <section key={t} aria-labelledby={`track-${t}`}>
-            <h2 id={`track-${t}`} className="eyebrow" style={{ margin: '18px 0 8px' }}>{t === 'equities' ? 'Track 1 · Indian equities' : 'Track 2 · Digital assets'}</h2>
+            <h2 id={`track-${t}`} className="eyebrow" style={{ margin: '18px 0 8px' }}>{t === 'equities' ? 'Track 1 · Indian equities' : t === 'digital_assets' ? 'Track 2 · Digital assets' : 'Track 3 · Commodities'}</h2>
           <ol className="course-grid">
           {cat.courses.filter((c) => c.track === t).map((c) => {
             const mine = p?.courses.find((x) => x.course_id === c.course_id);

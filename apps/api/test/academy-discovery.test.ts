@@ -9,7 +9,7 @@ import { fixtureContext } from './fixture.js';
 
 // Regression for "the user cannot see the courses": every content item is still in expert review,
 // so with drafts hidden the catalogue used to be empty and every course URL returned 404.
-const TITLES = ['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT', 'ATLAS: CRYPTO MARKET DECODER', 'ATLAS: TOKENOMICS DETECTIVE', 'ATLAS: ON-CHAIN SIGNAL ENGINEER', 'ATLAS: DIGITAL ASSET ARCHITECT'];
+const TITLES = ['ATLAS: MARKET DECODER', 'ATLAS: EQUITY DETECTIVE', 'ATLAS: SIGNAL ENGINEER', 'ATLAS: MARKET ARCHITECT', 'ATLAS: CRYPTO MARKET DECODER', 'ATLAS: TOKENOMICS DETECTIVE', 'ATLAS: ON-CHAIN SIGNAL ENGINEER', 'ATLAS: DIGITAL ASSET ARCHITECT', 'ATLAS: COMMODITY MARKETS DECODER'];
 const cfg = (showDrafts: 'true' | 'false') =>
   loadConfig({ NODE_ENV: 'test', APP_SECRET: 'test-secret-test-secret-test-secret-test', LOG_LEVEL: 'silent', RATE_LIMIT_MULTIPLIER: '1000', WEB_ORIGIN: 'http://localhost:3000', ACADEMY_SHOW_DRAFTS: showDrafts } as NodeJS.ProcessEnv);
 

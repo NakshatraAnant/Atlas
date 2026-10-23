@@ -231,6 +231,7 @@ export const SKILL_AREAS: { id: string; title: string; match: (objectiveId: stri
   { id: 'quant', title: 'Quantitative methods', match: (o, c) => c === 'signal-engineer' || (c === 'onchain-engineer' && o !== 'oe-o3'), practices: ['correlation_study', 'walkforward_backtest'] },
   { id: 'risk', title: 'Portfolio risk', match: (o, c) => (c === 'market-architect' && o !== 'ma-o4') || o === 'aa-o4', practices: ['portfolio_risk_review', 'scenario_tested'] },
   { id: 'data', title: 'Data literacy', match: (o) => o === 'oe-o3', practices: ['data_issue_investigated'] },
+  { id: 'commodities', title: 'Commodity markets', match: (_o, c) => c === 'commodity-decoder', practices: [] },
   { id: 'communication', title: 'Research communication', match: (o) => ['ma-o4', 'aa-o1', 'aa-o5'].includes(o), practices: ['report_created', 'hypothesis_reviewed', 'journal_reflection'] },
 ];
 
