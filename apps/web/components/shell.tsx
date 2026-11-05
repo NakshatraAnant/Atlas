@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { Disclosure, useApi } from './ui';
 import { useApp } from './providers';
+import { CommandPalette } from './command-palette';
 
 const APP_NAV: [string, string][] = [
   ['/app', 'Home'], ['/app/academy', 'Academy'], ['/app/terminal', 'Terminal (demo)'], ['/app/market', 'Market (demo)'], ['/app/crypto', 'Digital Assets'], ['/app/equities', 'Indian equities'], ['/app/commodities', 'Commodities'], ['/app/research-hub', 'Research hub'], ['/app/companies', 'Companies (demo)'], ['/app/assistant', 'Assistant (demo)'], ['/app/screener', 'Screener (demo)'], ['/app/lab', 'Quant Lab (demo)'], ['/app/research', 'My research'], ['/app/learn', 'Quick lessons'], ['/app/data-health', 'Data health'],
@@ -38,12 +39,33 @@ export function Shell({ children }: { children: ReactNode }) {
   const notes = useApi<{ notifications: { notification_id: string; read_at: string | null }[] }>(me ? '/v1/notifications' : null, [me?.profile.user_id]);
   const unread = notes.data?.notifications.filter((n) => !n.read_at).length ?? 0;
   const [fb, setFb] = useState(false);
+  const [search, setSearch] = useState(false);
+  // Ctrl/⌘+K anywhere, or "/" when not typing in a field, opens universal search.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = e.target instanceof HTMLElement && (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable);
+      if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing)) {
+        if (!me) return;
+        e.preventDefault();
+        setSearch(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [me]);
+  // The account's saved theme applies on a device that has no theme choice of its own yet.
+  useEffect(() => {
+    const t = me?.profile.display_prefs?.theme;
+    if (!t) return;
+    try { if (localStorage.getItem('atlas-theme')) return; } catch { /* ignore */ }
+    document.documentElement.dataset.theme = t;
+  }, [me]);
   useEffect(() => {
     if (!loading && !me && inApp) router.replace(`/login?next=${encodeURIComponent(path)}`);
   }, [loading, me, inApp, path, router]);
   const toggleTheme = () => {
     const r = document.documentElement;
-    const cur = r.dataset.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const cur = r.dataset.theme === 'light' ? 'light' : 'dark'; // dark is the default theme
     const next = cur === 'dark' ? 'light' : 'dark';
     r.dataset.theme = next;
     try { localStorage.setItem('atlas-theme', next); } catch { /* ignore */ }
@@ -59,12 +81,14 @@ export function Shell({ children }: { children: ReactNode }) {
       <a className="skip" href="#main">Skip to content</a>
       <header className="top">
         <a href={me ? '/app' : '/'} className="logo" aria-label="ATLAS home">ATLAS</a>
-        <span className="tag">Research workspace for Indian equities and digital assets</span>
+        <span className="tag">Financial research workspace · markets, macro, commodities, digital assets</span>
         {me ? (
           <>
+            <button className="searchbtn" onClick={() => setSearch(true)} aria-label="Search ATLAS (Ctrl+K)"><span aria-hidden="true">⌕</span><span className="lbl">Search</span><kbd>Ctrl K</kbd></button>
             <a className="pill" href="/app/billing" title="Your plan">{me.plan.name}{me.plan.status === 'past_due' ? ' · payment due' : ''}</a>
             <a className="pill" href="/app/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}>Notices{unread ? ` (${unread})` : ''}</a>
             {['admin', 'support', 'data_ops'].includes(me.profile.role) && <a className="pill" href="/admin">Admin</a>}
+            <a className="pill" href="/app/settings">Settings</a>
             <a className="pill" href="/app/account">Account</a>
             <button onClick={signOut}>Sign out</button>
           </>
@@ -93,6 +117,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <Disclosure />
       </footer>
       {fb && <FeedbackDialog onClose={() => setFb(false)} />}
+      <CommandPalette open={search} onClose={() => setSearch(false)} />
     </>
   );
 }

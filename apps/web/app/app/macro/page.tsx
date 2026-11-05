@@ -16,6 +16,7 @@ export default function Macro() {
   return (
     <>
       <h1>Macro</h1>
+      <p><a className="btn s" href="/app/macro/explorer">Open the relationship explorer</a> <span className="mu">Compare two indicators and their rolling correlation.</span></p>
       <p className="mu">{d.notice}</p>
       {!d.configured && <p className="err">Macro data is not connected in this installation.</p>}
       {GROUPS.map(([g, title]) => {
@@ -27,7 +28,7 @@ export default function Macro() {
             <div className="wrap"><table className="term-table"><thead><tr><th scope="col" style={{ textAlign: 'left' }}>Series</th><th scope="col">Latest</th><th scope="col">Units</th><th scope="col">Period</th><th scope="col">Previous</th><th scope="col">Frequency</th><th scope="col">Status</th></tr></thead>
               <tbody>{rows.map((r) => (
                 <tr key={r.series_id}>
-                  <td style={{ textAlign: 'left' }}><a href={`/app/macro/${r.series_id}`}>{r.title === r.series_id ? r.series_id : r.title}</a></td>
+                  <td style={{ textAlign: 'left' }}><a href={`/app/macro/${r.series_id}`}>{r.title === r.series_id ? r.series_id : r.title}</a>{r.notes && <div className="mu" style={{ fontSize: 12, maxWidth: 520 }}>{r.notes}</div>}</td>
                   <td className="num">{r.latest ? r.latest.v.toLocaleString('en-IN', { maximumFractionDigits: 3 }) : '—'}</td>
                   <td>{r.units ?? ''}</td>
                   <td>{r.latest?.d ?? '—'}</td>

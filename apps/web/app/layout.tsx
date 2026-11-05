@@ -5,10 +5,10 @@ import { Shell } from '@/components/shell';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'ATLAS — research workspace for Indian equities and digital assets', template: '%s · ATLAS' },
-  description: 'Understand a company’s financial performance and the market context around it in one research workspace. Every number traceable; AI that shows its work.',
+  title: { default: 'ATLAS — financial research workspace', template: '%s · ATLAS' },
+  description: 'Research Indian indices, commodities, macro data and digital assets from named, dated sources, with tools for analysis and structured learning. Not investment advice.',
 };
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#14243d' };
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#080b12' };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

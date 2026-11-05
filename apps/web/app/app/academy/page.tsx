@@ -1,4 +1,5 @@
 'use client';
+import { useApp } from '@/components/providers';
 import { Empty, Loading, Problem, useApi } from '@/components/ui';
 
 interface Course {
@@ -16,6 +17,7 @@ const hours = (m: number) => (m >= 60 ? `about ${Math.round(m / 6) / 10} h` : `$
 
 export default function AcademyHome() {
   const courses = useApi<Catalogue>('/v1/academy/courses');
+  const showStreak = useApp().me?.profile.display_prefs?.show_streak !== false;
   const progress = useApi<Progress>('/v1/academy/progress');
   const me = useApi<MeLite>('/v1/academy/me');
   if (courses.loading) return <Loading lines={6} label="Loading courses" />;
@@ -34,7 +36,7 @@ export default function AcademyHome() {
         {me.data && (
           <div className="card next-action">
             <p className="big">Next: {me.data.recommendation.href ? <a href={me.data.recommendation.href}>{me.data.recommendation.title}</a> : me.data.recommendation.title}</p>
-            <p className="mu">{me.data.recommendation.reason} · Level {me.data.xp.level} · {me.data.xp.xp} XP · {me.data.streak.daily.current}-day streak</p>
+            <p className="mu">{me.data.recommendation.reason} · Level {me.data.xp.level} · {me.data.xp.xp} XP{showStreak ? ` · ${me.data.streak.daily.current}-day streak` : ''}</p>
           </div>
         )}
         <p className={cat.preview_mode ? 'warn' : 'mu'} role="note">{cat.review_note}</p>

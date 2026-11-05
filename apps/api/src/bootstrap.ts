@@ -117,7 +117,7 @@ export async function runRetention(ctx: AppContext): Promise<Record<string, numb
     await db.tx(async (t) => {
       // Personal data erased; tax invoices and payment records are kept as the law requires (pseudonymised user row).
       await t.query(`UPDATE app.users SET email = 'deleted-' || user_id || '@deleted.invalid', password_hash=NULL, display_name=NULL, totp_secret=NULL, recovery_codes='[]', interests='{}', display_prefs='{}', google_sub=NULL WHERE user_id=$1`, [e.user_id]);
-      for (const tbl of ['app.watchlist_items WHERE watchlist_id IN (SELECT watchlist_id FROM app.watchlists WHERE user_id=$1)', 'app.watchlists WHERE user_id=$1', 'app.notes WHERE user_id=$1', 'app.workspaces WHERE user_id=$1', 'app.saved_screens WHERE user_id=$1', 'app.hypotheses WHERE user_id=$1', 'app.research_history WHERE user_id=$1', 'app.learning_progress WHERE user_id=$1', 'app.peer_sets WHERE user_id=$1', 'app.last_visits WHERE user_id=$1', 'app.company_views WHERE user_id=$1', 'app.notifications WHERE user_id=$1']) {
+      for (const tbl of ['app.watchlist_items WHERE watchlist_id IN (SELECT watchlist_id FROM app.watchlists WHERE user_id=$1)', 'app.watchlists WHERE user_id=$1', 'app.notes WHERE user_id=$1', 'app.workspaces WHERE user_id=$1', 'app.saved_screens WHERE user_id=$1', 'app.hypotheses WHERE user_id=$1', 'app.research_history WHERE user_id=$1', 'app.learning_progress WHERE user_id=$1', 'app.peer_sets WHERE user_id=$1', 'app.last_visits WHERE user_id=$1', 'app.company_views WHERE user_id=$1', 'app.notifications WHERE user_id=$1', 'app.series_follows WHERE user_id=$1']) {
         await t.query(`DELETE FROM ${tbl}`, [e.user_id]);
       }
       // Academy learning records are personal data too (answers, progress, ledger). Enrolments go before

@@ -25,8 +25,11 @@ import { objectRoutes } from './modules/research/objectRoutes.js';
 import { fundamentalsRoutes } from './modules/research/fundamentalsRoutes.js';
 import { commodityRoutes } from './modules/commodity/routes.js';
 import { macroRoutes } from './modules/macro/macro.js';
+import { explorerRoutes } from './modules/macro/explorer.js';
+import { followRoutes } from './modules/macro/follows.js';
 import { mandiRoutes } from './modules/commodity/mandi.js';
 import { providerRoutes } from './modules/ops/providerRoutes.js';
+import { searchRoutes } from './modules/ops/searchRoutes.js';
 
 // HTTP application (Blueprint §7). Versioned under /v1; RFC 9457 errors; secure cookies;
 // CSRF double-submit check on state-changing requests; per-route rate limits; idempotency keys;
@@ -214,9 +217,12 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
   await objectRoutes(app, ctx);
   await fundamentalsRoutes(app, ctx);
   await commodityRoutes(app, ctx);
+  await explorerRoutes(app, ctx);
+  await followRoutes(app, ctx);
   await macroRoutes(app, ctx);
   await mandiRoutes(app, ctx);
   await providerRoutes(app, ctx);
+  await searchRoutes(app, ctx);
   await adminRoutes(app, ctx);
   return app;
 }

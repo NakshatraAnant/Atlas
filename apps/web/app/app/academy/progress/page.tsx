@@ -1,4 +1,5 @@
 'use client';
+import { useApp } from '@/components/providers';
 import { useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { Loading, Problem, useApi } from '@/components/ui';
@@ -23,6 +24,7 @@ const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN'
 
 export default function LearningProgress() {
   const me = useApi<Me>('/v1/academy/me');
+  const showStreak = useApp().me?.profile.display_prefs?.show_streak !== false;
   const [err, setErr] = useState<ApiError | null>(null);
   const [saved, setSaved] = useState(false);
   if (me.loading) return <Loading lines={8} label="Loading your progress" />;
@@ -69,12 +71,12 @@ export default function LearningProgress() {
             </div>
           )}
         </section>
-        <section className="card" aria-labelledby="st">
+        {showStreak ? <section className="card" aria-labelledby="st">
           <h2 id="st">Streaks</h2>
           <p><strong>{m.streak.daily.current}</strong> day{m.streak.daily.current === 1 ? '' : 's'} in a row{m.streak.daily.today_active ? ' · today counted' : ' · learn today to continue'}{m.streak.daily.rest_days_in_current ? ` · ${m.streak.daily.rest_days_in_current} rest day used` : ''}. Longest: {m.streak.daily.longest}.</p>
           <p><strong>{m.streak.weekly.current}</strong> week{m.streak.weekly.current === 1 ? '' : 's'} meeting your goal · this week {m.streak.weekly.this_week_days} of {m.streak.weekly.goal} days.</p>
-          <p className="mu">A day counts when you complete a lesson or quiz, recall a concept in review, solve a game, submit a capstone or do documented research (Research hub). One missed day a week is treated as a rest day. Missing days never removes XP or achievements.</p>
-        </section>
+          <p className="mu">A day counts when you complete a lesson or quiz, recall a concept in review, solve a game, submit a capstone or do documented research (Research hub). One missed day a week is treated as a rest day. Missing days never removes XP or achievements. You can hide streaks in <a href="/app/settings">Settings</a>.</p>
+        </section> : <section className="card"><h2>Streaks</h2><p className="mu">Streaks are hidden. <a href="/app/settings">Show them in Settings</a>.</p></section>}
       </div>
 
       <section className="card" aria-labelledby="sk">

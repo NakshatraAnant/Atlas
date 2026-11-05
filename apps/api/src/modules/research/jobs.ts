@@ -2,6 +2,7 @@ import type { AppContext } from '../../context.js';
 import { refreshCommodities } from '../commodity/ingest.js';
 import { commodityKeys } from '../commodity/routes.js';
 import { refreshMacro } from '../macro/macro.js';
+import { notifyFollowers, weeklyDigests } from '../macro/follows.js';
 import { refreshMandi } from '../commodity/mandi.js';
 import { scheduledEquityRefresh } from '../equity/routes.js';
 import { evaluateAlerts } from './objectRoutes.js';
@@ -27,6 +28,8 @@ export function startResearchJobs(ctx: AppContext): () => void {
     };
   };
   timers.push(setInterval(guard('alerts', () => evaluateAlerts(ctx.db, ctx.clock())), 5 * 60_000));
+  // Followed-series release notices and the opt-in weekly digest: stored data only, checked every 30 minutes.
+  timers.push(setInterval(guard('follow_notices', async () => { await notifyFollowers(ctx.db); await weeklyDigests(ctx.db, ctx.clock()); }), 30 * 60_000));
   const refresh = guard('equity_refresh', () => scheduledEquityRefresh(ctx));
   timers.push(setTimeout(() => void refresh(), 60_000));
   timers.push(setInterval(refresh, 10 * 60_000));

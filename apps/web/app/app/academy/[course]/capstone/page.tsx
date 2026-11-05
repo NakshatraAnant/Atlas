@@ -14,7 +14,8 @@ export default function CapstonePage({ params }: { params: Promise<{ course: str
   const comp = useApi<Completion>(`/v1/academy/courses/${course}/completion`);
   const notes = useApi<{ notes: { note_id: string; title: string }[] }>('/v1/notes');
   // Backtests and company hypotheses belong to the demo dataset; with demo data off they are not requested.
-  const demo = useApp().me?.demo_mode !== false;
+  const me = useApp().me;
+  const demo = !!me && me.demo_mode !== false;
   const runs = useApi<{ runs: { run_id: string; name: string | null; template_code: string; created_at: string }[] }>(demo ? '/v1/backtests' : null);
   const hyps = useApi<{ hypotheses: { hypothesis_id: string; statement: string }[] }>(demo ? '/v1/hypotheses' : null);
   const [body, setBody] = useState('');

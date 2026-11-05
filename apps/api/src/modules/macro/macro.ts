@@ -40,7 +40,7 @@ const FRED_TERMS = 'Data from FRED®, Federal Reserve Bank of St. Louis (fred.st
 
 export async function syncMacroSeries(db: Db): Promise<void> {
   for (const s of MACRO_SERIES) {
-    await db.query(`INSERT INTO macro.series (series_id, category, title, notes) VALUES ($1,$2,$1,$3) ON CONFLICT (series_id) DO UPDATE SET category=EXCLUDED.category`, [s.id, s.category, s.note]);
+    await db.query(`INSERT INTO macro.series (series_id, category, title, notes) VALUES ($1,$2,$1,$3) ON CONFLICT (series_id) DO UPDATE SET category=EXCLUDED.category, notes=EXCLUDED.notes`, [s.id, s.category, s.note]);
   }
 }
 
@@ -151,8 +151,9 @@ export async function macroRoutes(app: FastifyInstance, ctx: AppContext): Promis
     const latest = obs[obs.length - 1] ?? null;
     return {
       series: s, freshness: freshnessOf(s.last_date, s.frequency, ctx.clock(), s.last_error, { expectedAgeDays: MACRO_SERIES.find((m) => m.id === s.series_id)?.expected_age_days }),
-      latest, observations: obs.slice(-600).map((o) => ({ t: o.d, v: o.v })),
-      yoy: isIndex ? yoy(obs).slice(-240).map((o) => ({ t: o.d, v: o.v })) : null,
+      // Up to 10 years of daily data (about 2,600 points); full history for weekly and lower frequencies.
+      latest, observations: (/^d/i.test(s.frequency ?? '') ? obs.filter((o) => o.d >= new Date(ctx.clock().getTime() - 3653 * 86_400_000).toISOString().slice(0, 10)) : obs).map((o) => ({ t: o.d, v: o.v })),
+      yoy: isIndex ? yoy(obs).map((o) => ({ t: o.d, v: o.v })) : null,
       yoy_note: isIndex ? 'Year-on-year change: value ÷ value for the same period a year earlier − 1 (only where both exist).' : null,
       revisions, provenance: { source: `FRED series ${s.series_id}`, url: `https://fred.stlouisfed.org/series/${s.series_id}`, source_last_updated: s.source_last_updated, last_retrieved_at: s.last_import_at, latest_published_at: latest?.p ?? null, terms: FRED_TERMS },
       empty_reason: obs.length ? null : ctx.cfg.FRED_API_KEY ? 'Not imported yet: the refresh fetches it shortly after start-up.' : 'FRED is not configured (FRED_API_KEY).',

@@ -1,0 +1,392 @@
+[
+  {
+    "route": "/",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 1288,
+    "h1": "A research workspace for Indian markets, digital assets, commodities and the economy, built on named, dated sources.",
+    "overflow": false,
+    "load_ms": 1826
+  },
+  {
+    "route": "/status",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 502,
+    "h1": "Status",
+    "overflow": false,
+    "load_ms": 1558
+  },
+  {
+    "route": "/pricing",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 1261,
+    "h1": "Plans",
+    "overflow": false,
+    "load_ms": 1613
+  },
+  {
+    "route": "/methodology",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 5014,
+    "h1": "Methodology",
+    "overflow": false,
+    "load_ms": 1576
+  },
+  {
+    "route": "/help",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 4788,
+    "h1": "Help centre",
+    "overflow": false,
+    "load_ms": 1772
+  },
+  {
+    "route": "/login",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 115,
+    "h1": "Sign in",
+    "overflow": false,
+    "load_ms": 1521
+  },
+  {
+    "route": "/signup",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 505,
+    "h1": "Create your free account",
+    "overflow": false,
+    "load_ms": 1635
+  },
+  {
+    "route": "/app",
+    "viewport": "mobile",
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ],
+    "failed_requests": [
+      "403 /v1/market/briefings/latest",
+      "403 /v1/home/what-changed",
+      "403 /v1/market/calendar",
+      "403 /v1/home/worth-investigating",
+      "403 /v1/watchlists"
+    ],
+    "text_length": 1305,
+    "h1": "Good morning, pro",
+    "overflow": false,
+    "load_ms": 3082
+  },
+  {
+    "route": "/app/equities",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 725,
+    "h1": "Indian equities: real data",
+    "overflow": false,
+    "load_ms": 1745
+  },
+  {
+    "route": "/app/equities/INDEX/NIFTY50",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 2186,
+    "h1": "INDEX:NIFTY50 NIFTY 50",
+    "overflow": false,
+    "load_ms": 1910
+  },
+  {
+    "route": "/app/equities/statements",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 806,
+    "h1": "Financial statements you import",
+    "overflow": false,
+    "load_ms": 1717
+  },
+  {
+    "route": "/app/crypto",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 4328,
+    "h1": "Digital Assets",
+    "overflow": false,
+    "load_ms": 1961
+  },
+  {
+    "route": "/app/crypto/assets",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 6051,
+    "h1": "Digital Assets",
+    "overflow": false,
+    "load_ms": 1789
+  },
+  {
+    "route": "/app/crypto/assets/bitcoin",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 2461,
+    "h1": "BTCBitcoin BTC",
+    "overflow": false,
+    "load_ms": 1785
+  },
+  {
+    "route": "/app/crypto/defi",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 5000,
+    "h1": "Digital Assets",
+    "overflow": false,
+    "load_ms": 1839
+  },
+  {
+    "route": "/app/crypto/onchain",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 5402,
+    "h1": "Digital Assets",
+    "overflow": false,
+    "load_ms": 1719
+  },
+  {
+    "route": "/app/crypto/events",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 10006,
+    "h1": "Digital Assets",
+    "overflow": false,
+    "load_ms": 1575
+  },
+  {
+    "route": "/app/crypto/research",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 1509,
+    "h1": "Digital Assets",
+    "overflow": false,
+    "load_ms": 2268
+  },
+  {
+    "route": "/app/crypto/sources",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 3615,
+    "h1": "Digital Assets",
+    "overflow": false,
+    "load_ms": 2525
+  },
+  {
+    "route": "/app/commodities",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 5981,
+    "h1": "Commodities",
+    "overflow": false,
+    "load_ms": 1997
+  },
+  {
+    "route": "/app/commodities/fred/DCOILBRENTEU",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 2091,
+    "h1": "Brent crude oil, Europe (spot)",
+    "overflow": false,
+    "load_ms": 1861
+  },
+  {
+    "route": "/app/commodities/eia/WCESTUS1",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 1547,
+    "h1": "US crude oil ending stocks excluding SPR (weekly)",
+    "overflow": false,
+    "load_ms": 1627
+  },
+  {
+    "route": "/app/macro",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 3036,
+    "h1": "Macro",
+    "overflow": false,
+    "load_ms": 1693
+  },
+  {
+    "route": "/app/macro/DGS10",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 1021,
+    "h1": "Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity, Quoted on an Investment Basis",
+    "overflow": false,
+    "load_ms": 1848
+  },
+  {
+    "route": "/app/macro/explorer",
+    "viewport": "mobile",
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ],
+    "failed_requests": [
+      "400 /v1/macro/series/explorer"
+    ],
+    "text_length": 106,
+    "h1": null,
+    "overflow": false,
+    "load_ms": 1555
+  },
+  {
+    "route": "/app/research-hub",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 489,
+    "h1": "Research hub",
+    "overflow": false,
+    "load_ms": 1725
+  },
+  {
+    "route": "/app/research/datasets",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 407,
+    "h1": "Your own data",
+    "overflow": false,
+    "load_ms": 1546
+  },
+  {
+    "route": "/app/academy",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 3006,
+    "h1": "Learn to read markets the way ATLAS does: with evidence.",
+    "overflow": false,
+    "load_ms": 1858
+  },
+  {
+    "route": "/app/academy/progress",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 10156,
+    "h1": "Your learning and research progress",
+    "overflow": false,
+    "load_ms": 2281
+  },
+  {
+    "route": "/app/academy/commodity-decoder",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 2995,
+    "h1": "Benchmarks, futures, curves, spreads, inventories and risk, on real published series.",
+    "overflow": false,
+    "load_ms": 1908
+  },
+  {
+    "route": "/app/academy/lesson/cm-l1",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 1320,
+    "h1": "What a commodity price actually is",
+    "overflow": false,
+    "load_ms": 1650
+  },
+  {
+    "route": "/app/learn",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 684,
+    "h1": "Quick lessons",
+    "overflow": false,
+    "load_ms": 12323
+  },
+  {
+    "route": "/app/data-health",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 1905,
+    "h1": "Data sources",
+    "overflow": false,
+    "load_ms": 3174
+  },
+  {
+    "route": "/app/notifications",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 85,
+    "h1": "Notices",
+    "overflow": false,
+    "load_ms": 1580
+  },
+  {
+    "route": "/app/account",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 2142,
+    "h1": "Account",
+    "overflow": false,
+    "load_ms": 1664
+  },
+  {
+    "route": "/app/settings",
+    "viewport": "mobile",
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "failed_requests": [
+      "404 /app/settings"
+    ],
+    "text_length": 33,
+    "h1": "404",
+    "overflow": false,
+    "load_ms": 1544
+  },
+  {
+    "route": "/admin",
+    "viewport": "mobile",
+    "console_errors": [],
+    "failed_requests": [],
+    "text_length": 8028,
+    "h1": "Operations console",
+    "overflow": false,
+    "load_ms": 1976
+  }
+]

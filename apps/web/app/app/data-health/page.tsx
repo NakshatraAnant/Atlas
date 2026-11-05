@@ -48,8 +48,9 @@ function DataSources() {
 }
 
 export default function DataHealth() {
-  const { me } = useApp();
-  if (me && me.demo_mode === false) return <DataSources />;
+  const { me, loading } = useApp();
+  if (loading || !me) return <Loading lines={6} />;
+  if (me.demo_mode === false) return <DataSources />;
   return <DemoDataHealth />;
 }
 
