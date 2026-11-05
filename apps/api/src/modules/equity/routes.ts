@@ -222,7 +222,20 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
     const revisions = await db.query(`SELECT s.basis, to_char(r.trade_date, 'YYYY-MM-DD') AS trade_date, r.previous, r.revised_at FROM equity.price_revisions r JOIN equity.price_series s USING (series_id) WHERE s.instrument_id=$1 ORDER BY r.revised_at DESC LIMIT 20`, [inst.instrument_id]);
     const raw = await loadBars(db, inst.instrument_id, 'raw');
     const adj = await loadBars(db, inst.instrument_id, 'adjusted_split_dividend');
-    const main: Bars | null = adj ?? raw;
+    // Which series the analysis uses. Indices are never split- or dividend-adjusted, so they always use
+    // the as-traded series (adjusted index rows imported before that rule are ignored). A share uses the
+    // adjusted series only while it is as recent as the raw one: a lagging adjusted series must never
+    // hide newer sessions.
+    const lastOf = (b: Bars | null) => (b && b.dates.length ? b.dates[b.dates.length - 1]! : null);
+    const adjCurrent = !!adj && (!raw || (lastOf(adj) ?? '') >= (lastOf(raw) ?? ''));
+    const main: Bars | null = inst.kind === 'index' ? (raw ?? adj) : adjCurrent ? adj : (raw ?? adj);
+    const basisReason = inst.kind === 'index'
+      ? 'Index: as-traded levels (indices are not split- or dividend-adjusted).'
+      : main === adj
+        ? 'Split- and dividend-adjusted closes from the provider.'
+        : adj
+          ? `As-traded closes: the adjusted series ends ${lastOf(adj)}, before the latest stored session ${lastOf(raw)}.`
+          : 'As-traded closes: the provider supplied no adjusted series.';
     const cal = await calendarFor(db, 'NSE', iso(t.getTime() - 40 * 86_400_000), iso(t.getTime() + 86_400_000));
     const expected = expectedLatestSession(t, cal);
     let analysis = null;
@@ -236,7 +249,7 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
       const n = main.close.length;
       const pick = <T>(xs: T[]) => tail(xs, 260);
       analysis = {
-        basis: main.basis, metrics: m, behind: sessionsBehind(m.last_date, expected, cal),
+        basis: main.basis, basis_reason: basisReason, metrics: m, behind: sessionsBehind(m.last_date, expected, cal),
         chart: pick(main.dates.map((d, i) => ({ t: d, open: main.open[i], high: main.high[i], low: main.low[i], close: main.close[i], volume: main.volume[i], rsi: rsiS[i], macd: mac.macd[i], signal: mac.signal[i], hist: mac.histogram[i] }))),
         relative_strength: benchBars ? { benchmark: 'INDEX:NIFTY50', basis_note: `Benchmark basis: ${benchBars.basis}.`, points: pick(rs).map((x) => ({ t: iso(x.t), v: x.v })), last: rs[rs.length - 1]?.v ?? null } : { benchmark: null, reason: 'NIFTY 50 has no stored data yet (add INDEX:NIFTY50 to the tracked universe).' },
         gaps: A.gaps(main.dates.map((d, i) => ({ t: Date.parse(`${d}T00:00:00Z`), open: main.open[i]!, high: main.high[i]!, low: main.low[i]!, close: main.close[i]! })), 0.02).slice(-20).reverse().map((g) => ({ ...g, t: iso(g.t) })),

@@ -1,6 +1,7 @@
 'use client';
 import { useParams } from 'next/navigation';
-import { MiniLine } from '@/components/crypto';
+import { TsChart } from '@/components/ts-chart';
+import { FollowButton } from '@/components/follow-button';
 import { Loading, Problem, useApi } from '@/components/ui';
 
 // One macro series: its observations, year-on-year change for index series, revisions FRED has made
@@ -17,8 +18,8 @@ export default function MacroSeries() {
   const s = d.series;
   return (
     <>
-      <p><a href="/app/macro">← Macro</a></p>
-      <h1>{s.title}</h1>
+      <nav className="crumbs" aria-label="Breadcrumb"><a href="/app/macro">Macro</a> › <span aria-current="page">{s.series_id}</span> · <a href={`/app/macro/explorer`}>Compare with another series</a></nav>
+      <div className="home-panel-hd"><h1>{s.title}</h1><FollowButton seriesKey={`macro:${s.series_id}`} label={s.title} /></div>
       <p>{s.frequency} · {s.units}{s.seasonal_adjustment ? ` · ${s.seasonal_adjustment}` : ''} · <span className={`t ${STATE[d.freshness.state]?.[0] ?? 'm'}`}>{STATE[d.freshness.state]?.[1] ?? d.freshness.state}</span></p>
       {s.notes && <p className="mu">{s.notes}</p>}
       {!d.latest ? <section className="card"><p>{d.empty_reason}</p></section> : (
@@ -30,13 +31,13 @@ export default function MacroSeries() {
               <div className="cx-kpi"><span className="k">Shown in FRED since</span><span className="v">{d.latest.p ?? '—'}</span><span className="s">vintage date of this value</span></div>
               <div className="cx-kpi"><span className="k">Retrieved by ATLAS</span><span className="v">{d.provenance.last_retrieved_at ? new Date(d.provenance.last_retrieved_at).toLocaleDateString('en-IN') : '—'}</span></div>
             </div>
-            <MiniLine points={d.observations} title={`${s.title} (${s.units})`} format={(v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 2 })} />
+            <TsChart title={s.title} defaultRange={/^d/i.test(s.frequency ?? '') ? '5Y' : 'Max'} gapDays={/^d/i.test(s.frequency ?? '') ? 7 : /^w/i.test(s.frequency ?? '') ? 20 : /^q/i.test(s.frequency ?? '') ? 140 : /^a/i.test(s.frequency ?? '') ? 400 : 70} series={[{ label: s.series_id, unit: s.units ?? '', points: d.observations }]} note={`Source: ${d.provenance.source}`} />
             <p className="mu">{d.freshness.rule}</p>
           </section>
           {d.yoy && d.yoy.length > 1 && (
             <section className="card">
               <h2>Year-on-year change</h2>
-              <MiniLine points={d.yoy} title="Change from the same period a year earlier" zero />
+              <TsChart title="Change from the same period a year earlier" defaultRange="Max" gapDays={400} zeroLine series={[{ label: 'Year-on-year change', unit: 'fraction (0.03 = 3%)', points: d.yoy }]} />
               <p className="mu">{d.yoy_note}</p>
             </section>
           )}

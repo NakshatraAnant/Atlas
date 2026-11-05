@@ -12,9 +12,12 @@ interface LearnProgress { courses: { course_id: string; title: string; lessons: 
 interface CalEvent { event_date: string; kind: string; title: string; status: string; company_id: string | null; source: string }
 
 export default function Home() {
-  const { me } = useApp();
+  const { me, loading } = useApp();
+  // Wait for the account before choosing: rendering the demo Home first would request demo-only data
+  // (found by the QA crawler: five 403s on every visit in real-data mode).
+  if (loading || !me) return <Loading lines={6} />;
   // Real-data mode: no fictional companies, briefings or watchlists on Home.
-  if (me && me.demo_mode === false) return <RealHome name={me.profile.display_name} />;
+  if (me.demo_mode === false) return <RealHome name={me.profile.display_name} />;
   return <DemoHome />;
 }
 

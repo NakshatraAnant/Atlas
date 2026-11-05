@@ -11,6 +11,17 @@ import { track } from '../analytics/events.js';
 
 // Profile, preferences, consents, sessions, data export and deletion (PRD ACC-06, ACC-07, ACC-08, ACC-03).
 
+/** Display preferences: known keys only, so the stored object stays small and every value is understood. */
+export const HOME_PANELS = ['attention', 'following', 'indices', 'commodities', 'macro', 'crypto', 'learning'] as const;
+export const DISPLAY_PREFS = z.object({
+  theme: z.enum(['dark', 'light']),
+  home_panels: z.array(z.enum(HOME_PANELS)).max(HOME_PANELS.length).refine((a) => new Set(a).size === a.length, 'Each panel once.'),
+  markets: z.array(z.enum(['india', 'us', 'commodities', 'crypto'])).max(4),
+  notify: z.object({ releases: z.boolean(), digest: z.boolean() }).partial(),
+  show_streak: z.boolean(),
+  screener_columns: z.array(z.string().max(40)).max(30),
+}).partial().strict();
+
 export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/v1/me', async (req) => {
     const u = requireUser(req);
@@ -32,7 +43,7 @@ export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Prom
         experience_level: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
         interests: z.array(z.string().trim().max(40)).max(20).optional(),
         briefing_email: z.enum(['daily', 'weekly', 'off']).optional(),
-        display_prefs: z.record(z.unknown()).optional(),
+        display_prefs: DISPLAY_PREFS.optional(),
         state_code: z.string().regex(/^\d{2}$/).optional(),
         onboarding_completed: z.boolean().optional(),
       }),

@@ -16,9 +16,13 @@ export interface Bars { basis: 'raw' | 'adjusted_split_dividend'; dates: string[
 export async function loadBars(db: Db, instrumentId: string, basis?: 'raw' | 'adjusted_split_dividend'): Promise<Bars | null> {
   // Shares: the provider-adjusted series first (a split is not a crash). Indices: the published level (raw);
   // a provider "adjusted close" for an index is the same number and must not be read as total return.
-  const series = await db.query<{ series_id: string; basis: 'raw' | 'adjusted_split_dividend' }>(`SELECT s.series_id, s.basis FROM equity.price_series s JOIN equity.instruments i USING (instrument_id) WHERE s.instrument_id=$1 AND s.observations > 0
+  // A preferred adjusted series that ends before the raw one is skipped: it must not hide newer sessions.
+  const series = await db.query<{ series_id: string; basis: 'raw' | 'adjusted_split_dividend'; last: string | null }>(`SELECT s.series_id, s.basis, (SELECT to_char(max(trade_date), 'YYYY-MM-DD') FROM equity.prices p WHERE p.series_id = s.series_id) AS last
+      FROM equity.price_series s JOIN equity.instruments i USING (instrument_id) WHERE s.instrument_id=$1 AND s.observations > 0
     ORDER BY CASE WHEN s.basis = CASE WHEN i.kind = 'index' THEN 'raw' ELSE 'adjusted_split_dividend' END THEN 0 ELSE 1 END`, [instrumentId]);
-  const s = basis ? series.find((x) => x.basis === basis) : series[0];
+  const preferred = series[0];
+  const other = series[1];
+  const s = basis ? series.find((x) => x.basis === basis) : preferred && other && (preferred.last ?? '') < (other.last ?? '') ? other : preferred;
   if (!s) return null;
   const rows = await db.query<{ d: string; open: number; high: number; low: number; close: number; volume: number | null; validation: string }>(
     `SELECT to_char(trade_date, 'YYYY-MM-DD') AS d, open::float8 AS open, high::float8 AS high, low::float8 AS low, close::float8 AS close, volume::float8 AS volume, validation FROM equity.prices WHERE series_id=$1 ORDER BY trade_date`, [s.series_id]);

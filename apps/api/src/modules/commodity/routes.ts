@@ -103,7 +103,7 @@ export async function commodityRoutes(app: FastifyInstance, ctx: AppContext): Pr
     const revisions = await db.one<{ n: number }>(`SELECT count(*)::int AS n FROM commodity.revisions WHERE series_id=$1`, [id]);
     const lastJob = await db.maybeOne(`SELECT started_at, status, received, stored, unchanged, corrected, missing_values, rejected, error FROM commodity.import_jobs WHERE series_id=$1 ORDER BY started_at DESC LIMIT 1`, [id]);
     if (!obs.length) return { series: r, freshness: freshness(null, r.frequency, t), analysis: null, empty_reason: r.source_id === 'eia' && !ctx.cfg.EIA_API_KEY ? 'Needs your free EIA key (EIA_API_KEY in .env.local).' : 'Not imported yet: the daily refresh fetches it, or an administrator can refresh now.', provenance: { source: r.source_id === 'fred' ? `FRED series ${r.source_series}` : `EIA series ${r.source_series}`, upstream: r.upstream, licence: r.licence_note, last_import_at: r.last_import_at, last_job: lastJob, revisions: revisions.n } };
-    const chartFrom = r.frequency === 'monthly' ? t.getTime() - 15 * 366 * DAY : t.getTime() - 3 * 366 * DAY;
+    const chartFrom = r.frequency === 'daily' ? t.getTime() - 10 * 366 * DAY : 0; // 10 years of daily data; full history otherwise
     // Correlation of returns with other series of the same frequency (aligned on shared dates, last 3 years).
     const peers = (await seriesRows(db)).filter((x) => x.series_id !== id && x.frequency === r.frequency && x.observations > 0 && x.price_type !== 'inventory');
     const mine = obs.filter((o) => o.t >= t.getTime() - 3 * 366 * DAY);

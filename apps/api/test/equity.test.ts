@@ -163,3 +163,35 @@ describe('API', () => {
     expect((await c.post('/admin/v1/equity/import', { provider: 'eodhd', exchange: 'NSE', symbol: 'TCS' })).status).toBe(403);
   });
 });
+
+describe('instrument page uses the most recent valid series (regression, session 13)', () => {
+  it('an index ignores a stale adjusted series left over from earlier imports and shows the latest raw session', async () => {
+    const idx = { provider: 'eodhd' as const, exchange: 'INDEX' as const, symbol: 'NIFTY50', kind: 'index' as const, name: 'Test index (generated rows)', providerSymbol: 'NSEI.INDX' };
+    body = JSON.stringify(sessions(30));
+    status = 200;
+    const s = await importEquityPrices(ctx.db, fakeFetch, KEYS, idx, NOW);
+    expect(s.status, String(s.error)).toBe('succeeded');
+    const inst = await ctx.db.one<{ instrument_id: string }>(`SELECT instrument_id FROM equity.instruments WHERE exchange='INDEX' AND symbol='NIFTY50'`);
+    // Legacy adjusted index rows that stop 10 sessions early (as on the live database before the fix).
+    const legacy = await ctx.db.one<{ series_id: string }>(`INSERT INTO equity.price_series (instrument_id, provider_id, classification, basis, observations) VALUES ($1, 'eodhd', 'REAL_UNVERIFIED', 'adjusted_split_dividend', 20) RETURNING series_id`, [inst.instrument_id]);
+    await ctx.db.query(`INSERT INTO equity.prices (series_id, trade_date, open, high, low, close, volume) SELECT $1, p.trade_date, p.open, p.high, p.low, p.close, p.volume FROM equity.prices p JOIN equity.price_series s USING (series_id) WHERE s.instrument_id=$2 AND s.basis='raw' ORDER BY p.trade_date LIMIT 20`, [legacy.series_id, inst.instrument_id]);
+    const c = new Client(app);
+    await c.login('pro@atlas.test', DEV_PASSWORD);
+    const page = (await c.get('/v1/equity/instruments/INDEX/NIFTY50')).json;
+    const lastRaw = (await ctx.db.one<{ d: string }>(`SELECT to_char(max(p.trade_date), 'YYYY-MM-DD') AS d FROM equity.prices p JOIN equity.price_series s USING (series_id) WHERE s.instrument_id=$1 AND s.basis='raw'`, [inst.instrument_id])).d;
+    expect(page.analysis.basis).toBe('raw');
+    expect(page.analysis.metrics.last_date).toBe(lastRaw);
+    expect(page.analysis.basis_reason).toMatch(/Index: as-traded/);
+  });
+
+  it('a share falls back to raw closes, and says why, when its adjusted series lags', async () => {
+    const inst = await ctx.db.one<{ instrument_id: string }>(`SELECT instrument_id FROM equity.instruments WHERE exchange='NSE' AND symbol='TCS'`);
+    const c = new Client(app);
+    await c.login('pro@atlas.test', DEV_PASSWORD);
+    expect((await c.get('/v1/equity/instruments/NSE/TCS')).json.analysis.basis).toBe('adjusted_split_dividend');
+    await ctx.db.query(`DELETE FROM equity.prices WHERE series_id = (SELECT series_id FROM equity.price_series WHERE instrument_id=$1 AND basis='adjusted_split_dividend') AND trade_date > (SELECT max(trade_date) - 5 FROM equity.prices p JOIN equity.price_series s USING (series_id) WHERE s.instrument_id=$1 AND s.basis='raw')`, [inst.instrument_id]);
+    const page = (await c.get('/v1/equity/instruments/NSE/TCS')).json;
+    expect(page.analysis.basis).toBe('raw');
+    expect(page.analysis.basis_reason).toMatch(/adjusted series ends .* before the latest stored session/);
+  });
+});

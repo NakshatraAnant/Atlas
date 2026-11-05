@@ -21,3 +21,9 @@ backups/
 data.before-restore-*/
 data.failed-seed-*/
 apps/api/admin-client.local.ts
+
+# Large binary QA and video outputs (regenerate with scripts/qa/crawl.mts and scripts/walkthrough/record.mts)
+artifacts/*.mp4
+artifacts/baseline/*.png
+artifacts/qa/*.png
+artifacts/qa-*/

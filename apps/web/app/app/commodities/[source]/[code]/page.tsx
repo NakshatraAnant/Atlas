@@ -1,6 +1,8 @@
 'use client';
 import { useParams } from 'next/navigation';
 import { MiniLine } from '@/components/crypto';
+import { TsChart } from '@/components/ts-chart';
+import { FollowButton } from '@/components/follow-button';
 import { Classification } from '@/components/research';
 import { Loading, Problem, useApi } from '@/components/ui';
 import { Fresh } from '@/components/commodity';
@@ -23,7 +25,7 @@ export default function CommoditySeries() {
   return (
     <>
       <p><a href="/app/commodities">← Commodities</a></p>
-      <h1>{s.name}</h1>
+      <div className="home-panel-hd"><h1>{s.name}</h1>{s.price_type !== 'futures_settlement' && <FollowButton seriesKey={`commodity:${s.series_id}`} label={s.name} />}</div>
       <p><Classification c={s.classification} /> {s.price_type.replace('_', ' ')} · {s.frequency} · {s.unit} · <Fresh f={d.freshness} /></p>
       {!a ? <section className="card"><p>{d.empty_reason}</p></section> : (
         <>
@@ -35,7 +37,7 @@ export default function CommoditySeries() {
               <div className="cx-kpi"><span className="k">Max drawdown, 1 year</span><span className="v">{a.stats.max_drawdown_1y === null ? '—' : pct(a.stats.max_drawdown_1y)}</span>{a.stats.drawdown_note && <span className="s">{a.stats.drawdown_note}</span>}</div>
             </div>
             {(a.stats.skipped_gap > 0 || a.stats.skipped_non_positive > 0) && <p className="mu">Left out of the 1-year statistics: {a.stats.skipped_gap} return(s) across a data gap, {a.stats.skipped_non_positive} across a zero or negative price.</p>}
-            <MiniLine points={a.chart} title={`${s.name} (${s.unit})`} format={(v) => v.toFixed(2)} />
+            <TsChart title={s.name} defaultRange={s.frequency === 'daily' ? '1Y' : 'Max'} gapDays={s.frequency === 'daily' ? 7 : s.frequency === 'weekly' ? 20 : 70} series={[{ label: s.name, unit: s.unit, points: a.chart }]} note={`Source: ${d.provenance.source}`} />
             <p className="mu">Stored observations only; days without a published value are gaps, not zeros.</p>
           </section>
           <section className="card">

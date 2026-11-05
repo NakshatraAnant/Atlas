@@ -202,9 +202,9 @@ export async function objectRoutes(app: FastifyInstance, ctx: AppContext): Promi
     if (b.kind === 'hypothesis' && (!b.thesis || !b.review_date)) throw badRequest('A hypothesis needs a thesis and a review date, recorded before the outcome is known.');
     if (b.kind === 'hypothesis' && b.review_date! <= iso(now().getTime())) throw badRequest('The review date must be in the future: record the thesis before the outcome.');
     const e = await db.one<{ entry_id: string; kind: string; body: string; thesis: string | null; evidence_for: string | null; evidence_against: string | null; review_date: string | null; expected: string | null; observed: string | null; missed: string | null }>(
-      `INSERT INTO research.notebook_entries (user_id, kind, title, body, instruments, sources, chart_configs, assumptions, counterarguments, thesis, evidence_for, evidence_against, horizon_days, benchmark_key, review_date, expected, observed, missed)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING ${ENTRY_COLS}`,
-      [u.userId, b.kind, b.title, b.body, b.instruments, JSON.stringify(b.sources), JSON.stringify(b.chart_configs), b.assumptions ?? null, b.counterarguments ?? null, b.thesis ?? null, b.evidence_for ?? null, b.evidence_against ?? null, b.horizon_days ?? null, b.benchmark_key ?? null, b.review_date ?? null, b.expected ?? null, b.observed ?? null, b.missed ?? null]);
+      `INSERT INTO research.notebook_entries (user_id, kind, title, body, instruments, sources, chart_configs, assumptions, counterarguments, thesis, evidence_for, evidence_against, horizon_days, benchmark_key, review_date, expected, observed, missed, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$19) RETURNING ${ENTRY_COLS}`,
+      [u.userId, b.kind, b.title, b.body, b.instruments, JSON.stringify(b.sources), JSON.stringify(b.chart_configs), b.assumptions ?? null, b.counterarguments ?? null, b.thesis ?? null, b.evidence_for ?? null, b.evidence_against ?? null, b.horizon_days ?? null, b.benchmark_key ?? null, b.review_date ?? null, b.expected ?? null, b.observed ?? null, b.missed ?? null, now().toISOString()]);
     await creditEntry(u.userId, e);
     return e;
   });
