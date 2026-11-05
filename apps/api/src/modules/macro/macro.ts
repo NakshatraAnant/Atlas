@@ -145,7 +145,11 @@ export async function macroRoutes(app: FastifyInstance, ctx: AppContext): Promis
     const s = await db.maybeOne<{ series_id: string; category: string; title: string; units: string | null; frequency: string | null; seasonal_adjustment: string | null; notes: string | null; source_last_updated: string | null; observation_start: string | null; last_date: string | null; observations: number; last_import_at: string | null; last_error: string | null }>(
       `SELECT series_id, category, title, units, frequency, seasonal_adjustment, notes, source_last_updated, to_char(observation_start,'YYYY-MM-DD') AS observation_start, to_char(last_date,'YYYY-MM-DD') AS last_date, observations, last_import_at, last_error FROM macro.series WHERE series_id=$1`, [p.id]);
     if (!s) throw notFound('Unknown macro series.');
-    const obs = await db.query<{ d: string; v: number; p: string | null }>(`SELECT to_char(obs_date,'YYYY-MM-DD') AS d, value::float8 AS v, to_char(published_at,'YYYY-MM-DD') AS p FROM macro.observations WHERE series_id=$1 ORDER BY obs_date`, [p.id]);
+    // Daily series show at most 10 years, so only those rows are read (a daily series can hold 50 years).
+    // Index-type series keep full history because year-on-year is computed over all of it.
+    const isIndexSeries = /index/i.test(s.units ?? '') && !['STLFSI4', 'NFCI', 'DTWEXBGS'].includes(s.series_id);
+    const since = /^d/i.test(s.frequency ?? '') && !isIndexSeries ? new Date(ctx.clock().getTime() - 3653 * 86_400_000).toISOString().slice(0, 10) : null;
+    const obs = await db.query<{ d: string; v: number; p: string | null }>(`SELECT to_char(obs_date,'YYYY-MM-DD') AS d, value::float8 AS v, to_char(published_at,'YYYY-MM-DD') AS p FROM macro.observations WHERE series_id=$1 AND ($2::date IS NULL OR obs_date >= $2::date) ORDER BY obs_date`, [p.id, since]);
     const revisions = await db.query(`SELECT to_char(obs_date,'YYYY-MM-DD') AS obs_date, previous::float8 AS previous, to_char(previous_published_at,'YYYY-MM-DD') AS previous_published_at, revised_at FROM macro.revisions WHERE series_id=$1 ORDER BY revised_at DESC, obs_date DESC LIMIT 20`, [p.id]);
     const isIndex = /index/i.test(s.units ?? '') && !['STLFSI4', 'NFCI', 'DTWEXBGS'].includes(s.series_id);
     const latest = obs[obs.length - 1] ?? null;

@@ -43,10 +43,15 @@ export const JOBS: JobSpec[] = [
 export const jobSpec = (type: string) => JOBS.find((j) => j.type === type);
 
 export async function lastRuns(db: Db): Promise<Map<string, { started_at: string; status: string; last_success: string | null }>> {
+  // Two linear passes. (A correlated subquery in the DISTINCT ON select list ran once per row of the whole
+  // table on every 30-second tick; with thousands of on-chain job rows it blocked the API for seconds.)
   const rows = await db.query<{ job_type: string; started_at: string; status: string; last_success: string | null }>(
-    `SELECT DISTINCT ON (job_type) job_type, started_at, status,
-            (SELECT max(finished_at) FROM crypto.ingestion_jobs x WHERE x.job_type=j.job_type AND x.status IN ('succeeded','partial')) AS last_success
-       FROM crypto.ingestion_jobs j ORDER BY job_type, started_at DESC`);
+    `WITH latest AS (
+       SELECT DISTINCT ON (job_type) job_type, started_at, status FROM crypto.ingestion_jobs ORDER BY job_type, started_at DESC
+     ), success AS (
+       SELECT job_type, max(finished_at) AS last_success FROM crypto.ingestion_jobs WHERE status IN ('succeeded','partial') GROUP BY job_type
+     )
+     SELECT l.job_type, l.started_at, l.status, s.last_success FROM latest l LEFT JOIN success s USING (job_type)`);
   return new Map(rows.map((r) => [r.job_type, r]));
 }
 
