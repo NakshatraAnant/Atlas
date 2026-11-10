@@ -46,3 +46,12 @@ Status words used here: **completed**, **tested**, **failed**, **blocked**, **re
 2. "What changed" on Home: one look shows what moved and what was published.
 3. The weekly summary (opt-in).
 4. The Academy next step and XP: progress that cannot be gamed by clicking.
+
+---
+
+## Session 13 note (5 Nov 2026)
+
+There were no changes to gamification in this session.
+- **Tests:** the learning-engine suite still passes as part of `npm test` (counts in the final release report).
+- **Walkthrough:** it shows My progress (XP, level, missions, achievements, skill map) and the Settings switch that hides streaks.
+- **Deferred:** community and leaderboards stay deferred, for the reasons above.

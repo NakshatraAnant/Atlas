@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { api, ApiError } from '@/lib/api';
-import { LineChart } from '@/components/charts';
+import { TsChart } from '@/components/ts-chart';
 import { MiniLine } from '@/components/crypto';
 import { useApp } from '@/components/providers';
 import { cls, InstrumentPicker, InstrumentTable, num, OnePicker, pct, type InstrumentInfo } from '@/components/research';
@@ -58,7 +58,7 @@ export function Workbench() {
       {d && !d.error && (
         <>
           <p className="mu">{d.alignment.shared_dates} shared dates, {d.alignment.from} → {d.alignment.to}. {d.alignment.note}</p>
-          <LineChart title="Rebased to 1.0 on the first shared date" yLabel="Growth of 1" series={d.instruments.map((i, k) => ({ name: i.label, points: d.series.map((s) => ({ x: s.t, y: s.values[k] ?? null })) }))} format={(v) => v.toFixed(2)} height={280} />
+          <TsChart title="Rebased to 1.0 on the first shared date" defaultRange="Max" gapDays={10} height={280} series={d.instruments.map((i, k) => ({ label: i.label, unit: 'growth of 1', points: d.series.filter((s) => typeof s.values[k] === 'number' && Number.isFinite(s.values[k])).map((s) => ({ t: s.t.slice(0, 10), v: s.values[k]! })) }))} />
           <div className="wrap"><table className="term-table">
             <caption>Metrics (own series; risk-free rate {d.risk_free})</caption>
             <thead><tr><th scope="col" style={{ textAlign: 'left' }}>Instrument</th><th scope="col">Return (shared dates)</th><th scope="col">CAGR</th><th scope="col">90-day vol</th><th scope="col">Max drawdown</th><th scope="col">Sharpe</th><th scope="col">Sortino</th><th scope="col">Corr. with benchmark</th><th scope="col">Beta</th><th scope="col">Relative return</th></tr></thead>

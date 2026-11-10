@@ -35,7 +35,10 @@ export function Shell({ children }: { children: ReactNode }) {
   const { me, loading, refresh } = useApp();
   const inApp = path.startsWith('/app') || path.startsWith('/admin');
   const publicDemo = useDemoMode();
-  const nav = inApp ? (me?.demo_mode === false ? REAL_NAV : APP_NAV) : publicDemo === false ? PUBLIC_NAV_REAL : PUBLIC_NAV;
+  // Signed out (or before the account loads), the API's public status says which mode this install runs in.
+  // Until either answers, no demo-only links are shown: in real-data mode they would lead to 403 pages.
+  const demo = me ? me.demo_mode !== false : publicDemo;
+  const nav = inApp ? (demo === false ? REAL_NAV : demo === null ? [] : APP_NAV) : publicDemo === true ? PUBLIC_NAV : PUBLIC_NAV_REAL;
   const notes = useApi<{ notifications: { notification_id: string; read_at: string | null }[] }>(me ? '/v1/notifications' : null, [me?.profile.user_id]);
   const unread = notes.data?.notifications.filter((n) => !n.read_at).length ?? 0;
   const [fb, setFb] = useState(false);
@@ -44,7 +47,7 @@ export function Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable);
-      if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing)) {
+      if ((e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing)) {
         if (!me) return;
         e.preventDefault();
         setSearch(true);

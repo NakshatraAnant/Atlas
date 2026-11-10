@@ -89,6 +89,20 @@ export function isLoopbackOrigin(origin: string): boolean {
   }
 }
 
+/** Longest list a request body may contain (twice the largest schema limit, 5,000). */
+export const MAX_JSON_ARRAY = 10_000;
+/** Size of the largest list or object (items or keys) anywhere in a parsed JSON value (iterative, so deep nesting is safe). */
+export function longestArray(v: unknown): number {
+  let longest = 0;
+  const stack: unknown[] = [v];
+  while (stack.length) {
+    const x = stack.pop();
+    if (Array.isArray(x)) { if (x.length > longest) longest = x.length; if (longest > MAX_JSON_ARRAY) return longest; for (const y of x) if (y && typeof y === 'object') stack.push(y); }
+    else if (x && typeof x === 'object') { const vals = Object.values(x); if (vals.length > longest) longest = vals.length; if (longest > MAX_JSON_ARRAY) return longest; for (const y of vals) if (y && typeof y === 'object') stack.push(y); }
+  }
+  return longest;
+}
+
 export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics } = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: false,
@@ -103,11 +117,17 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
     (req as unknown as { rawBody: string }).rawBody = body as string;
     if (!body) return done(null, {});
+    let value: unknown;
     try {
-      done(null, JSON.parse(body as string));
+      value = JSON.parse(body as string);
     } catch {
-      done(new ApiError(400, 'Bad request', 'The request body is not valid JSON.'), undefined);
+      return done(new ApiError(400, 'Bad request', 'The request body is not valid JSON.'), undefined);
     }
+    // No request schema accepts more than 5,000 items in a list. A far longer array cannot be valid, and
+    // validating it item by item blocked the single-threaded API for seconds (measured: 1.4 million items,
+    // 18 s, a 128 MB error body). Such bodies are refused before validation.
+    if (longestArray(value) > MAX_JSON_ARRAY) return done(new ApiError(413, 'Payload too large', `A list or object in the request has more than ${MAX_JSON_ARRAY.toLocaleString('en-GB')} entries.`), undefined);
+    done(null, value);
   });
 
   app.addHook('onRequest', async (req, reply) => {

@@ -9,10 +9,13 @@ Every command is run from the ATLAS folder (`C:\Users\anant\Desktop\Atlas`) in a
 | Start | `node scripts/atlas.mjs start`, then open http://localhost:3000 |
 | Stop | `node scripts/atlas.mjs stop` |
 | Restart (after changing `.env.local`) | `node scripts/atlas.mjs restart` |
+| Apply code changes to the web app | `node scripts/atlas.mjs stop`, then `npm run build -w @atlas/shared` and `npm run build -w @atlas/web`, then `start`. `restart` reuses the existing web build; the API runs from source and picks up changes on restart. (`update` does all of this but also runs `npm install`.) |
 | See whether it is running | `node scripts/atlas.mjs status` |
 | Read the logs | `node scripts/atlas.mjs logs api` (or `web`) |
 
 **Automatic restart.** If the API crashes, a supervisor restarts it after 5 s, 15 s, 60 s and so on (at most 5 times an hour). Each restart is noted in `.atlas/logs/api.log`. A normal `stop` is never restarted.
+
+**After the computer restarts, ATLAS does not start by itself.** The supervisor lives inside the launcher process, which ends with your Windows session (this is why ATLAS was down on 5 Nov 2026: Windows had restarted on 3 Nov). Run `node scripts/atlas.mjs start` after signing in. Stale files in `.atlas/run` are harmless; `start` checks that the recorded processes are really alive. To start it automatically you could create a Windows Task Scheduler task "At log on" that runs the same command in the project folder; this was not set up for you, because it changes system configuration.
 
 **Automatic data updates** (no action needed):
 

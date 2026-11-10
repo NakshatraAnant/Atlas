@@ -6,7 +6,7 @@ import { api, ApiError } from '@/lib/api';
 // App-wide state: the signed-in user, the evidence drawer and toasts.
 
 /** Stored display preferences (validated server-side; every key optional). */
-export interface DisplayPrefs { theme?: 'dark' | 'light'; home_panels?: string[]; markets?: string[]; notify?: { releases?: boolean; digest?: boolean }; show_streak?: boolean }
+export interface DisplayPrefs { theme?: 'dark' | 'light'; home_panels?: string[]; markets?: string[]; notify?: { releases?: boolean; digest?: boolean }; show_streak?: boolean; tour_done?: boolean }
 
 export interface Me {
   profile: { user_id: string; email: string; email_verified_at: string | null; display_name: string | null; role: string; experience_level: string | null; interests: string[]; briefing_email: string; totp_enabled_at: string | null; onboarding_completed_at: string | null; state_code: string | null; is_beta: boolean; display_prefs?: DisplayPrefs };
@@ -37,7 +37,8 @@ export function Providers({ children }: { children: ReactNode }) {
   const [toastMsg, setToast] = useState<string | null>(null);
   const refresh = useCallback(async () => {
     try {
-      setMe(await api<Me>('/v1/me'));
+      const r = await api<Me | { signed_in: false }>('/v1/me?optional=1');
+      setMe('signed_in' in r && r.signed_in === false ? null : (r as Me));
     } catch {
       setMe(null);
     } finally {

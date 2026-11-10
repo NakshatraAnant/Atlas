@@ -1,20 +1,24 @@
 'use client';
 import { useMemo, useRef, useState } from 'react';
 
-// Interactive time-series chart for stored observations (one or two series).
+// Interactive time-series chart for stored observations (one series, two with different units, or several
+// in one unit sharing an axis, e.g. instruments rebased to 1.0).
 // - Range presets (1M … Max) and a custom date range; drag across the plot to zoom, "Reset" to undo.
 // - Hover (or arrow keys when focused) shows the date and each value; gaps stay gaps (no lines across
 //   missing periods longer than `gapDays`).
-// - A second series gets its own right-hand axis (units differ); CSV export of the visible range;
+// - Two series in different units get a right-hand axis each; series in one unit share the left axis;
+//   CSV export of the visible range;
 //   full screen; a table view for screen readers and keyboard users.
 
 export interface TsSeries { label: string; unit: string; points: { t: string; v: number }[]; color?: string }
 
 const RANGES: [string, number | null][] = [['1M', 31], ['3M', 92], ['6M', 183], ['1Y', 366], ['5Y', 1827], ['10Y', 3653], ['Max', null]];
 const DAY = 86_400_000;
-const fmt = (v: number) => (Math.abs(v) >= 1000 ? v.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : v.toLocaleString('en-IN', { maximumFractionDigits: Math.abs(v) < 10 ? 3 : 2 }));
+const fmtDefault = (v: number) => (Math.abs(v) >= 1000 ? v.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : v.toLocaleString('en-IN', { maximumFractionDigits: Math.abs(v) < 10 ? 3 : 2 }));
 
-export function TsChart({ series, title, defaultRange = '5Y', gapDays = 45, height = 300, zeroLine = false, note }: { series: TsSeries[]; title: string; defaultRange?: string; gapDays?: number; height?: number; zeroLine?: boolean; note?: string }) {
+export function TsChart({ series, title, defaultRange = '5Y', gapDays = 45, height = 300, zeroLine = false, note, format }: { series: TsSeries[]; title: string; defaultRange?: string; gapDays?: number; height?: number; zeroLine?: boolean; note?: string; format?: (v: number) => string }) {
+  const fmt = format ?? fmtDefault;
+  const unitOf = (u: string) => (u ? ` (${u})` : '');
   const wrap = useRef<HTMLDivElement>(null);
   const svg = useRef<SVGSVGElement>(null);
   const [range, setRange] = useState(defaultRange);
@@ -36,18 +40,22 @@ export function TsChart({ series, title, defaultRange = '5Y', gapDays = 45, heig
   if (!all.length) return <p className="mu">No stored observations to chart.</p>;
   const W = 760;
   const H = height;
-  const pad = { l: 64, r: vis.length > 1 ? 64 : 14, t: 12, b: 26 };
+  // One shared axis when every series has the same unit (or there are more than two); otherwise a second
+  // series gets its own right-hand axis.
+  const shared = vis.length > 2 || new Set(vis.map((s) => s.unit)).size === 1;
+  const pad = { l: 64, r: vis.length > 1 && !shared ? 64 : 14, t: 12, b: 26 };
   const X = (t: number) => pad.l + ((t - x0) / Math.max(1, x1 - x0)) * (W - pad.l - pad.r);
-  const scales = vis.map((s) => {
-    const vs = s.pts.map((p) => p.v);
+  const scaleOf = (vs: number[]) => {
     let lo = Math.min(...vs, ...(zeroLine ? [0] : []));
     let hi = Math.max(...vs, ...(zeroLine ? [0] : []));
     if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
     const padV = (hi - lo || Math.abs(hi) || 1) * 0.06;
     return { lo: lo - padV, hi: hi + padV };
-  });
+  };
+  const sharedScale = shared ? scaleOf(vis.flatMap((s) => s.pts.map((p) => p.v))) : null;
+  const scales = vis.map((s) => sharedScale ?? scaleOf(s.pts.map((p) => p.v)));
   const Y = (i: number, v: number) => pad.t + (1 - (v - scales[i]!.lo) / (scales[i]!.hi - scales[i]!.lo || 1)) * (H - pad.t - pad.b);
-  const colors = ['var(--c1)', 'var(--c4)'];
+  const colors = vis.length > 2 ? ['var(--c1)', 'var(--c4)', 'var(--c2)', 'var(--c3)', 'var(--gold)', 'var(--mu)'] : ['var(--c1)', 'var(--c4)'];
   const path = (i: number) => {
     let d = '';
     let prev: number | null = null;
@@ -65,7 +73,7 @@ export function TsChart({ series, title, defaultRange = '5Y', gapDays = 45, heig
   const csv = () => {
     const dates = [...new Set(vis.flatMap((s) => s.pts.map((p) => p.d)))].sort();
     const maps = vis.map((s) => new Map(s.pts.map((p) => [p.d, p.v])));
-    const rows = [['date', ...vis.map((s) => `${s.label} (${s.unit})`)], ...dates.map((d) => [d, ...maps.map((m) => (m.has(d) ? String(m.get(d)) : ''))])];
+    const rows = [['date', ...vis.map((s) => `${s.label}${unitOf(s.unit)}`)], ...dates.map((d) => [d, ...maps.map((m) => (m.has(d) ? String(m.get(d)) : ''))])];
     const blob = new Blob([rows.map((r) => r.map((c) => (/[",]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\n')], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -103,7 +111,7 @@ export function TsChart({ series, title, defaultRange = '5Y', gapDays = 45, heig
         <button className="chip" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : wrap.current?.requestFullscreen?.())}>Full screen</button>
       </div>
       {table ? (
-        <div className="wrap" style={{ maxHeight: 360, overflowY: 'auto' }}><table className="term-table"><caption className="sr-only">{title}</caption><thead><tr><th scope="col">Date</th>{vis.map((s) => <th scope="col" key={s.label}>{s.label} ({s.unit})</th>)}</tr></thead>
+        <div className="wrap" style={{ maxHeight: 360, overflowY: 'auto' }}><table className="term-table"><caption className="sr-only">{title}</caption><thead><tr><th scope="col">Date</th>{vis.map((s) => <th scope="col" key={s.label}>{s.label}{unitOf(s.unit)}</th>)}</tr></thead>
           <tbody>{[...new Set(vis.flatMap((s) => s.pts.map((p) => p.d)))].sort().reverse().slice(0, 500).map((d) => <tr key={d}><td>{d}</td>{vis.map((s) => <td key={s.label} className="num">{(() => { const p = s.pts.find((x) => x.d === d); return p ? fmt(p.v) : '—'; })()}</td>)}</tr>)}</tbody></table></div>
       ) : (
         <svg ref={svg} viewBox={`0 0 ${W} ${H}`} width="100%" role="img" tabIndex={0} onKeyDown={keyMove} style={{ touchAction: 'pan-y', cursor: 'crosshair' }}
@@ -112,11 +120,11 @@ export function TsChart({ series, title, defaultRange = '5Y', gapDays = 45, heig
           onMouseLeave={() => { setHover(null); setDrag(null); }}
           onMouseDown={(e) => setDrag([svgX(e), svgX(e)])}
           onMouseUp={() => { if (drag && Math.abs(drag[1] - drag[0]) > 8) { const a = tFromX(Math.min(...drag)); const b = tFromX(Math.max(...drag)); if (b - a > 3 * DAY) setZoom([a, b]); } setDrag(null); }}>
-          {vis.map((_, i) => [0, 0.5, 1].map((f) => { const v = scales[i]!.lo + f * (scales[i]!.hi - scales[i]!.lo); return <text key={`${i}-${f}`} x={i === 0 ? pad.l - 6 : W - pad.r + 6} y={Y(i, v) + 4} textAnchor={i === 0 ? 'end' : 'start'} fontSize="11" fill={vis.length > 1 ? colors[i] : 'var(--mu)'}>{fmt(v)}</text>; }))}
+          {vis.map((_, i) => (shared && i > 0 ? [] : [0, 0.5, 1]).map((f) => { const v = scales[i]!.lo + f * (scales[i]!.hi - scales[i]!.lo); return <text key={`${i}-${f}`} x={i === 0 ? pad.l - 6 : W - pad.r + 6} y={Y(i, v) + 4} textAnchor={i === 0 ? 'end' : 'start'} fontSize="11" fill={vis.length > 1 && !shared ? colors[i] : 'var(--mu)'}>{fmt(v)}</text>; }))}
           {[0, 0.5, 1].map((f) => <line key={f} x1={pad.l} x2={W - pad.r} y1={pad.t + f * (H - pad.t - pad.b)} y2={pad.t + f * (H - pad.t - pad.b)} stroke="var(--ln)" strokeWidth="1" />)}
           {zeroLine && scales[0]!.lo < 0 && scales[0]!.hi > 0 && <line x1={pad.l} x2={W - pad.r} y1={Y(0, 0)} y2={Y(0, 0)} stroke="var(--mu)" strokeDasharray="4 3" />}
           {ticks.map((t, i) => <text key={i} x={X(t)} y={H - 6} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'} fontSize="11" fill="var(--mu)">{new Date(t).toISOString().slice(0, 10)}</text>)}
-          {vis.map((s, i) => <path key={s.label} d={path(i)} fill="none" stroke={s.color ?? colors[i]} strokeWidth="1.8" />)}
+          {vis.map((s, i) => <path key={s.label} d={path(i)} fill="none" stroke={s.color ?? colors[i % colors.length]} strokeWidth="1.8" />)}
           {drag && <rect x={Math.min(...drag)} y={pad.t} width={Math.abs(drag[1] - drag[0])} height={H - pad.t - pad.b} fill="var(--gold-soft)" stroke="var(--gold)" />}
           {hv && hover !== null && (
             <g pointerEvents="none">
@@ -131,7 +139,7 @@ export function TsChart({ series, title, defaultRange = '5Y', gapDays = 45, heig
           )}
         </svg>
       )}
-      <p className="mu" style={{ margin: '4px 6px', fontSize: 12 }}>{vis.map((s, i) => <span key={s.label} style={{ marginRight: 12 }}><span aria-hidden="true" style={{ color: colors[i] }}>━</span> {s.label} ({s.unit})</span>)}{note ? ` · ${note}` : ''} · drag across the chart to zoom</p>
+      <p className="mu" style={{ margin: '4px 6px', fontSize: 12 }}>{vis.map((s, i) => <span key={s.label} style={{ marginRight: 12 }}><span aria-hidden="true" style={{ color: colors[i] }}>━</span> {s.label}{unitOf(s.unit)}</span>)}{note ? ` · ${note}` : ''} · drag across the chart to zoom</p>
     </div>
   );
 }

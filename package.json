@@ -13,7 +13,7 @@
   "scripts": {
     "build": "npm run build -w @atlas/shared && npm run typecheck -w @atlas/api && npm run build -w @atlas/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test -w @atlas/shared && npm run test -w @atlas/api",
+    "test": "npm run test -w @atlas/shared && npm run test -w @atlas/api && npm run test -w @atlas/web",
     "test:web": "npm run test -w @atlas/web",
     "seed": "npm run seed -w @atlas/api",
     "dev:api": "npm run dev -w @atlas/api",

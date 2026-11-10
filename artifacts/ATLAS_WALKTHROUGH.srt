@@ -1,0 +1,303 @@
+1
+00:00:00,350 --> 00:00:05,513
+This is ATLAS, a financial research workspace for Indian and global markets.
+
+2
+00:00:05,513 --> 00:00:11,220
+Everything you will see is the local build running on this computer, using real data
+
+3
+00:00:11,220 --> 00:00:12,510
+from named sources.
+
+4
+00:00:12,510 --> 00:00:15,500
+The narration is a synthetic computer voice.
+
+5
+00:00:17,350 --> 00:00:23,178
+A first visit to Home opens with three welcome steps: choose your markets, follow two
+
+6
+00:00:23,178 --> 00:00:24,756
+series, and try search.
+
+7
+00:00:24,756 --> 00:00:28,939
+Below them is a snapshot built only from stored observations.
+
+8
+00:00:28,939 --> 00:00:32,848
+Each figure carries the date it refers to and its source.
+
+9
+00:00:32,848 --> 00:00:38,608
+The What changed panel lists economic data published in the last seven days, and the
+
+10
+00:00:38,608 --> 00:00:40,734
+largest recent commodity moves.
+
+11
+00:00:41,991 --> 00:00:47,701
+Further down are end-of-day Indian indices from EODHD, commodity benchmarks, macro
+
+12
+00:00:47,701 --> 00:00:52,017
+indicators from FRED, and reference prices for digital assets.
+
+13
+00:00:52,017 --> 00:00:57,866
+Status tags say whether each series is as recent as its publication schedule allows.
+
+14
+00:00:59,118 --> 00:01:01,335
+Search is one keystroke away.
+
+15
+00:01:01,335 --> 00:01:07,910
+Control K opens the command palette, and plain words work: rupee finds the rupee to US
+
+16
+00:01:07,910 --> 00:01:09,515
+dollar exchange rate.
+
+17
+00:01:09,515 --> 00:01:16,243
+Search covers indices, macro series, commodities, Academy lessons and your own research.
+
+18
+00:01:16,243 --> 00:01:19,683
+When something is not available, it says why.
+
+19
+00:01:20,938 --> 00:01:27,370
+A macro series page shows the latest value, the period it refers to, when FRED first
+
+20
+00:01:27,370 --> 00:01:30,585
+published it, and when ATLAS retrieved it.
+
+21
+00:01:30,585 --> 00:01:37,093
+The chart has range presets, a hover read-out, drag to zoom, CSV export, a table view
+
+22
+00:01:37,093 --> 00:01:38,318
+and full screen.
+
+23
+00:01:43,184 --> 00:01:48,209
+Follow a series, and ATLAS posts a notice when a newer observation is stored.
+
+24
+00:01:48,209 --> 00:01:53,429
+You are never notified about the backlog that already existed when you followed.
+
+25
+00:01:54,682 --> 00:02:00,225
+The relationship explorer compares any two stored series, for example Brent crude
+
+26
+00:02:00,225 --> 00:02:01,662
+against the NIFTY 50.
+
+27
+00:02:01,662 --> 00:02:07,342
+Both are put on a common frequency, and their changes are correlated over a rolling
+
+28
+00:02:07,342 --> 00:02:07,821
+window.
+
+29
+00:02:07,821 --> 00:02:12,611
+The page states its method and limits: a correlation is not causation.
+
+30
+00:02:13,871 --> 00:02:19,470
+Commodities covers global benchmarks such as Brent and WTI crude, natural gas and
+
+31
+00:02:19,470 --> 00:02:24,378
+metals, with US inventories from the Energy Information Administration.
+
+32
+00:02:24,378 --> 00:02:30,392
+Indian futures are not shown, because exchange terms do not permit automated collection
+
+33
+00:02:30,392 --> 00:02:31,636
+without a licence.
+
+34
+00:02:32,892 --> 00:02:37,880
+Indian markets covers the indices that the free EODHD plan provides.
+
+35
+00:02:37,880 --> 00:02:42,133
+Closes are end of day, and final after the evening update.
+
+36
+00:02:42,133 --> 00:02:44,187
+ATLAS never calls them live.
+
+37
+00:02:45,437 --> 00:02:50,939
+Digital assets uses CoinGecko reference prices, requested at a pace that stays within
+
+38
+00:02:50,939 --> 00:02:52,687
+the free monthly allowance.
+
+39
+00:02:53,937 --> 00:02:57,865
+The research hub brings the analysis tools together.
+
+40
+00:02:57,865 --> 00:03:03,983
+A research portfolio is hypothetical: ATLAS holds no assets and places no orders.
+
+41
+00:03:03,983 --> 00:03:07,079
+This one holds bitcoin, ether and solana.
+
+42
+00:03:07,079 --> 00:03:13,650
+ATLAS reports total return, maximum drawdown, volatility, contribution by holding and a
+
+43
+00:03:13,650 --> 00:03:20,297
+stress scenario, and lists the source, venue and coverage of every price series it used.
+
+44
+00:03:21,552 --> 00:03:24,629
+Quantitative research is tested out of sample.
+
+45
+00:03:24,629 --> 00:03:30,515
+The walk-forward backtest chooses a moving-average rule on each training window and then
+
+46
+00:03:30,515 --> 00:03:35,398
+measures it only on the following, unseen window, with fees and slippage.
+
+47
+00:03:35,398 --> 00:03:40,615
+Here, on bitcoin since 2015, the rule earned less than simply holding, and the
+
+48
+00:03:40,615 --> 00:03:44,962
+training-window return is labelled as optimistic by construction.
+
+49
+00:03:46,212 --> 00:03:52,049
+The notebook keeps notes, hypotheses and reflections, each with its assumptions and
+
+50
+00:03:52,049 --> 00:03:55,003
+counterarguments, and exports to Markdown.
+
+51
+00:03:55,003 --> 00:04:00,558
+Reports turn a research question and a set of instruments into a dated, sourced
+
+52
+00:04:00,558 --> 00:04:01,191
+document.
+
+53
+00:04:01,191 --> 00:04:03,512
+Both are private to your account.
+
+54
+00:04:04,765 --> 00:04:07,155
+The Academy teaches with evidence.
+
+55
+00:04:07,155 --> 00:04:09,755
+Courses begin with a readiness check.
+
+56
+00:04:09,755 --> 00:04:15,307
+Progress earns XP, levels and achievements for real work: lessons, quizzes, and
+
+57
+00:04:15,307 --> 00:04:19,805
+documented research such as a correlation study in the explorer.
+
+58
+00:04:21,060 --> 00:04:26,285
+Every course opens with a narrated introduction video, with English captions and a
+
+59
+00:04:26,285 --> 00:04:28,514
+transcript; the voice is synthetic.
+
+60
+00:04:28,514 --> 00:04:34,057
+Lessons then move through stages, from discovery and prediction to a worked example and
+
+61
+00:04:34,057 --> 00:04:37,370
+a short quiz, and progress is saved to your account.
+
+62
+00:04:38,732 --> 00:04:43,840
+Notifications collect release notices for the series you follow and other account
+
+63
+00:04:43,840 --> 00:04:44,408
+messages.
+
+64
+00:04:44,408 --> 00:04:49,137
+Nothing is sent by email unless you turn on the weekly summary in Settings.
+
+65
+00:04:50,393 --> 00:04:55,777
+Settings decides which Home panels appear and in which order, whether release notices or
+
+66
+00:04:55,777 --> 00:05:00,793
+a weekly summary arrive, the theme, and whether learning streaks are shown at all.
+
+67
+00:05:02,042 --> 00:05:07,916
+Data sources shows where each dataset comes from, how current it is, and the state of
+
+68
+00:05:07,916 --> 00:05:09,713
+every provider connection.
+
+69
+00:05:09,713 --> 00:05:12,477
+Rate limits are respected automatically.
+
+70
+00:05:13,765 --> 00:05:17,080
+The same workspace adapts to a phone screen.
+
+71
+00:05:21,882 --> 00:05:24,672
+Some limits are worth stating plainly.
+
+72
+00:05:24,672 --> 00:05:30,838
+There are no individual Indian shares or company financials yet, because no licensed
+
+73
+00:05:30,838 --> 00:05:32,307
+source is connected.
+
+74
+00:05:32,307 --> 00:05:35,684
+Gold and silver have no permitted free source.
+
+75
+00:05:35,684 --> 00:05:37,739
+End-of-day data is not live.
+
+76
+00:05:37,739 --> 00:05:42,217
+ATLAS is a research and learning tool, not investment advice.

@@ -78,3 +78,11 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 - **CoinGecko Demo:** usage is counted by ATLAS (the usage endpoint is for paid plans), so the monthly figure is an estimate. The calendar-month pacing is ATLAS's assumption, since CoinGecko does not state the reset day for Demo keys.
 - **Demo-only sections** (Terminal, Market, Companies, Assistant, Screener, Quant Lab, Briefings) are hidden in real-data mode: their workflows run only on the fictional dataset.
 - **Pasted keys.** The provider keys were configured from values pasted into a conversation; rotating them is recommended.
+
+## Session 13 (5 Nov 2026)
+- **No reboot survival.** ATLAS runs under the launcher's own supervisor, not an OS service. After a Windows restart, run `node scripts/atlas.mjs start` (this is what caused the 3–5 Nov outage).
+- **Single-threaded database.** PGlite serves one query at a time. The scheduler query that blocked the API for seconds is fixed (measured worst case 0.63 s afterwards), but a heavy page still makes concurrent requests wait. A multi-user deployment needs server PostgreSQL (the schema already passes `npm run test:postgres`).
+- **Intermittent slow endpoint.** `/v1/macro/explorer/options` answered in 7.3 s once in three timings (0.32 s otherwise). Its queries are trivial; the delay coincided with a crypto ingestion job, so it was most likely waiting for the single-threaded database.
+- **Course videos** (all nine courses have one) use a synthetic voice and are AI-drafted teaching content in review, like the rest of the Academy.
+- **Data rights.** Every connected source is a free or personal tier. None grants redistribution to paying customers; see `reports/ATLAS_PROVIDER_AND_LICENSING_REGISTER.md`. ATLAS is fit for personal, local research only until licences are obtained.
+- **Not available with current sources:** Indian individual shares (EODHD free plan answers 404), company fundamentals, gold and silver prices, real-time quotes. CoinGecko data is about 15 minutes delayed; Indian indices and FRED series are end of day or slower.

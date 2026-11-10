@@ -32,12 +32,15 @@ export function sendProblem(reply: FastifyReply, req: FastifyRequest, err: ApiEr
     .send({ type: err.type, title: err.title, status: err.status, detail: err.detail, instance: req.url.split('?')[0], correlation_id: req.id, ...err.extra });
 }
 
+export const MAX_REPORTED_ISSUES = 20;
 export function parse<S extends ZodTypeAny>(schema: S, value: unknown): z.infer<S> {
   try {
     return schema.parse(value);
   } catch (err) {
     if (err instanceof ZodError) {
-      throw badRequest('The request is not valid.', { errors: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })) });
+      // At most 20 issues are returned: enough to fix a request, and the error body stays small.
+      const issues = err.issues.slice(0, MAX_REPORTED_ISSUES).map((i) => ({ path: i.path.join('.'), message: i.message }));
+      throw badRequest('The request is not valid.', { errors: issues, ...(err.issues.length > MAX_REPORTED_ISSUES ? { errors_truncated: err.issues.length } : {}) });
     }
     throw err;
   }

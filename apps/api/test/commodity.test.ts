@@ -138,6 +138,24 @@ describe('API', () => {
     const wti = r.categories[0].series.find((s: { series_id: string }) => s.series_id === 'fred:DCOILWTICO');
     expect(wti).toMatchObject({ unit: 'USD per barrel', price_type: 'spot', frequency: 'daily', freshness: { state: 'fresh' } });
   });
+  it('list values match a recomputation from all stored observations (regression, session 13: windowed query)', async () => {
+    const r = (await user.get('/v1/commodities')).json;
+    const DAY = 86_400_000;
+    let checked = 0;
+    for (const s of r.categories.flatMap((c: { series: { series_id: string; last: number | null; change: { m1: number | null; y1: number | null } | null }[] }) => c.series)) {
+      const obs = (await ctx.db.query<{ d: string; v: number }>(`SELECT to_char(obs_date,'YYYY-MM-DD') AS d, value::float8 AS v FROM commodity.observations WHERE series_id=$1 ORDER BY obs_date`, [s.series_id])).map((o) => ({ t: Date.parse(o.d), v: o.v }));
+      if (!obs.length) { expect(s.last).toBeNull(); continue; }
+      const last = obs[obs.length - 1]!;
+      const over = (days: number) => {
+        const base = [...obs].reverse().find((o) => o.t <= last.t - days * DAY);
+        return !base || last.t - base.t > (days + 10) * DAY || !(base.v > 0) || !(last.v > 0) ? null : last.v / base.v - 1;
+      };
+      expect(s.last).toBe(last.v);
+      expect(s.change).toEqual({ m1: over(30), y1: over(365) });
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
   it('series detail: stats by frequency, seasonality, correlations and provenance; drawdown refused across a negative price', async () => {
     const d = (await user.get('/v1/commodities/series/fred/DCOILWTICO')).json;
     expect(d.analysis.stats.annualisation).toBe('daily → ×√252');

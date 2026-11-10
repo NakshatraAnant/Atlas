@@ -94,7 +94,11 @@ describe('accounts and authentication (ACC-01..ACC-08)', () => {
     expect((await b.post('/v1/auth/password-reset/confirm', { token, password: 'new-long-passphrase-2026' })).status).toBe(200);
     expect((await b.post('/v1/auth/password-reset/confirm', { token, password: 'new-long-passphrase-2027' })).status).toBe(400);
     expect((await a.get('/v1/me')).status).toBe(401);
+    // Session check for the web app (session 13): signed out answers 200 { signed_in: false }, with no profile.
+    const quiet = await a.get('/v1/me?optional=1');
+    expect([quiet.status, quiet.json]).toEqual([200, { signed_in: false }]);
     expect((await b.login('plus@atlas.test', 'new-long-passphrase-2026')).status).toBe(200);
+    expect((await b.get('/v1/me?optional=1')).json.profile.email).toBe('plus@atlas.test');
     // restore for other tests
     const hash = (await ctx.db.one<{ password_hash: string }>(`SELECT password_hash FROM app.users WHERE email='free@atlas.test'`)).password_hash;
     await ctx.db.query(`UPDATE app.users SET password_hash=$1 WHERE email='plus@atlas.test'`, [hash]);

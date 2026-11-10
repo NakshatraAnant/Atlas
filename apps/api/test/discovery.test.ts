@@ -146,6 +146,12 @@ describe('display preferences', () => {
     expect((await pro.patch('/v1/me', { display_prefs: { evil: 'x'.repeat(10_000) } })).status).toBe(400);
     expect((await pro.patch('/v1/me', { display_prefs: { home_panels: ['nope'] } })).status).toBe(400);
     expect((await pro.patch('/v1/me', { display_prefs: { home_panels: ['macro', 'macro'] } })).status).toBe(400);
+    // First-run welcome (session 13): dismissing it is stored without touching other preferences, and can be undone.
+    expect((await pro.patch('/v1/me', { display_prefs: { tour_done: true } })).status).toBe(200);
+    expect((await pro.get('/v1/me')).json.profile.display_prefs).toMatchObject({ tour_done: true, home_panels: ['macro', 'attention'], theme: 'light' });
+    expect((await pro.patch('/v1/me', { display_prefs: { tour_done: false } })).status).toBe(200);
+    expect((await pro.get('/v1/me')).json.profile.display_prefs.tour_done).toBe(false);
+    expect((await pro.patch('/v1/me', { display_prefs: { tour_done: 'yes' } })).status).toBe(400);
     expect((await pro.patch('/v1/me', { display_prefs: { theme: 'neon' } })).status).toBe(400);
   });
 });

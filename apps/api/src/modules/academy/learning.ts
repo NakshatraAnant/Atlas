@@ -253,7 +253,37 @@ export async function learnerSettings(db: Db, userId: string): Promise<Settings>
  * Derives XP events from authoritative learner records and inserts any that are missing. Idempotent:
  * re-running never changes an existing award. Event times are the times of the underlying records.
  */
+// The ledger is derived from the tables below, so it only needs rebuilding when one of them changes. The
+// fingerprint is one cheap query; the rebuild is about 13 reads and an insert, and ran on every dashboard
+// read. Keyed by database handle so separate databases (tests, restores) never share an entry.
+const syncedFingerprint = new WeakMap<object, Map<string, string>>();
+async function learningFingerprint(db: Db, userId: string): Promise<string> {
+  const r = await db.one<{ f: string }>(
+    `SELECT concat_ws('|',
+       (SELECT count(*) || ':' || coalesce(max(completed_at)::text, '') FROM acad.lesson_progress WHERE user_id=$1 AND completed_at IS NOT NULL),
+       (SELECT count(*) || ':' || coalesce(max(submitted_at)::text, '') FROM acad.quiz_attempts WHERE user_id=$1),
+       (SELECT count(*) || ':' || coalesce(sum(evidence_count), 0) || ':' || coalesce(max(updated_at)::text, '') || ':' || count(*) FILTER (WHERE state='mastered') FROM acad.objective_mastery WHERE user_id=$1),
+       (SELECT count(*) || ':' || coalesce(max(submitted_at)::text, '') FROM acad.diagnostic_attempts WHERE user_id=$1 AND submitted_at IS NOT NULL),
+       (SELECT count(*) || ':' || coalesce(max(played_at)::text, '') FROM acad.game_scores WHERE user_id=$1),
+       (SELECT count(*) || ':' || coalesce(max(submitted_at)::text, '') FROM acad.capstone_submissions WHERE user_id=$1),
+       (SELECT count(*) || ':' || coalesce(max(issued_at)::text, '') FROM acad.completion_records WHERE user_id=$1),
+       (SELECT count(*) || ':' || coalesce(max(occurred_at)::text, '') FROM research.activity WHERE user_id=$1),
+       (SELECT coalesce(max(timezone), '') || ':' || coalesce(max(updated_at)::text, '') FROM acad.learner_settings WHERE user_id=$1),
+       (SELECT count(*) || ':' || coalesce(max(recorded_at)::text, '') FROM acad.learning_events WHERE user_id=$1)) AS f`, [userId]);
+  return r.f;
+}
+
 export async function syncLearningEvents(db: Db, userId: string): Promise<void> {
+  let seen = syncedFingerprint.get(db);
+  if (!seen) syncedFingerprint.set(db, (seen = new Map()));
+  const before = await learningFingerprint(db, userId);
+  if (seen.get(userId) === before) return;
+  await rebuildLearningEvents(db, userId);
+  // Recorded after the rebuild, whose own inserts change the learning_events part of the fingerprint.
+  seen.set(userId, await learningFingerprint(db, userId));
+}
+
+async function rebuildLearningEvents(db: Db, userId: string): Promise<void> {
   const events: LearningEvent[] = [];
   const add = (kind: EventKind, ref: string, at: string | Date) => events.push({ kind, ref, xp: XP_RULES[kind].xp, occurred_at: new Date(at).toISOString() });
   for (const r of await db.query<{ lesson_id: string; completed_at: string }>(`SELECT lesson_id, completed_at FROM acad.lesson_progress WHERE user_id=$1 AND completed_at IS NOT NULL`, [userId])) add('lesson_completed', r.lesson_id, r.completed_at);

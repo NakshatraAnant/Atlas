@@ -119,6 +119,35 @@ describe('learner dashboard (/v1/academy/me)', () => {
     expect(after2.recommendation.kind).toBe('next');
   });
 
+  it('the ledger is rebuilt only when its source records change (regression, session 13)', async () => {
+    const u = await signedIn('pro@atlas.test');
+    await u.get('/v1/academy/me');
+    const count = async () => (await ctx.db.one<{ n: number }>(`SELECT count(*)::int AS n FROM acad.learning_events e JOIN app.users u USING (user_id) WHERE u.email='pro@atlas.test'`)).n;
+    // Count the statements a dashboard read runs: an unchanged ledger must skip the rebuild.
+    const db = ctx.db as unknown as { query: (s: string, p?: unknown[]) => Promise<unknown[]> };
+    const orig = db.query.bind(db);
+    let inserts = 0;
+    db.query = (sql, p) => { if (/INSERT INTO acad.learning_events/.test(sql)) inserts++; return orig(sql, p); };
+    try {
+      const before = (await u.get('/v1/academy/me')).json.xp.xp;
+      expect(inserts).toBe(0);
+      // New activity changes the fingerprint, so the next read derives and awards it.
+      const n0 = await count();
+      const l = await u.get('/v1/academy/lessons/md-l2');
+      expect(l.status).toBe(200);
+      const res = await u.post('/v1/academy/lessons/md-l2/quiz', { answers: l.json.quiz.map((q: any) => ({ question_id: q.question_id, version: q.version, response: wrong(q) })) });
+      expect(res.status).toBe(200);
+      const after = (await u.get('/v1/academy/me')).json.xp.xp;
+      expect(await count()).toBeGreaterThan(n0);
+      expect(after).toBeGreaterThan(before);
+      // A ledger wiped from outside is rebuilt on the next read.
+      await ctx.db.query(`DELETE FROM acad.learning_events WHERE user_id = (SELECT user_id FROM app.users WHERE email='pro@atlas.test')`);
+      expect((await u.get('/v1/academy/me')).json.xp.xp).toBe(after);
+    } finally {
+      db.query = orig;
+    }
+  });
+
   it("one learner's ledger is never visible to another", async () => {
     const other = await signedIn('plus@atlas.test');
     const me = (await other.get('/v1/academy/me')).json;

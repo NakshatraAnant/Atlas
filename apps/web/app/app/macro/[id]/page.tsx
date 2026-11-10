@@ -29,7 +29,7 @@ export default function MacroSeries() {
               <div className="cx-kpi"><span className="k">Latest value</span><span className="v">{d.latest.v.toLocaleString('en-IN', { maximumFractionDigits: 4 })}</span><span className="s">{s.units}</span></div>
               <div className="cx-kpi"><span className="k">Period it refers to</span><span className="v">{d.latest.d}</span></div>
               <div className="cx-kpi"><span className="k">Shown in FRED since</span><span className="v">{d.latest.p ?? '—'}</span><span className="s">vintage date of this value</span></div>
-              <div className="cx-kpi"><span className="k">Retrieved by ATLAS</span><span className="v">{d.provenance.last_retrieved_at ? new Date(d.provenance.last_retrieved_at).toLocaleDateString('en-IN') : '—'}</span></div>
+              <div className="cx-kpi"><span className="k">Retrieved by ATLAS</span><span className="v">{d.provenance.last_retrieved_at ? new Date(d.provenance.last_retrieved_at).toISOString().slice(0, 10) : '—'}</span></div>
             </div>
             <TsChart title={s.title} defaultRange={/^d/i.test(s.frequency ?? '') ? '5Y' : 'Max'} gapDays={/^d/i.test(s.frequency ?? '') ? 7 : /^w/i.test(s.frequency ?? '') ? 20 : /^q/i.test(s.frequency ?? '') ? 140 : /^a/i.test(s.frequency ?? '') ? 400 : 70} series={[{ label: s.series_id, unit: s.units ?? '', points: d.observations }]} note={`Source: ${d.provenance.source}`} />
             <p className="mu">{d.freshness.rule}</p>
@@ -43,7 +43,7 @@ export default function MacroSeries() {
           )}
           <section className="card">
             <h2>Revisions</h2>
-            {d.revisions.length ? <ul>{d.revisions.map((x: any, i: number) => <li key={i}>{x.obs_date}: previously {x.previous}{x.previous_published_at ? ` (shown from ${x.previous_published_at})` : ''}, revised {new Date(x.revised_at).toLocaleDateString('en-IN')}</li>)}</ul> : <p className="mu">No revisions since ATLAS first stored this series.</p>}
+            {d.revisions.length ? <ul>{d.revisions.map((x: any, i: number) => <li key={i}>{x.obs_date}: previously {x.previous}{x.previous_published_at ? ` (shown from ${x.previous_published_at})` : ''}, revised {new Date(x.revised_at).toISOString().slice(0, 10)}</li>)}</ul> : <p className="mu">No revisions since ATLAS first stored this series.</p>}
           </section>
         </>
       )}

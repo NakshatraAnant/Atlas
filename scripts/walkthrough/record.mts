@@ -87,16 +87,20 @@ async function signIn(page: Page) {
   await page.goto(`${BASE}/login`);
   const status = await page.evaluate(`(async () => {
     await fetch('/v1/auth/csrf', { credentials: 'same-origin' });
-    const t = (document.cookie.match(/atlas_csrf=([^;]+)/) || [])[1] || '';
-    const post = (u, b, m) => fetch(u, { method: m || 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': t }, body: JSON.stringify(b), credentials: 'same-origin' });
+    // Signing in issues a new CSRF token, so read the cookie on every request.
+    const tok = () => (document.cookie.match(/atlas_csrf=([^;]+)/) || [])[1] || '';
+    const post = (u, b, m) => fetch(u, { method: m || 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': tok() }, body: JSON.stringify(b), credentials: 'same-origin' });
     const r = await post('/v1/auth/login', { email: 'pro@atlas.test', password: ${JSON.stringify(DEV_PASSWORD)} });
     if (r.status !== 200) return r.status;
     // A clean, repeatable starting state: default Home, notices on, streaks shown, dark theme,
     // two followed series (Brent, the US 10-year yield) and the rupee rate not yet followed.
-    await post('/v1/me', { display_prefs: { home_panels: ['attention', 'following', 'indices', 'commodities', 'macro', 'crypto', 'learning'], markets: [], notify: { releases: true, digest: false }, show_streak: true, theme: 'dark' } }, 'PATCH');
-    await post('/v1/follows', { key: 'macro:DEXINUS', follow: false }, 'PUT');
-    await post('/v1/follows', { key: 'commodity:fred:DCOILBRENTEU', follow: true }, 'PUT');
-    await post('/v1/follows', { key: 'macro:DGS10', follow: true }, 'PUT');
+    const setup = [];
+    setup.push(await post('/v1/me', { display_prefs: { home_panels: ['attention', 'following', 'indices', 'commodities', 'macro', 'crypto', 'learning'], markets: [], notify: { releases: true, digest: false }, show_streak: true, theme: 'dark', tour_done: false } }, 'PATCH'));
+    setup.push(await post('/v1/follows', { key: 'macro:DEXINUS', follow: false }, 'PUT'));
+    setup.push(await post('/v1/follows', { key: 'commodity:fred:DCOILBRENTEU', follow: true }, 'PUT'));
+    setup.push(await post('/v1/follows', { key: 'macro:DGS10', follow: true }, 'PUT'));
+    const bad = setup.find((x) => !x.ok);
+    if (bad) return 'setup ' + bad.status + ' ' + bad.url;
     localStorage.setItem('atlas-theme', 'dark');
     return 200;
   })()`);
@@ -187,6 +191,9 @@ async function tour(narr: Map<string, { seconds: number }>): Promise<{ marks: Ma
     const left = minEnd - clock();
     if (left > 0) await sleep(left * 1000);
     marks.push({ id: s.id, chapter: s.chapter, start: start - start0, end: clock() - start0 });
+    // A scene is bounded at 45 s of actions plus its narration. Far longer means the machine slept or the
+    // browser hung; the composer works in real time, so stop rather than encode hours of a frozen frame.
+    if (clock() - start > 180) throw new Error(`scene ${s.id} took ${Math.round(clock() - start)} s (machine asleep or browser hung); take abandoned`);
   }
   await sleep(300);
   await cdp.send('Page.stopScreencast');
@@ -303,7 +310,7 @@ async function main() {
         g.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
       }
       const ch = tl.chapters.find((k) => t >= k.s && t < k.e);
-      if (ch) { g.font = '600 15px Segoe UI, sans-serif'; const tw = g.measureText(ch.label).width; g.fillStyle = 'rgba(8,11,18,.82)'; g.beginPath(); g.roundRect(W - tw - 44, 14, tw + 28, 30, 15); g.fill(); g.fillStyle = '#d9b56c'; g.fillText(ch.label, W - tw - 30, 34); }
+      if (ch) { g.font = '600 15px Segoe UI, sans-serif'; const tw = g.measureText(ch.label).width; g.fillStyle = 'rgba(8,11,18,.82)'; g.beginPath(); g.textAlign = 'left'; g.roundRect(20, H - 162, tw + 28, 30, 15); g.fill(); g.fillStyle = '#d9b56c'; g.fillText(ch.label, 34, H - 142); }
     }
     const cue = tl.cues.find((q) => t >= q.s && t < q.e + 0.15);
     if (cue) {

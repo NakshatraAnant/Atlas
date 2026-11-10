@@ -79,11 +79,11 @@ async function pickSeries(db: Db, assetId: string, seriesId?: string, preferSour
   return [...all].sort((a, b) => b.observations - a.observations)[0] ?? null;
 }
 
-async function benchmarkObs(db: Db, canonicalKey: string, sourceId: string): Promise<A.Obs[] | null> {
+async function benchmarkObs(db: Db, canonicalKey: string, sourceId: string, fromMs?: number): Promise<A.Obs[] | null> {
   const s = await db.maybeOne<{ series_id: string }>(
     `SELECT s.series_id FROM crypto.price_series s JOIN crypto.assets a ON a.asset_id=s.asset_id WHERE a.canonical_key=$1 AND s.source_id=$2 ORDER BY s.observations DESC LIMIT 1`, [canonicalKey, sourceId]);
   if (!s) return null;
-  return (await observations(db, s.series_id)).map((o) => ({ t: o.t, v: o.close }));
+  return (await observations(db, s.series_id, fromMs)).map((o) => ({ t: o.t, v: o.close }));
 }
 
 export async function cryptoRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
@@ -117,7 +117,9 @@ export async function cryptoRoutes(app: FastifyInstance, ctx: AppContext): Promi
       `SELECT a.canonical_key, a.symbol, NULL::float8 AS v30 FROM crypto.assets a WHERE a.canonical_key IN ('bitcoin','ethereum')`);
     const volatility = [];
     for (const v of vol) {
-      const b = await benchmarkObs(db, v.canonical_key, 'binance') ?? await benchmarkObs(db, v.canonical_key, 'coingecko');
+      // A 30-day volatility needs about a month of closes; read ~400 days rather than history since 2015.
+      const since = now() - 400 * DAY;
+      const b = await benchmarkObs(db, v.canonical_key, 'binance', since) ?? await benchmarkObs(db, v.canonical_key, 'coingecko', since);
       const r = b ? A.realisedVol(b, { window: 30 }) : null;
       volatility.push({ key: v.canonical_key, symbol: v.symbol, vol_30d: r && r.ok ? r.value : null, reason: r ? why(r) : 'No stored daily history yet' });
     }

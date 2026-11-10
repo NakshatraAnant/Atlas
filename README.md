@@ -2,7 +2,9 @@
 
 Research workspace and learning academy for Indian equities and digital assets: an evidence-linked market briefing, company research with provenance on every figure, screener, an AI research assistant that never invents numbers, a Quant Research Lab for reproducible backtests, watchlists and notes, and the four-course ATLAS Academy.
 
-**Indian equity data in this repository is synthetic** (fictional companies, ISINs starting `XXS`): licensed Indian market data is not available (`docs/DATA_RIGHTS_AND_PROVIDERS.md`), and production mode refuses to start with synthetic data.
+**Current state (5 Nov 2026, session 13):** this installation runs in real-data mode. It shows only sourced data: FRED macro and commodity series, EIA inventories, CoinGecko crypto (about 15 minutes delayed), and NIFTY 50, SENSEX and NIFTY BANK end-of-day levels from EODHD. Individual Indian shares and company fundamentals are not available on the free plans in use. Every source is a free or personal tier, so ATLAS is for personal, local research until data licences are obtained (`reports/ATLAS_PROVIDER_AND_LICENSING_REGISTER.md`). Release status: `reports/ATLAS_FINAL_RELEASE_REPORT.md`.
+
+**Demo data** (fictional companies, ISINs starting `XXS`) exists only for development and tests. Real-data mode (`ALLOW_SYNTHETIC_DATA=false`) hides it, and production mode refuses to start with it.
 
 **ATLAS Digital Assets uses real data** from free public sources (CoinGecko, Binance, Coinbase Exchange, DefiLlama, public Ethereum and Bitcoin endpoints, official release feeds), stored locally with source, timestamp and validation status. It never mixes synthetic and real data, and never fills gaps with invented values. Sources, limits and terms: `docs/crypto/SOURCE_CAPABILITY_MATRIX.md`.
 
@@ -100,4 +102,4 @@ Copy `.env.example` to `.env.local` (git-ignored) and change what you need. With
 
 ## Status and documentation
 
-Start with `AUTOPILOT.md` and `docs/execution/MASTER_EXECUTION_STATE.md`. Release readiness: `docs/execution/RELEASE_READINESS.md`. Known limitations: `docs/KNOWN_LIMITATIONS.md`.
+Start with `reports/ATLAS_FINAL_RELEASE_REPORT.md` and `docs/execution/ATLAS_RESUME_CHECKPOINT.md` (current), then `AUTOPILOT.md` and `docs/execution/MASTER_EXECUTION_STATE.md` (history). Session 13 reports are in `reports/`. Release readiness: `docs/execution/RELEASE_READINESS.md`. Known limitations: `docs/KNOWN_LIMITATIONS.md`.

@@ -40,7 +40,13 @@ async function visit(page: Page, route: string, viewport: string): Promise<Findi
   const failed: string[] = [];
   const onConsole = (m: { type(): string; text(): string }) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); };
   const onResponse = (r: { status(): number; url(): string }) => { if (r.status() >= 400) failed.push(`${r.status()} ${new URL(r.url()).pathname}`); };
-  const onFailed = (r: { url(): string; failure(): { errorText: string } | null }) => failed.push(`FAILED ${new URL(r.url()).pathname} ${r.failure()?.errorText ?? ''}`);
+  // A browser cancels a media request once it has the metadata (preload="metadata") or when the page is
+  // left; that is ERR_ABORTED on a video URL and not a failure. Every other failed request is reported.
+  const onFailed = (r: { url(): string; failure(): { errorText: string } | null }) => {
+    const path = new URL(r.url()).pathname;
+    if (/\/videos\/[\w-]+\/video$/.test(path) && r.failure()?.errorText === 'net::ERR_ABORTED') return;
+    failed.push(`FAILED ${path} ${r.failure()?.errorText ?? ''}`);
+  };
   page.on('console', onConsole);
   page.on('response', onResponse);
   page.on('requestfailed', onFailed);

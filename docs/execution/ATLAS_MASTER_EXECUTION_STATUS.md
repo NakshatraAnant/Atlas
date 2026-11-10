@@ -109,3 +109,20 @@ Backup before migration 012: `backups/atlas-backup-2026-10-23_09-26-22.tar.gz`. 
 | Admin diagnostics, backend-enforced | verified | `/admin/v1/providers`; customers 403; customer responses trimmed |
 | Freshness model | verified | schedule-aware states; calibrated on real lags; tests |
 | Reliability | verified | supervisor restart after a kill; interrupted jobs closed at start-up; backups before migrations 012–014 |
+
+## Session 13: recovery, verification, product completion (5 and 11 Nov 2026)
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Recovery of repo and localhost | verified | Uncommitted session-12 work preserved on `checkpoint/session12-wip-20261105`; outage cause: Windows restarts (3 Nov, again before 11 Nov) |
+| Complete product audit | verified | `reports/ATLAS_COMPLETE_PRODUCT_AUDIT.md` |
+| Real data and provider reconciliation | verified | FRED DGS10, Brent; EIA crude stocks match exactly; CoinGecko consistent (`reports/ATLAS_PROVIDER_AND_LICENSING_REGISTER.md`) |
+| Licensing register | verified | No connected source permits paid redistribution; nothing purchased |
+| Defects | verified (16 fixed) | `reports/ATLAS_BUG_AND_REGRESSION_REPORT.md`, each with a regression test or a recorded check |
+| Performance | verified | Scheduler query 9.6 s → 12 ms; parallel Home load 4.9 s → 2.4 s |
+| Security | verified (one advisory mitigated) | Oversized-body denial of service fixed; fast-uri and fastify patched; zod advisory mitigated, migration planned |
+| Onboarding (item 23), one chart model (item 26) | verified | Headless checks, preference tests, walkthrough |
+| Ninth course video | verified | `cm-intro`, 141.6 s; the eight existing videos unchanged (checksums) |
+| QA crawl | verified | 37 pages, 0 findings, desktop and mobile (11 Nov) |
+| Narrated walkthrough | verified | `artifacts/ATLAS_RECORDING_NOTES.md` (take 5: 345.5 s, 1280×720, H.264/AAC, 0 console errors) |
+| Tests | see `reports/ATLAS_FINAL_RELEASE_REPORT.md` | Actual counts from the 11 Nov run |

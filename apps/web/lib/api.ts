@@ -42,13 +42,22 @@ export async function api<T = any>(path: string, init: { method?: string; body?:
   const headers: Record<string, string> = { accept: 'application/json', ...init.headers };
   if (init.body !== undefined) headers['content-type'] = 'application/json';
   if (method !== 'GET') headers['x-csrf-token'] = await ensureCsrf();
-  let res: Response;
-  try {
-    res = await fetch(path, { method, headers, body: init.body === undefined ? undefined : JSON.stringify(init.body), credentials: 'same-origin', signal: init.signal });
-  } catch (err) {
-    if ((err as Error).name === 'AbortError') throw err;
-    throw new ApiError({ status: 0, title: 'Network error', detail: 'ATLAS could not be reached. Check that the application is running and try again.' });
+  const send = () => fetch(path, { method, headers, body: init.body === undefined ? undefined : JSON.stringify(init.body), credentials: 'same-origin', signal: init.signal });
+  // A read is retried once when the web server's proxy, not the API, failed: a dropped connection or a
+  // non-JSON 5xx (the API's own errors are JSON problems and are never retried). Writes are never retried.
+  const transient = (r: Response | null) => r === null || (r.status >= 500 && !(r.headers.get('content-type') ?? '').includes('json'));
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < (method === 'GET' ? 2 : 1); attempt++) {
+    if (attempt) await new Promise((ok) => setTimeout(ok, 800));
+    try {
+      res = await send();
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') throw err;
+      res = null;
+    }
+    if (!transient(res)) break;
   }
+  if (!res) throw new ApiError({ status: 0, title: 'Network error', detail: 'ATLAS could not be reached. Check that the application is running and try again.' });
   const type = res.headers.get('content-type') ?? '';
   if (!res.ok) {
     const problem = type.includes('json') ? ((await res.json()) as Problem) : { status: res.status, detail: await res.text() };

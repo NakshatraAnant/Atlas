@@ -332,3 +332,8 @@ main > * { animation: rise 0.22s ease-out both; }
 .home-panel-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .attn-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
 .attn-list li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--ln); padding: 4px 0; flex-wrap: wrap; }
+.welcome-tour { border-color: var(--gold); background: linear-gradient(180deg, var(--gold-soft), transparent 70%), var(--sf); }
+.wt-steps { margin: 6px 0 10px; padding-left: 22px; display: grid; gap: 10px; }
+.wt-steps li::marker { color: var(--gold); font-weight: 700; }
+.wt-follows { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 6px; }
+.wt-follows > span { display: inline-flex; align-items: center; gap: 8px; }

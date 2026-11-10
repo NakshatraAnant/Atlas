@@ -1,0 +1,118 @@
+WEBVTT
+
+1
+00:00:00.500 --> 00:00:03.070
+Welcome to Commodity Markets Decoder.
+
+2
+00:00:03.070 --> 00:00:07.793
+In the next two minutes you will see why one word, the price of oil,
+
+3
+00:00:07.793 --> 00:00:14.045
+can mean four different numbers, and how to read each of them before you compare anything.
+
+4
+00:00:15.445 --> 00:00:20.380
+A commodity price can be a spot assessment, a futures settlement,
+
+5
+00:00:20.380 --> 00:00:23.949
+a monthly average of world prices, or an index.
+
+6
+00:00:23.949 --> 00:00:28.658
+They differ in where, when and in what unit they are measured.
+
+7
+00:00:28.658 --> 00:00:34.429
+WTI at Cushing and Brent in Europe are different crudes in different places,
+
+8
+00:00:34.429 --> 00:00:36.479
+so their prices can differ.
+
+9
+00:00:37.879 --> 00:00:39.102
+Units come next.
+
+10
+00:00:39.102 --> 00:00:44.378
+Crude oil is quoted per barrel, and a barrel is forty-two US gallons.
+
+11
+00:00:44.378 --> 00:00:47.360
+If diesel costs three dollars a gallon,
+
+12
+00:00:47.360 --> 00:00:51.336
+that is one hundred and twenty-six dollars a barrel.
+
+13
+00:00:51.336 --> 00:00:58.829
+Only after converting can you compare it with crude at eighty dollars: a gap of forty-six dollars.
+
+14
+00:01:00.229 --> 00:01:02.045
+Futures contracts expire.
+
+15
+00:01:02.045 --> 00:01:07.278
+A continuous chart joins one contract to the next, and the join matters.
+
+16
+00:01:07.278 --> 00:01:13.600
+If an expiring contract closes at sixty dollars and the next trades at sixty-one fifty,
+
+17
+00:01:13.600 --> 00:01:19.923
+joining them without adjustment shows a two and a half percent jump that nobody earned.
+
+18
+00:01:21.323 --> 00:01:25.553
+Lining the contracts up by delivery month shows the curve.
+
+19
+00:01:25.553 --> 00:01:30.949
+When later months are priced above the nearest, the market is in contango,
+
+20
+00:01:30.949 --> 00:01:34.450
+and rolling a long position tends to cost money.
+
+21
+00:01:34.450 --> 00:01:38.388
+When later months are cheaper, it is in backwardation.
+
+22
+00:01:39.788 --> 00:01:42.225
+Prices can even fall below zero.
+
+23
+00:01:42.225 --> 00:01:51.135
+On the twentieth of April 2020 the EIA’s WTI spot price was minus thirty-six dollars and ninety-eight cents a barrel.
+
+24
+00:01:51.135 --> 00:01:56.162
+A percentage return across a zero or negative price means nothing,
+
+25
+00:01:56.162 --> 00:02:02.102
+so ATLAS leaves such returns out and says so, rather than averaging them away.
+
+26
+00:02:03.502 --> 00:02:11.274
+Commodity Markets Decoder works through each of these ideas with real benchmark series stored in ATLAS,
+
+27
+00:02:11.274 --> 00:02:13.387
+worked examples and quizzes.
+
+28
+00:02:13.387 --> 00:02:17.085
+None of the global benchmarks is an Indian price.
+
+29
+00:02:17.085 --> 00:02:20.707
+This course is education, not investment advice.
+

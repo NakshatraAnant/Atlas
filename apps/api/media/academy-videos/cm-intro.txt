@@ -1,0 +1,13 @@
+What a commodity price really tells you (ATLAS Academy, ATLAS: COMMODITY MARKETS DECODER)
+
+Learning objective: Read a commodity price by its type, location, date and unit, and see why contracts, curves and gaps change what the number means.
+
+Welcome to Commodity Markets Decoder. In the next two minutes you will see why one word, the price of oil, can mean four different numbers, and how to read each of them before you compare anything.
+A commodity price can be a spot assessment, a futures settlement, a monthly average of world prices, or an index. They differ in where, when and in what unit they are measured. WTI at Cushing and Brent in Europe are different crudes in different places, so their prices can differ.
+Units come next. Crude oil is quoted per barrel, and a barrel is forty-two US gallons. If diesel costs three dollars a gallon, that is one hundred and twenty-six dollars a barrel. Only after converting can you compare it with crude at eighty dollars: a gap of forty-six dollars.
+Futures contracts expire. A continuous chart joins one contract to the next, and the join matters. If an expiring contract closes at sixty dollars and the next trades at sixty-one fifty, joining them without adjustment shows a two and a half percent jump that nobody earned.
+Lining the contracts up by delivery month shows the curve. When later months are priced above the nearest, the market is in contango, and rolling a long position tends to cost money. When later months are cheaper, it is in backwardation.
+Prices can even fall below zero. On the twentieth of April 2020 the EIA’s WTI spot price was minus thirty-six dollars and ninety-eight cents a barrel. A percentage return across a zero or negative price means nothing, so ATLAS leaves such returns out and says so, rather than averaging them away.
+Commodity Markets Decoder works through each of these ideas with real benchmark series stored in ATLAS, worked examples and quizzes. None of the global benchmarks is an Indian price. This course is education, not investment advice.
+
+Narration: Microsoft Zira (Windows built-in offline speech). Animation rendered locally by scripts/video. Numbers are definitions or clearly labelled hypothetical or fictional examples. Status: in expert review. Education, not investment advice.

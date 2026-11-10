@@ -97,6 +97,7 @@ export default function Settings() {
         </div>
         <label className="check"><input type="checkbox" checked={p.show_streak ?? true} onChange={(e) => set({ show_streak: e.target.checked })} /> Show learning streaks</label>
         <p className="mu">Streaks are optional. Hiding them changes nothing about your XP, levels or achievements.</p>
+        <p><button className="chip" onClick={async () => { await api('/v1/me', { method: 'PATCH', body: { display_prefs: { tour_done: false } } }); await refresh(); toast('The welcome steps will show on Home.'); }}>Show the welcome steps on Home again</button></p>
       </section>
 
       <p><button className="btn" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</button></p>

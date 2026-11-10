@@ -27,3 +27,4 @@ artifacts/*.mp4
 artifacts/baseline/*.png
 artifacts/qa/*.png
 artifacts/qa-*/
+artifacts/walkthrough-frames/

@@ -1,4 +1,5 @@
 'use client';
+import { TsChart } from './ts-chart';
 
 import { usePathname } from 'next/navigation';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -193,26 +194,11 @@ export function PriceChart({ data, title, note, quote = 'USD', height = 320 }: {
 }
 
 /** Minimal multi-series line for derived analytics (fractions shown as %). */
+/** A single stored series in the shared interactive chart (TsChart): ranges, hover, zoom, CSV, table. */
 export function MiniLine({ points, title, format = (v: number) => `${(v * 100).toFixed(1)}%`, zero = false, height = 150 }: { points: { t: string; v: number }[]; title: string; format?: (v: number) => string; zero?: boolean; height?: number }) {
   if (points.length < 2) return <p className="mu">Not enough points to chart.</p>;
-  const W = 760;
-  const H = height;
-  const pad = { l: 56, r: 8, t: 8, b: 22 };
-  const vs = points.map((p) => p.v);
-  const lo = Math.min(...vs, zero ? 0 : Infinity);
-  const hi = Math.max(...vs, zero ? 0 : -Infinity);
-  const X = (i: number) => pad.l + (i / (points.length - 1)) * (W - pad.l - pad.r);
-  const Y = (v: number) => pad.t + (1 - (v - lo) / (hi - lo || 1)) * (H - pad.t - pad.b);
-  const d = points.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
-  return (
-    <figure className="chart" style={{ margin: 0 }}>
-      <figcaption><strong>{title}</strong></figcaption>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: from ${format(vs[0]!)} on ${points[0]!.t} to ${format(vs[vs.length - 1]!)} on ${points[points.length - 1]!.t}; range ${format(lo)} to ${format(hi)}.`}>
-        {[lo, (lo + hi) / 2, hi].map((t) => <g key={t}><line x1={pad.l} x2={W - pad.r} y1={Y(t)} y2={Y(t)} stroke="var(--ln)" /><text x={pad.l - 6} y={Y(t) + 4} fontSize="11" textAnchor="end" fill="var(--mu)">{format(t)}</text></g>)}
-        <path d={d} fill="none" stroke="var(--ac)" strokeWidth={1.5} />
-        <text x={pad.l} y={H - 6} fontSize="11" fill="var(--mu)">{points[0]!.t}</text>
-        <text x={W - pad.r} y={H - 6} fontSize="11" fill="var(--mu)" textAnchor="end">{points[points.length - 1]!.t}</text>
-      </svg>
-    </figure>
-  );
+  // Break the line only across real gaps: three times the series' usual spacing (daily, weekly or monthly data).
+  const steps = points.slice(1).map((p, i) => (Date.parse(p.t) - Date.parse(points[i]!.t)) / 86_400_000).filter((d) => d > 0).sort((x, y) => x - y);
+  const usual = steps.length ? steps[Math.floor(steps.length / 2)]! : 1;
+  return <TsChart title={title} series={[{ label: title.length > 48 ? `${title.slice(0, 46)}…` : title, unit: '', points }]} defaultRange="Max" gapDays={Math.max(4, usual * 3)} height={Math.max(height, 170)} zeroLine={zero} format={format} />;
 }

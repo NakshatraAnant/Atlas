@@ -79,9 +79,19 @@ export async function commodityRoutes(app: FastifyInstance, ctx: AppContext): Pr
     const ops = isOperator(requireUser(req));
     const rows = await seriesRows(db);
     const t = now();
+    // The list needs only the latest value and the one-month and one-year changes, which changeOver measures
+    // back from each series' own last observation. One query reads ~400 days before each series' last date
+    // (discontinued series keep their last value); it replaced 31 queries over six years of history.
+    const recent = await db.query<{ series_id: string; d: string; v: number }>(
+      `SELECT o.series_id, to_char(o.obs_date, 'YYYY-MM-DD') AS d, o.value::float8 AS v
+         FROM commodity.observations o JOIN commodity.series s USING (series_id)
+        WHERE s.enabled AND s.last_date IS NOT NULL AND o.obs_date >= s.last_date - 400
+        ORDER BY o.series_id, o.obs_date`);
+    const bySeries = new Map<string, A.Obs[]>();
+    for (const o of recent) { let l = bySeries.get(o.series_id); if (!l) bySeries.set(o.series_id, (l = [])); l.push({ t: Date.parse(`${o.d}T00:00:00Z`), v: o.v }); }
     const items: (Row & Record<string, unknown>)[] = [];
     for (const r of rows) {
-      const obs = r.observations ? await loadObs(db, r.series_id, iso(t.getTime() - 6 * 366 * DAY)) : [];
+      const obs = r.observations ? (bySeries.get(r.series_id) ?? []) : [];
       items.push({ ...r, freshness: freshness(r.last_date, r.frequency, t, r.series_id, r.last_error), last: obs.length ? obs[obs.length - 1]!.v : null, change: obs.length ? { m1: changeOver(obs, 30), y1: changeOver(obs, 365) } : null, configured: r.source_id === 'fred' || !!ctx.cfg.EIA_API_KEY });
     }
     const jobs = await db.query(`SELECT job_id, series_id, started_at, status, received, stored, unchanged, corrected, missing_values, rejected, error, error_category FROM commodity.import_jobs ORDER BY started_at DESC LIMIT 15`);

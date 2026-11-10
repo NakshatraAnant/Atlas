@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useApi, Loading } from './ui';
 import { useApp } from './providers';
 import { DEFAULT_PANELS } from '@/lib/home-panels';
+import { WelcomeTour } from './welcome-tour';
 
 // Home in real-data mode: a market snapshot built only from stored, sourced observations. Every figure
 // shows the date it refers to and its source; a panel without data says so instead of showing a number.
@@ -117,10 +118,11 @@ export function RealHome({ name }: { name?: string | null }) {
   return (
     <>
       <div className="home-panel-hd">
-        <h1>Good {new Date().getHours() < 12 ? 'morning' : 'evening'}{name ? `, ${name}` : ''}</h1>
+        <h1>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}{name ? `, ${name}` : ''}</h1>
         <a href="/app/settings" className="mu">Customise Home</a>
       </div>
       <p className="mu">Every figure below is a stored observation from a named source, shown with the date it refers to. End-of-day and monthly data are not live prices. Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search.</p>
+      <WelcomeTour />
       {order.map((id) => panels[id]?.())}
       {!order.length && <p className="mu">Every Home panel is hidden. <a href="/app/settings">Choose panels in Settings</a>.</p>}
       <p><a href="/app/research-hub">Research hub</a> · <a href="/app/academy">Academy</a> · <a href="/app/data-health">Data sources and freshness</a></p>

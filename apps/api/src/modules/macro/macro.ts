@@ -131,9 +131,17 @@ export async function macroRoutes(app: FastifyInstance, ctx: AppContext): Promis
     const now = ctx.clock();
     const rows = await db.query<{ series_id: string; category: string; title: string; units: string | null; frequency: string | null; seasonal_adjustment: string | null; notes: string | null; source_last_updated: string | null; last_date: string | null; observations: number; last_import_at: string | null; last_error: string | null }>(
       `SELECT series_id, category, title, units, frequency, seasonal_adjustment, notes, source_last_updated, to_char(last_date,'YYYY-MM-DD') AS last_date, observations, last_import_at, last_error FROM macro.series WHERE enabled ORDER BY category, series_id`);
+    // The latest two observations of every enabled series in one query (was one query per series).
+    const lastTwo = await db.query<{ series_id: string; d: string; v: number; p: string | null }>(
+      `SELECT x.series_id, to_char(x.obs_date,'YYYY-MM-DD') AS d, x.value::float8 AS v, to_char(x.published_at,'YYYY-MM-DD') AS p
+         FROM macro.series s CROSS JOIN LATERAL (
+           SELECT o.series_id, o.obs_date, o.value, o.published_at FROM macro.observations o WHERE o.series_id = s.series_id ORDER BY o.obs_date DESC LIMIT 2) x
+        WHERE s.enabled ORDER BY x.series_id, x.obs_date DESC`);
+    const byId = new Map<string, { d: string; v: number; p: string | null }[]>();
+    for (const o of lastTwo) { const l = byId.get(o.series_id) ?? []; l.push({ d: o.d, v: o.v, p: o.p }); byId.set(o.series_id, l); }
     const items = [];
     for (const r of rows) {
-      const last2 = await db.query<{ d: string; v: number; p: string | null }>(`SELECT to_char(obs_date,'YYYY-MM-DD') AS d, value::float8 AS v, to_char(published_at,'YYYY-MM-DD') AS p FROM macro.observations WHERE series_id=$1 ORDER BY obs_date DESC LIMIT 2`, [r.series_id]);
+      const last2 = byId.get(r.series_id) ?? [];
       items.push({ ...r, latest: last2[0] ?? null, previous: last2[1] ?? null, freshness: freshnessOf(r.last_date, r.frequency, now, r.last_error, { expectedAgeDays: MACRO_SERIES.find((m) => m.id === r.series_id)?.expected_age_days }) });
     }
     return { configured: !!ctx.cfg.FRED_API_KEY, items, terms: FRED_TERMS, notice: 'Economic statistics are published on their own schedules (monthly, quarterly …). The date shown is the period an observation refers to, not when it was released.' };

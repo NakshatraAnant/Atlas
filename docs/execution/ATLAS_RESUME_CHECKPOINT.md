@@ -1,6 +1,21 @@
 # ATLAS resume checkpoint
 
-Updated: 2026-10-23, session 10 (mandate: "Master Indian equity data integration & zero-dummy-data execution").
+Updated: 2026-11-11, session 13. The earlier session notes below are kept for history.
+
+## Session 13 state (5 Nov 2026) — read this first
+
+- **Branch** `feat/atlas-mvp`. Session-13 commits begin at `63520ea` (session-12 work verified and committed); performance fix `1243f25`. The session-12 uncommitted snapshot is preserved on branch `checkpoint/session12-wip-20261105` (75e69a6).
+- **Database** `./data/pglite`. Migrations 001–015 are applied (015 `series_follows` applied today). Backup before today's changes: `backups/atlas-backup-2026-11-05_07-08-47.tar.gz` (restore drill passed).
+- **Outage cause:** a Windows restart on 3 Nov ended the launcher's processes. There is no OS service; run `node scripts/atlas.mjs start` after a reboot.
+- **Reports** for this session are in `reports/` (tracker: `reports/ATLAS_MASTER_EXECUTION_TRACKER.md`).
+- **Walkthrough:** `scripts/walkthrough/record.mts` writes `artifacts/ATLAS_COMPLETE_PRODUCT_WALKTHROUGH.mp4` (git-ignored); notes in `artifacts/ATLAS_RECORDING_NOTES.md`. Take 1 (stalled macro scene) is kept at `.atlas/walkthrough-take1-stalled.mp4` for comparison.
+- **Session 13 complete (11 Nov 2026).** All work is committed on `feat/atlas-mvp`. Final walkthrough: take 5, verified (`artifacts/ATLAS_RECORDING_NOTES.md`). Tests on 11 Nov: 687 passed (`reports/ATLAS_FINAL_RELEASE_REPORT.md`).
+- **Next exact actions:**
+  1. Your decisions on data licences (licensing register).
+  2. The zod 4 migration, as its own change.
+  3. Optionally, a Windows logon task to start ATLAS after a reboot.
+  4. Server PostgreSQL before any multi-user use.
+- **Earlier next actions (5 Nov, done on 11 Nov except licences):** (1) a first-run onboarding tour (initiative 23); (2) TsChart for the remaining charts (26); (3) decide on paid data licences (see the licensing register); (4) optionally, a Windows logon task to start ATLAS.
 
 ## Session 11 state (production mandate)
 - Migrations 001–014 applied. Real-data mode on (`ALLOW_SYNTHETIC_DATA=false` in `.env.local`).

@@ -34,6 +34,23 @@
     "rendered_at": "2026-10-22T18:54:25.752Z"
   },
   {
+    "id": "cm-intro",
+    "course_id": "commodity-decoder",
+    "lesson_id": "cm-l1",
+    "title": "What a commodity price really tells you",
+    "objective": "Read a commodity price by its type, location, date and unit, and see why contracts, curves and gaps change what the number means.",
+    "duration_s": 141.6,
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "codecs": "VP9 + Opus (WebM)",
+    "bytes": 13810969,
+    "voice": "Microsoft Zira Desktop",
+    "script_sha": "bbf80d0b752368b3",
+    "status": "in_review",
+    "rendered_at": "2026-11-10T20:12:46.711Z"
+  },
+  {
     "id": "ed-intro",
     "course_id": "equity-detective",
     "lesson_id": "ed-l1",

@@ -1,5 +1,39 @@
 # ATLAS changelog
 
+## Session 13, part 2 (11 Nov 2026): defects, onboarding, charts, ninth video, walkthrough
+
+### Fixed
+- **Home "could not be loaded" under load:** `/v1/commodities` reads one windowed query instead of 31 six-year reads; `/v1/macro` one query instead of one per series; `/v1/academy/me` rebuilds the XP ledger only when its sources change; crypto overview volatility reads about 400 days. Parallel Home load 4.9 s → 2.4 s. The web client retries a read once when the proxy (not the API) fails.
+- **Ctrl+K with Caps Lock** now opens search.
+- **Signed-out navigation** no longer lists demo sections on a real-data install.
+- **Favicon** added (removes a console 404 on every page); the signed-out session check answers 200 instead of 401 (`/v1/me?optional=1`).
+- **Greeting** says "afternoon" between 12:00 and 17:00.
+- `npm run test:web` works, and `npm test` includes the web tests.
+- Walkthrough recorder: CSRF token re-read after sign-in, stall guard, plot measured before dragging, palette check before typing, chapter label moved clear of the header.
+
+### Added
+- **First-run welcome** on Home: choose markets, follow two series, try search; dismissible, restorable from Settings (`display_prefs.tour_done`).
+- **One chart everywhere** on real-data pages: `MiniLine` now renders TsChart (ranges, hover, zoom, CSV, table); the workbench uses TsChart with a shared axis for same-unit series.
+- **COMMODITY MARKETS DECODER introduction video** (`cm-intro`, 141.6 s, captions and transcript). The eight existing videos were not re-rendered (checksums unchanged).
+- Tests: commodity list known answers, macro list equality, ledger-cache rebuild rules, display-preference validation, session check, web retry rule (5).
+
+## Session 13 (5 Nov 2026): recovery, verification, performance, walkthrough
+
+### Fixed
+- **API stalls and proxy 500s:** the crypto scheduler's `lastRuns()` ran a correlated subquery per row of `crypto.ingestion_jobs` every 30 s. Rewritten linearly (12 ms vs 9,573 ms on 8,000 rows). Live page latency max 0.63 s (was up to 33.8 s).
+- **Index pages used a stale adjusted series** (NIFTY 50 showed 22 Oct instead of 4 Nov). Indices always use as-traded levels; a lagging adjusted series is never used for shares; the basis and reason are shown.
+- **Home commodity moves show units.**
+- **Daily macro series** read only the 10-year display window from the database.
+
+### Added
+- Session-12 work (search palette, macro explorer, follows, Settings, TsChart, QA crawler, walkthrough recorder), verified and committed. The uncommitted snapshot is preserved on `checkpoint/session12-wip-20261105`.
+- Walkthrough scenes for portfolios, walk-forward, notebook and reports, lesson video and notifications.
+- Reports in `reports/`: audit, coverage, licensing register, UX, bugs, security, tracker, executive and final release.
+- Regression tests: `crypto-scheduler.test.ts` and two stale-series cases in `equity.test.ts`.
+
+### Operations
+- Diagnosed the outage: a Windows restart (3 Nov) ended the launcher processes. The runbook now says how to start after a reboot.
+
 ## Session 11 (23 Oct 2026): production execution, real-data mode
 
 ### Added

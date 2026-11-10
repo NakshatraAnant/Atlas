@@ -140,6 +140,14 @@ describe('FRED API (recorded responses)', () => {
     const r3 = await importMacroSeries(ctx.db, fetchFn, KEY, 'DGS10', now());
     expect(r3).toMatchObject({ status: 'succeeded', revised: 1, stored: 0 });
     expect((await ctx.db.one<{ n: number }>(`SELECT count(*)::int AS n FROM macro.revisions WHERE series_id='DGS10'`)).n).toBe(1);
+    // The list reads every series' latest two observations in one query (session 13); same answers as per series.
+    const c = new Client(app);
+    await c.login('pro@atlas.test', DEV_PASSWORD);
+    const list = (await c.get('/v1/macro')).json;
+    const item = list.items.find((i: { series_id: string }) => i.series_id === 'DGS10');
+    const two = await ctx.db.query<{ d: string; v: number; p: string | null }>(`SELECT to_char(obs_date,'YYYY-MM-DD') AS d, value::float8 AS v, to_char(published_at,'YYYY-MM-DD') AS p FROM macro.observations WHERE series_id='DGS10' ORDER BY obs_date DESC LIMIT 2`);
+    expect([item.latest, item.previous]).toEqual([two[0], two[1]]);
+    for (const i of list.items.filter((x: { observations: number }) => !x.observations)) expect(i.latest).toBeNull();
   });
   it('commodity series use the FRED API with a key and keep each observation’s vintage', async () => {
     const body = JSON.stringify({ observations: [{ realtime_start: '2026-10-21', date: '2026-10-19', value: '88.1' }, { realtime_start: '2026-10-22', date: '2026-10-20', value: '.' }, { realtime_start: '2026-10-22', date: '2026-10-21', value: '89.4' }] });

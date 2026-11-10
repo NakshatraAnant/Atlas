@@ -20,10 +20,16 @@ export const DISPLAY_PREFS = z.object({
   notify: z.object({ releases: z.boolean(), digest: z.boolean() }).partial(),
   show_streak: z.boolean(),
   screener_columns: z.array(z.string().max(40)).max(30),
+  /** The first-run welcome on Home has been dismissed. */
+  tour_done: z.boolean(),
 }).partial().strict();
 
 export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
-  app.get('/v1/me', async (req) => {
+  // The web app asks once per page load whether anyone is signed in. `?optional=1` answers a signed-out
+  // visitor with 200 and `{ signed_in: false }` instead of 401, so browsers do not log an error on every
+  // public page. Without the flag the route still answers 401 (unchanged for API clients).
+  app.get('/v1/me', async (req, reply) => {
+    if (!req.user && (req.query as { optional?: string }).optional === '1') { reply.header('cache-control', 'no-store'); return { signed_in: false }; }
     const u = requireUser(req);
     const profile = await ctx.db.one<Record<string, unknown>>(
       `SELECT user_id, email, email_verified_at, display_name, role, experience_level, interests, briefing_email, display_prefs, totp_enabled_at, state_code, is_beta, founding_member, onboarding_completed_at, created_at FROM app.users WHERE user_id=$1`,
