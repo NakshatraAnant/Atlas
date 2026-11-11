@@ -93,7 +93,9 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
       let last = performance.now();
       const frame = (t: number) => {
         raf = 0;
-        const dt = Math.min(0.1, (t - last) / 1000);
+        // A frame's timestamp can be slightly earlier than the moment it was requested (more so in background
+        // or headless tabs); a negative step would run animations backwards, so it is clamped to [0, 0.1] s.
+        const dt = Math.max(0, Math.min(0.1, (t - last) / 1000));
         last = t;
         for (const a of [...animations]) if (!a(dt)) animations.delete(a);
         renderer.render(scene, camera);

@@ -151,6 +151,7 @@ function OverviewTab({ d }: { d: Detail }) {
 }
 
 interface Analytics {
+  suspect_included?: string[];
   series: Series | null; note?: string; calculated_at: string; last_observation: string;
   returns: Record<string, { value: number | null; from?: string; to?: string; days_actual?: number; reason?: string }>;
   volatility: Record<string, { value: number | null; returns_used?: number; annualisation?: string; reason?: string }> & { rolling_30d: { t: string; v: number }[] };
@@ -184,6 +185,7 @@ function AnalyticsTab({ d }: { d: Detail }) {
           </table>
         </section>
         <section className="card"><h2>Volatility and drawdown</h2>
+          {(x.suspect_included?.length ?? 0) > 0 && <p className="warn" role="note">These measures include {x.suspect_included!.length} close{x.suspect_included!.length === 1 ? '' : 's'} flagged as an extreme move ({x.suspect_included!.slice(0, 4).join(', ')}{x.suspect_included!.length > 4 ? ', …' : ''}). A flagged value can be a genuine move or a bad print from the source; check it in the table view before relying on drawdown or volatility.</p>}
           <dl className="term-kv">
             {(['30d', '90d'] as const).map((k) => <span key={k} style={{ display: 'contents' }}><dt>Realised volatility, {k.replace('d', ' days')}</dt><dd>{x.volatility[k]!.value === null ? pending(x.volatility[k]!.reason) : `${(x.volatility[k]!.value! * 100).toFixed(1)}% (${x.volatility[k]!.annualisation}, ${x.volatility[k]!.returns_used} returns)`}</dd></span>)}
             <dt>Current drawdown from peak</dt><dd className={signCls(x.drawdown.current)}>{x.drawdown.current === undefined ? pending(x.drawdown.reason) : pctFrac(x.drawdown.current)}</dd>

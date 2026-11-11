@@ -1,5 +1,29 @@
 # ATLAS changelog
 
+## Session 13, part 3 (11 Nov 2026, evening): Academy 3D and journeys, data audit, sharing, zod 4
+
+### Added
+- **3D chart analysis on real stored data** in the Academy:
+  - NIFTY 50 holding-period returns (Market Decoder).
+  - Brent moving-average parameter surface, in-sample against out-of-sample (Signal Engineer).
+  - The WTI futures curve month by month, and US crude stocks by week and year (Commodity Markets Decoder).
+- **The Market Architect DCF surface** is rebuilt on the same engine. It renders on demand instead of continuously, and adds axes, a cursor and a table.
+- **Shared 3D chart engine** (`chart3d.tsx`): gaps stay open, ridgelines, a zero plane, hover or slider read-outs, a rise-in and an in-/out-of-sample morph, tables and CSV, and provenance for every chart. API: `/v1/academy/charts/:id`.
+- **Learner journeys:**
+  - A course journey map with modules as stations and lessons as stops (done, up next), feature chips (3D, Lab, Video, Practice) and a progress ring.
+  - A lesson progress bar and a completion moment that leads to the next lesson.
+  - Progress rings and a staggered entrance on the Academy index. All motion respects reduced-motion settings.
+- **Sharing:** `scripts/share.mjs` (start, status, stop) for a Cloudflare quick tunnel. It updates `WEB_ORIGIN` and the message file.
+- **Auto-start:** `scripts/autostart/ATLAS.cmd`, to copy into the Windows Startup folder.
+- **Data audit:** `reports/ATLAS_DATA_AUDIT.md`.
+
+### Fixed
+- **3D runtime:** a negative first frame step could run animations backwards and make values explode. Steps are now clamped to between 0 and 0.1 s. This affected every animated 3D scene.
+- **Sharpe ratio of constant returns:** it was about 10^16 from floating-point noise and is now "not defined". Fixed in shared analytics and the Academy charts.
+- **Crypto asset analytics** now disclose flagged extreme moves included in drawdown and volatility.
+- **zod 3 → 4.6.7** removes advisory GHSA-mrhx-c7xc-m3w5 (`npm audit --omit=dev`: 0 vulnerabilities). Object defaults use `prefault` to keep zod 3 behaviour.
+- **Academy index copy** now says three tracks and nine courses. The course page no longer shows the capstone twice.
+
 ## Session 13, part 2 (11 Nov 2026): defects, onboarding, charts, ninth video, walkthrough
 
 ### Fixed

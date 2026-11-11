@@ -45,7 +45,7 @@ export async function academyExtraRoutes(app: FastifyInstance, ctx: AppContext):
     const body = parse(z.object({
       body: z.string().trim().min(50).max(20_000),
       artefacts: z.array(z.object({ kind: z.enum(['note', 'backtest', 'hypothesis', 'watchlist']), id: z.string().uuid() })).max(10).default([]),
-      self_assessment: z.record(z.number().int().min(0).max(3)),
+      self_assessment: z.record(z.string(), z.number().int().min(0).max(3)),
     }), req.body);
     for (const r of c.rubric) if (!(r.criterion in body.self_assessment)) throw badRequest(`Rate yourself on "${r.criterion}".`);
     if (Object.keys(body.self_assessment).some((k) => !c.rubric.some((r) => r.criterion === k))) throw badRequest('Self-assessment includes an unknown criterion.');
@@ -69,7 +69,7 @@ export async function academyExtraRoutes(app: FastifyInstance, ctx: AppContext):
   app.post('/admin/v1/academy/capstones/:sid/review', async (req) => {
     const a = requireRole(req, ['admin']);
     const { sid } = parse(z.object({ sid: z.string().uuid() }), req.params);
-    const body = parse(z.object({ scores: z.record(z.number().int().min(0).max(3)), comments: z.string().trim().min(10).max(5000), reviewer_name: z.string().trim().min(3).max(120) }), req.body);
+    const body = parse(z.object({ scores: z.record(z.string(), z.number().int().min(0).max(3)), comments: z.string().trim().min(10).max(5000), reviewer_name: z.string().trim().min(3).max(120) }), req.body);
     const s = await db.maybeOne<{ course_id: string; capstone_version: number; status: string }>(`SELECT course_id, capstone_version, status FROM acad.capstone_submissions WHERE submission_id=$1`, [sid]);
     if (!s) throw notFound();
     const c = await db.one<CapstoneRow>(`SELECT rubric FROM acad.capstones WHERE course_id=$1 AND version=$2`, [s.course_id, s.capstone_version]);
@@ -144,7 +144,7 @@ export async function academyExtraRoutes(app: FastifyInstance, ctx: AppContext):
     const { id } = parse(z.object({ id: z.string().max(40) }), req.params);
     const g = GAME_BY_ID.get(id);
     if (!g || g.mechanic !== 'tune') throw notFound();
-    const body = parse(z.object({ round: z.number().int().min(0), params: z.record(z.number().finite()) }), req.body);
+    const body = parse(z.object({ round: z.number().int().min(0), params: z.record(z.string(), z.number().finite()) }), req.body);
     const r = g.rounds[body.round];
     if (!r) throw badRequest('Unknown round.');
     return evaluateTune(g.id, r.fixed, clampParams(r.params, body.params));
@@ -163,7 +163,7 @@ export async function academyExtraRoutes(app: FastifyInstance, ctx: AppContext):
       ({ correct, total } = r);
       details = r.outcomes;
     } else {
-      const { rounds } = parse(z.object({ rounds: z.array(z.record(z.number().finite())).length(g.rounds.length) }), req.body);
+      const { rounds } = parse(z.object({ rounds: z.array(z.record(z.string(), z.number().finite())).length(g.rounds.length) }), req.body);
       const outcomes = g.rounds.map((r, i) => evaluateTune(g.id, r.fixed, clampParams(r.params, rounds[i]!)));
       correct = outcomes.filter((o) => o.ok).length;
       total = outcomes.length;

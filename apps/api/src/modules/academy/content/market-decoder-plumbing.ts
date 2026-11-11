@@ -118,7 +118,7 @@ export const MD_MODULE_5: SourceLesson[] = [
         'A candlestick draws one day: the body spans open to close, and thin lines (wicks) reach up to the high and down to the low. Colour conventions vary between charting tools, so always check the legend.',
         'Daily return compares closes: (today\'s close ÷ yesterday\'s close) − 1. It uses closes, not opens, so overnight moves are included.',
       ] },
-      { stage: 'observe', kind: 'atlas_task', title: 'Read OHLC on a company chart', href: '/app/companies', steps: [
+      { stage: 'observe', kind: 'atlas_task', title: 'Read OHLC on a company chart', widget: 'horizon_surface_3d', intro: "Before reading single days, see what holding longer does. Each ridge is a start week; each column a holding period. Turn the surface and compare the spread of 1-session returns with 60-session returns on the real NIFTY 50.", href: '/app/companies', steps: [
         'Open Kaveri Foods and select Price & technicals.',
         'Hover over a recent day to read its open, high, low, close and volume.',
         'Check that the low is the smallest of the four prices and the high the largest: ATLAS rejects any record where that is not true.',

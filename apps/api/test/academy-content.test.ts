@@ -47,7 +47,11 @@ describe('lesson structure', () => {
     for (const q of lesson.quiz) expect(lesson.objectives).toContain(q.objective);
     for (const b of lesson.blocks) {
       if (b.kind === 'interactive') expect(WIDGETS).toContain(b.widget);
-      if (b.kind === 'atlas_task') expect(b.href).toMatch(/^\/(app|methodology)/);
+      if (b.kind === 'atlas_task') {
+        expect(b.href).toMatch(/^\/(app|methodology)/);
+        // An optional 3D analysis shown before the task must be a known widget with a real introduction.
+        if (b.widget) { expect(WIDGETS).toContain(b.widget); expect(b.intro?.length ?? 0).toBeGreaterThan(40); }
+      }
       if ('alt_text' in b) expect(b.alt_text.length).toBeGreaterThan(20);
       if (b.kind === 'prediction') expect(b.answer).toBeLessThan(b.options.length);
     }

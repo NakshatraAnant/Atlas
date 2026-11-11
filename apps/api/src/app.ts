@@ -11,6 +11,7 @@ import { billingRoutes } from './modules/billing/routes.js';
 import { academyRoutes } from './modules/academy/routes.js';
 import { academyExtraRoutes } from './modules/academy/extraRoutes.js';
 import { learningRoutes } from './modules/academy/learningRoutes.js';
+import { academyChartRoutes } from './modules/academy/charts3d.js';
 import { datasetRoutes } from './modules/datasets/routes.js';
 import { dataHealthRoutes } from './modules/datahealth/healthRoutes.js';
 import { terminalRoutes } from './modules/research/terminal.js';
@@ -228,6 +229,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
   await academyRoutes(app, ctx);
   await academyExtraRoutes(app, ctx);
   await learningRoutes(app, ctx);
+  await academyChartRoutes(app, ctx);
   await datasetRoutes(app, ctx);
   await dataHealthRoutes(app, ctx);
   await terminalRoutes(app, ctx);

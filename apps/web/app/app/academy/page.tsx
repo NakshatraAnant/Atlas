@@ -1,6 +1,7 @@
 'use client';
 import { useApp } from '@/components/providers';
 import { Empty, Loading, Problem, useApi } from '@/components/ui';
+import { ProgressRing } from '@/components/academy-journey';
 
 interface Course {
   course_id: string; title: string; tagline: string; description: string; audience: string; position: number; track: 'equities' | 'digital_assets' | 'commodities'; level: number; draft: boolean; status: string; available: boolean;
@@ -32,7 +33,7 @@ export default function AcademyHome() {
       <header className="ac-hero">
         <p className="eyebrow">ATLAS Academy</p>
         <h1>Learn to read markets the way ATLAS does: with evidence.</h1>
-        <p className="mu" style={{ maxWidth: 640 }}>Two tracks of four courses: Indian equities, from how a share works to defending a valuation, and digital assets, from how a blockchain works to an evidence-based crypto research report. Each starts with a five-question readiness check so you begin at the right place. {cat.not_a_qualification}</p>
+        <p className="mu" style={{ maxWidth: 640 }}>Three tracks, nine courses: Indian equities, from how a share works to defending a valuation; digital assets, from how a blockchain works to an evidence-based crypto research report; and commodities, from reading a price label to futures curves and inventories. Lessons include 3D charts built on real stored data, interactive labs and narrated videos. Each course starts with a short readiness check so you begin at the right place. {cat.not_a_qualification}</p>
         {me.data && (
           <div className="card next-action">
             <p className="big">Next: {me.data.recommendation.href ? <a href={me.data.recommendation.href}>{me.data.recommendation.title}</a> : me.data.recommendation.title}</p>
@@ -54,10 +55,10 @@ export default function AcademyHome() {
           <section key={t} aria-labelledby={`track-${t}`}>
             <h2 id={`track-${t}`} className="eyebrow" style={{ margin: '18px 0 8px' }}>{t === 'equities' ? 'Track 1 · Indian equities' : t === 'digital_assets' ? 'Track 2 · Digital assets' : 'Track 3 · Commodities'}</h2>
           <ol className="course-grid">
-          {cat.courses.filter((c) => c.track === t).map((c) => {
+          {cat.courses.filter((c) => c.track === t).map((c, idx) => {
             const mine = p?.courses.find((x) => x.course_id === c.course_id);
             return (
-              <li key={c.course_id} className={`course c${c.level}${c.available ? '' : ' locked'}`}>
+              <li key={c.course_id} className={`course c${c.level}${c.available ? '' : ' locked'}`} style={{ ['--i' as string]: idx }}>
                 <a href={`/app/academy/${c.course_id}`} className="course-link" aria-describedby={`st-${c.course_id}`}>
                   <span className="num" aria-hidden="true">0{c.level}</span>
                   <span className="level">{LEVEL[c.level] ?? ''}</span>
@@ -72,6 +73,7 @@ export default function AcademyHome() {
                   </p>
                   {!c.available ? <span className="t">Opens after expert review</span> : mine ? (
                     <div className="mini">
+                      <ProgressRing value={mine.lessons ? mine.lessons_completed / mine.lessons : 0} size={44} label={`${mine.lessons_completed} of ${mine.lessons} lessons completed`} />
                       <span>Lessons {mine.lessons_completed}/{mine.lessons}</span>
                       <span>Mastered {mine.mastered}/{mine.objectives} objectives</span>
                     </div>

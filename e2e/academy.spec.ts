@@ -82,10 +82,13 @@ test('Academy is discoverable, every course opens, and a lesson resumes after re
   // Every course detail opens directly and survives a reload.
   for (const id of ['market-decoder', 'equity-detective', 'signal-engineer', 'market-architect']) {
     await page.goto(`/app/academy/${id}`);
-    await expect(page.getByRole('heading', { name: 'Modules' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your path through the course' })).toBeVisible();
+    // The journey map lists every lesson as a stop, with its progress ring.
+    await expect(page.locator('.journey .stop').first()).toBeVisible();
+    await expect(page.getByRole('img', { name: /lessons completed/ }).first()).toBeVisible();
   }
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Modules' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your path through the course' })).toBeVisible();
   // Advance two stages, refresh, and resume at the same stage.
   await page.goto('/app/academy/lesson/md-l4');
   await page.getByRole('button', { name: 'Continue' }).click();

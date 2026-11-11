@@ -267,6 +267,8 @@ export async function cryptoRoutes(app: FastifyInstance, ctx: AppContext): Promi
     const ann = (r: A.Result<{ value: number; returns_used: number; window: number; annualisation: number }>) => (r.ok ? { value: r.value, returns_used: r.returns_used, window: r.window, annualisation: `√${r.annualisation}` } : { value: null, reason: why(r) });
     return {
       asset: a.canonical_key, series: { ...s, label: seriesLabel(s) }, calculated_at: new Date(now()).toISOString(), last_observation: s.last_open_time, data_kind: 'derived',
+      // Flagged extreme moves are kept (crypto does move this much) but the measures below include them, so say so.
+      suspect_included: raw.filter((o) => o.validation === 'suspect').map((o) => new Date(o.t).toISOString().slice(0, 10)),
       returns, volatility: { '30d': ann(v30), '90d': ann(v90), rolling_30d: thin(A.rollingVol(obs, { window: 30 })).map((x) => ({ t: new Date(x.t).toISOString().slice(0, 10), v: x.v })) },
       drawdown: dd.ok ? { current: dd.current_drawdown, max: dd.max_drawdown, peak: { t: new Date(dd.peak.t).toISOString().slice(0, 10), v: dd.peak.v }, max_peak: new Date(dd.max_dd_peak.t).toISOString().slice(0, 10), max_trough: new Date(dd.max_dd_trough.t).toISOString().slice(0, 10), recovery: dd.max_dd_recovery ? new Date(dd.max_dd_recovery.t).toISOString().slice(0, 10) : null, recovery_days: dd.recovery_days, days_since_peak: dd.days_since_peak, series: thin(dd.series).map((x) => ({ t: new Date(x.t).toISOString().slice(0, 10), v: x.dd })) } : { reason: why(dd) },
       distribution: dist.ok ? { ...dist, worst: { t: new Date(dist.worst.t).toISOString().slice(0, 10), r: dist.worst.r }, best: { t: new Date(dist.best.t).toISOString().slice(0, 10), r: dist.best.r } } : { reason: why(dist) },

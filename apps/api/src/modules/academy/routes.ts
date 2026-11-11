@@ -49,6 +49,17 @@ interface LessonRow {
 /** Statuses a course can be listed with (retired versions are never listed). */
 const LISTED_STATUSES = ['draft', 'in_review', 'published'];
 
+/** What a lesson offers: a 3D chart or scene, a 2D interactive lab, a practice task in ATLAS, a video. */
+export function lessonFeatures(lessonId: string, blocks: { kind: string; widget?: string }[], videos: { lesson_id: string }[]): string[] {
+  const f = new Set<string>();
+  for (const b of blocks) {
+    if (b.widget) f.add(b.widget.endsWith('_3d') ? '3d' : 'lab');
+    if (b.kind === 'atlas_task') f.add('task');
+  }
+  if (videos.some((v) => v.lesson_id === lessonId)) f.add('video');
+  return ['3d', 'lab', 'video', 'task'].filter((x) => f.has(x));
+}
+
 export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   const db = ctx.db;
   const statuses = visibleStatuses(ctx.cfg.academyShowDrafts);
@@ -122,11 +133,13 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
     }
     const c = await course(id);
     const modules = await db.query<{ module_id: string; position: number; title: string; summary: string }>(`SELECT module_id, position, title, summary FROM acad.modules WHERE course_id=$1 ORDER BY position`, [id]);
-    const lessons = await db.query<{ lesson_id: string; module_id: string; position: number; title: string; minutes: number; status: string; objective_ids: string[] }>(
-      `SELECT DISTINCT ON (l.lesson_id) l.lesson_id, l.module_id, l.position, l.title, l.minutes, l.status, l.objective_ids
+    const lessonRows = await db.query<{ lesson_id: string; module_id: string; position: number; title: string; minutes: number; status: string; objective_ids: string[]; blocks: { kind: string; widget?: string }[] }>(
+      `SELECT DISTINCT ON (l.lesson_id) l.lesson_id, l.module_id, l.position, l.title, l.minutes, l.status, l.objective_ids, l.blocks
          FROM acad.lessons l JOIN acad.modules m USING (module_id) WHERE m.course_id=$1 AND l.status = ANY($2) ORDER BY l.lesson_id, l.version DESC`,
       [id, statuses],
     );
+    // What each lesson offers, for the course journey map (the blocks themselves are not sent here).
+    const lessons = lessonRows.map(({ blocks, ...l }) => ({ ...l, features: lessonFeatures(l.lesson_id, blocks, videos) }));
     const objectives = await db.query<{ objective_id: string; statement: string; skill: string }>(`SELECT objective_id, statement, skill FROM acad.objectives WHERE course_id=$1 ORDER BY position`, [id]);
     const preceding = c.preceding_course_id ? (await currentCourses(db, statuses)).find((x) => x.course_id === c.preceding_course_id) : undefined;
     let learner = null;
@@ -267,10 +280,20 @@ export async function academyRoutes(app: FastifyInstance, ctx: AppContext): Prom
       : [];
     const objectives = await db.query(`SELECT objective_id, statement FROM acad.objectives WHERE objective_id = ANY($1)`, [l.objective_ids]);
     const c = await course(l.course_id);
+    // The learner's place in the course: the next lesson in course order and how far along they are.
+    const order = await db.query<{ lesson_id: string; title: string; done: boolean }>(
+      `SELECT x.lesson_id, x.title, (p.completed_at IS NOT NULL) AS done FROM (
+         SELECT DISTINCT ON (l.lesson_id) l.lesson_id, l.title, m.position AS mpos, l.position AS lpos
+           FROM acad.lessons l JOIN acad.modules m USING (module_id) WHERE m.course_id=$1 AND l.status = ANY($2) ORDER BY l.lesson_id, l.version DESC) x
+         LEFT JOIN acad.lesson_progress p ON p.lesson_id=x.lesson_id AND p.user_id=$3
+        ORDER BY x.mpos, x.lpos`, [l.course_id, statuses, u.userId]);
+    const at = order.findIndex((o) => o.lesson_id === l.lesson_id);
+    const after = order.slice(at + 1).find((o) => !o.done) ?? order[at + 1] ?? null;
     return {
       lesson_id: l.lesson_id, version: l.version, course: { course_id: c.course_id, title: c.title }, title: l.title, minutes: l.minutes, draft: isDraft(l.status),
       objectives, prerequisites: prereqs, blocks: l.blocks, references: l.references_list, mastery_rule: l.mastery_rule,
       quiz: quiz.map(publicQuestion), progress,
+      journey: { position: at + 1, total: order.length, completed: order.filter((o) => o.done).length, next_lesson: after ? { lesson_id: after.lesson_id, title: after.title } : null },
       videos: videos.filter((v) => v.lesson_id === l.lesson_id).map((v) => ({
         id: v.id, title: v.title, objective: v.objective, duration_s: v.duration_s, width: v.width, height: v.height, status: v.status,
         src: `/v1/academy/videos/${v.id}/video`, poster: `/v1/academy/videos/${v.id}/poster`, captions: `/v1/academy/videos/${v.id}/captions`, transcript: `/v1/academy/videos/${v.id}/transcript`,

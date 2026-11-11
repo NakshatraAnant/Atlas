@@ -18,7 +18,7 @@ import { robustnessWarnings } from './warnings.js';
 
 export const backtestRequestSchema = z.object({
   template: z.enum(['ma_crossover', 'breakout_52w', 'rsi_mean_reversion', 'momentum_monthly', 'low_vol_monthly', 'custom_rules']),
-  params: z.record(z.number()).default({}),
+  params: z.record(z.string(), z.number()).default({}),
   rules: ruleSetSchema.optional(),
   universe: z.discriminatedUnion('type', [
     z.object({ type: z.literal('security'), company_id: z.string().uuid() }),
@@ -26,8 +26,8 @@ export const backtestRequestSchema = z.object({
     z.object({ type: z.literal('screen'), screen_id: z.string().uuid() }),
   ]),
   period: z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
-  costs: z.object({ included: z.boolean().default(true), slippage_bps: z.number().min(0).max(200).default(10), brokerage_bps: z.number().min(0).max(100).default(0) }).default({}),
-  liquidity: z.object({ max_adv_pct: z.number().min(0.001).max(1).default(0.05), min_adv_cr: z.number().min(0).max(1000).default(1), mode: z.enum(['skip', 'cap']).default('skip') }).default({}),
+  costs: z.object({ included: z.boolean().default(true), slippage_bps: z.number().min(0).max(200).default(10), brokerage_bps: z.number().min(0).max(100).default(0) }).prefault({}),
+  liquidity: z.object({ max_adv_pct: z.number().min(0.001).max(1).default(0.05), min_adv_cr: z.number().min(0).max(1000).default(1), mode: z.enum(['skip', 'cap']).default('skip') }).prefault({}),
   benchmark: z.string().max(20).optional(),
   capital_inr: z.number().min(10_000).max(1e10).default(1_000_000),
   snapshot_id: z.string().uuid().optional(),

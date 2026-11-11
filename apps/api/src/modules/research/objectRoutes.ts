@@ -31,7 +31,7 @@ export async function objectRoutes(app: FastifyInstance, ctx: AppContext): Promi
   });
   app.post('/v1/research/views', async (req) => {
     const u = requireUser(req);
-    const b = parse(z.object({ kind: z.enum(['workbench', 'screen', 'correlation', 'backtest', 'scenario']), name: z.string().trim().min(1).max(80), config: z.record(z.unknown()).refine((c) => JSON.stringify(c).length <= 20_000, 'config too large') }), req.body);
+    const b = parse(z.object({ kind: z.enum(['workbench', 'screen', 'correlation', 'backtest', 'scenario']), name: z.string().trim().min(1).max(80), config: z.record(z.string(), z.unknown()).refine((c) => JSON.stringify(c).length <= 20_000, 'config too large') }), req.body);
     const n = (await db.one<{ n: number }>(`SELECT count(*)::int AS n FROM research.saved_views WHERE user_id=$1 AND deleted_at IS NULL`, [u.userId])).n;
     if (n >= 200) throw badRequest('You can keep up to 200 saved views.');
     return db.one(`INSERT INTO research.saved_views (user_id, kind, name, config) VALUES ($1,$2,$3,$4) RETURNING view_id, kind, name, config, created_at`, [u.userId, b.kind, b.name, JSON.stringify(b.config)]);
@@ -159,7 +159,7 @@ export async function objectRoutes(app: FastifyInstance, ctx: AppContext): Promi
   app.post('/v1/research/portfolios/:id/scenario', async (req) => {
     const u = requireUser(req);
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
-    const b = parse(z.object({ shocks: z.record(z.number().min(-1).max(5)).default({}), vol_multiplier: z.number().min(0.1).max(10).default(1), correlation_shift: z.number().min(-1).max(1).default(0), range: z.enum(['1y', '3y', 'max']).default('1y') }), req.body);
+    const b = parse(z.object({ shocks: z.record(z.string(), z.number().min(-1).max(5)).default({}), vol_multiplier: z.number().min(0.1).max(10).default(1), correlation_shift: z.number().min(-1).max(1).default(0), range: z.enum(['1y', '3y', 'max']).default('1y') }), req.body);
     const { p, insts, align, al, prices, weights } = await analyse(u.userId, id, b.range);
     const cols = prices.map((v) => A.alignedReturns(al.dates, v, align.max_gap_days));
     const keep = cols[0]!.map((_, i) => cols.every((c) => c[i] !== null));
@@ -175,7 +175,7 @@ export async function objectRoutes(app: FastifyInstance, ctx: AppContext): Promi
   const entryBody = z.object({
     kind: z.enum(['note', 'hypothesis', 'journal']), title: z.string().trim().min(1).max(200), body: z.string().max(20000).default(''),
     instruments: z.array(instrumentKey).max(20).default([]), sources: z.array(z.object({ title: z.string().max(200), url: z.string().url().max(500).refine((u) => /^https?:\/\//i.test(u), 'only http(s) links').optional(), note: z.string().max(500).optional() })).max(30).default([]),
-    chart_configs: z.array(z.record(z.unknown())).max(10).default([]), assumptions: z.string().max(5000).optional(), counterarguments: z.string().max(5000).optional(),
+    chart_configs: z.array(z.record(z.string(), z.unknown())).max(10).default([]), assumptions: z.string().max(5000).optional(), counterarguments: z.string().max(5000).optional(),
     thesis: z.string().max(5000).optional(), evidence_for: z.string().max(5000).optional(), evidence_against: z.string().max(5000).optional(), horizon_days: z.number().int().min(1).max(3650).optional(),
     benchmark_key: instrumentKey.optional(), review_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     expected: z.string().max(5000).optional(), observed: z.string().max(5000).optional(), missed: z.string().max(5000).optional(),

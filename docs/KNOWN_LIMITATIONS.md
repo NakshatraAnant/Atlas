@@ -85,4 +85,7 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 - **Intermittent slow endpoint.** `/v1/macro/explorer/options` answered in 7.3 s once in three timings (0.32 s otherwise). Its queries are trivial; the delay coincided with a crypto ingestion job, so it was most likely waiting for the single-threaded database.
 - **Course videos** (all nine courses have one) use a synthetic voice and are AI-drafted teaching content in review, like the rest of the Academy.
 - **Data rights.** Every connected source is a free or personal tier. None grants redistribution to paying customers; see `reports/ATLAS_PROVIDER_AND_LICENSING_REGISTER.md`. ATLAS is fit for personal, local research only until licences are obtained.
+- **3D charts need WebGL.** Without it, or on very old devices, each 3D analysis shows the same numbers as a table and a CSV.
+- **The shared link changes after a restart** (Cloudflare quick tunnel). Run `node scripts/share.mjs start` and send the new link. ATLAS and the tunnel run only while this PC is on.
+- **The narrated walkthrough** (recorded 11 Nov, before the evening's Academy work) does not show the 3D chart analyses or the course journey map.
 - **Not available with current sources:** Indian individual shares (EODHD free plan answers 404), company fundamentals, gold and silver prices, real-time quotes. CoinGecko data is about 15 minutes delayed; Indian indices and FRED series are end of day or slower.

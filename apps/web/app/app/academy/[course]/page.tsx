@@ -3,13 +3,14 @@ import { use, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { DraftBanner } from '@/components/academy';
 import { Loading, Problem, useApi } from '@/components/ui';
+import { CourseJourney } from '@/components/academy-journey';
 
 interface Detail {
   course_id: string; title: string; tagline: string; description: string; audience: string; prerequisites: string; completion_statement: string; draft: boolean; available?: boolean; unavailable_reason?: string;
   preceding_course: { course_id: string; title: string } | null;
   diagnostic: { questions: number; minutes: number; max_attempts_per_week: number; rules: { high_min: number; low_max: number } };
   objectives: { objective_id: string; statement: string }[];
-  modules: { module_id: string; position: number; title: string; summary: string; lessons: { lesson_id: string; title: string; minutes: number; draft: boolean }[] }[];
+  modules: { module_id: string; position: number; title: string; summary: string; lessons: { lesson_id: string; title: string; minutes: number; draft: boolean; features?: string[] }[] }[];
   learner: null | {
     enrolment: { entry_route: string; enrolled_at: string } | null;
     attempts: { attempt_id: string; submitted_at: string | null; readiness: string | null }[];
@@ -110,27 +111,7 @@ export default function CoursePage({ params }: { params: Promise<{ course: strin
           <p className="mu">Mastery is shown only after repeated correct answers over time; finishing a lesson does not count as mastery.</p>
         </section>
       </div>
-      <section aria-labelledby="mods">
-        <h2 id="mods">Modules</h2>
-        <ol className="modules">
-          {c.modules.map((m) => (
-            <li key={m.module_id} className="card">
-              <h3>Module {m.position}: {m.title}</h3>
-              <p className="mu">{m.summary}</p>
-              {m.lessons.length ? (
-                <ol className="lessons">
-                  {m.lessons.map((l) => <li key={l.lesson_id}><a href={`/app/academy/lesson/${l.lesson_id}`}>{l.title}</a> <span className="mu">· {l.minutes} min{l.draft ? ' · draft' : ''}</span>{done(l.lesson_id) && <span className="t o">Completed</span>}</li>)}
-                </ol>
-              ) : <p className="mu">Lessons in preparation.</p>}
-            </li>
-          ))}
-        </ol>
-      </section>
-      <section className="card" aria-labelledby="cap-h">
-        <h2 id="cap-h">Capstone and completion</h2>
-        <p>Finish with a practical assignment inside ATLAS, assessed against a published rubric. A completion record lists exactly what you completed and demonstrated.</p>
-        <p><a className="btn s" href={`/app/academy/${course}/capstone`}>Open the capstone</a> <a className="btn s" href="/app/academy/games">Practice games</a></p>
-      </section>
+      <CourseJourney courseId={course} modules={c.modules} isDone={done} nextId={next?.lesson_id ?? null} enrolled={!!L?.enrolment} />
       <p className="disc">{c.completion_statement}</p>
     </div>
   );

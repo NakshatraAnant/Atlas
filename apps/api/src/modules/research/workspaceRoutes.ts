@@ -144,7 +144,7 @@ export async function workspaceRoutes(app: FastifyInstance, ctx: AppContext): Pr
   // ── Workspaces (WSR-03): saved as of a date; reopening offers "refresh to latest" with changed figures ──
   app.post('/v1/workspaces', async (req) => {
     const u = requireVerified(req);
-    const body = parse(z.object({ name: z.string().trim().min(1).max(120), company_id: uuid.nullable().optional(), state: z.record(z.unknown()), figures: z.array(z.object({ metric_code: z.string().max(60), period_key: z.string().max(40), value: z.number().nullable() })).max(100).default([]) }), req.body);
+    const body = parse(z.object({ name: z.string().trim().min(1).max(120), company_id: uuid.nullable().optional(), state: z.record(z.string(), z.unknown()), figures: z.array(z.object({ metric_code: z.string().max(60), period_key: z.string().max(40), value: z.number().nullable() })).max(100).default([]) }), req.body);
     const asOf = (await db.maybeOne<{ d: string | null }>(`SELECT max(trade_date) AS d FROM calc.market_daily`))?.d ?? null;
     return db.one(`INSERT INTO app.workspaces (user_id, name, company_id, state, saved_figures, saved_as_of) VALUES ($1,$2,$3,$4,$5,$6) RETURNING workspace_id, saved_as_of`, [u.userId, body.name, body.company_id ?? null, JSON.stringify(body.state), JSON.stringify(body.figures), asOf]);
   });

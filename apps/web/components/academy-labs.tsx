@@ -6,6 +6,7 @@ import {
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ThreeStatementsScene } from './statements3d';
 import { AmmPoolScene, ConsensusScene, DepthScene, QuantScene, SigningLab, TokenomicsScene, TxJourneyScene } from './crypto-scenes';
+import { DataSurface3D, Surface3D, type Grid3D } from './chart3d';
 
 // Interactive labs for the four Academy courses. Every number comes from the tested simulations in
 // @atlas/shared; every lab states its result in text (aria-live) so it works without the visual.
@@ -304,84 +305,21 @@ const DISCOUNTS = [10, 11, 12, 13, 14];
 const GROWTHS = [2, 3, 4, 5, 6];
 const BASE_FCF = [100, 110, 121];
 
-/** 3D sensitivity surface with an accessible table; 3D loads only when supported and motion is allowed. */
+/** 3D sensitivity bars on the shared chart engine: hover or use the sliders to read a cell; the table has every value. */
 export function DcfSurface3D() {
   const grid = useMemo(() => dcfSensitivity(BASE_FCF, DISCOUNTS, GROWTHS), []);
-  const host = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState<'loading' | '3d' | 'table'>('loading');
-  useEffect(() => {
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    if (reduce || !gl || !host.current) { setMode('table'); return; }
-    let stop = () => undefined as void;
-    let cancelled = false;
-    void import('three').then((THREE) => {
-      if (cancelled || !host.current) return;
-      const el = host.current;
-      const w = el.clientWidth || 480;
-      const h = 300;
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(w, h);
-      renderer.setPixelRatio(Math.min(2, devicePixelRatio));
-      el.appendChild(renderer.domElement);
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
-      camera.position.set(6, 6, 8);
-      camera.lookAt(0, 1, 0);
-      const values = grid.flat().filter((x): x is number => x !== null);
-      const lo = Math.min(...values);
-      const hi = Math.max(...values);
-      const group = new THREE.Group();
-      grid.forEach((row, i) => row.forEach((v, j) => {
-        if (v === null) return;
-        const height = 0.2 + ((v - lo) / (hi - lo)) * 3;
-        const t = (v - lo) / (hi - lo);
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, height, 0.8), new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.58 - 0.45 * t, 0.65, 0.5) }));
-        mesh.position.set((j - 2) * 1.1, height / 2, (i - 2) * 1.1);
-        group.add(mesh);
-      }));
-      scene.add(group);
-      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-      const light = new THREE.DirectionalLight(0xffffff, 1);
-      light.position.set(5, 10, 5);
-      scene.add(light);
-      let raf = 0;
-      let angle = 0;
-      let dragging = false;
-      let lastX = 0;
-      const onDown = (e: PointerEvent) => { dragging = true; lastX = e.clientX; };
-      const onUp = () => { dragging = false; };
-      const onMove = (e: PointerEvent) => { if (dragging) { angle += (e.clientX - lastX) * 0.01; lastX = e.clientX; } };
-      renderer.domElement.addEventListener('pointerdown', onDown);
-      addEventListener('pointerup', onUp);
-      addEventListener('pointermove', onMove);
-      const tick = () => {
-        if (!dragging) angle += 0.003;
-        group.rotation.y = angle;
-        renderer.render(scene, camera);
-        raf = requestAnimationFrame(tick);
-      };
-      tick();
-      setMode('3d');
-      stop = () => {
-        cancelAnimationFrame(raf);
-        removeEventListener('pointerup', onUp);
-        removeEventListener('pointermove', onMove);
-        renderer.dispose();
-        el.innerHTML = '';
-      };
-    }).catch(() => setMode('table'));
-    return () => { cancelled = true; stop(); };
-  }, [grid]);
+  const g: Grid3D = useMemo(() => ({
+    id: 'dcf_sensitivity', title: 'DCF value by discount rate and terminal growth',
+    x: { title: 'Terminal growth', labels: GROWTHS.map((v) => `${v}%`) },
+    z: { title: 'Discount rate', labels: DISCOUNTS.map((v) => `${v}%`) },
+    y: { title: 'Value', unit: '₹ cr' },
+    values: grid, colour: 'sequential', facts: [], method: '', source: { name: '', series: [], first: null, last: null, note: '' },
+  }), [grid]);
   return (
-    <div className="lab">
-      <div ref={host} className="surface3d" role="img" aria-label="3D bars of DCF value: taller and warmer bars are higher values. The same values are in the table below." hidden={mode === 'table'} />
-      {mode === '3d' && <p className="mu">Drag to rotate. Rows: discount rate; columns: terminal growth. Base case FCF ₹100, 110, 121 crore.</p>}
-      <table><caption>DCF value (₹ crore) by discount rate and terminal growth (base FCF 100, 110, 121)</caption>
-        <thead><tr><th scope="col">Discount \ growth</th>{GROWTHS.map((g) => <th key={g} scope="col">{g}%</th>)}</tr></thead>
-        <tbody>{grid.map((row, i) => <tr key={i}><th scope="row">{DISCOUNTS[i]}%</th>{row.map((v, j) => <td key={j}>{v === null ? 'n/a' : fmt(v, 0)}</td>)}</tr>)}</tbody>
-      </table>
+    <div className="lab lab3d">
+      <h3 className="lab3d-title">{g.title}</h3>
+      <Surface3D grid={g} mode="bars" height={340} />
+      <p className="mu">Hypothetical base case: free cash flow ₹100, 110 and 121 crore. Taller, warmer bars are higher values. Notice how much value depends on the two assumptions at the corners: a cell where growth approaches the discount rate is undefined (n/a).</p>
     </div>
   );
 }
@@ -423,6 +361,10 @@ export function MultipleTestingLab() {
 }
 
 export const COURSE_LABS: Record<string, () => ReactNode> = {
+  horizon_surface_3d: () => <DataSurface3D chart="horizon_surface" />,
+  param_surface_3d: () => <DataSurface3D chart="param_surface" />,
+  term_structure_3d: () => <DataSurface3D chart="term_structure" height={420} />,
+  seasonality_3d: () => <DataSurface3D chart="seasonality" />,
   diversification: DiversificationLab, compound_growth: CompoundLab, real_return: RealReturnLab, index_weighting: IndexWeightingLab,
   statement_flow: StatementFlowLab, dupont: DupontLab, ev_bridge: EvBridgeLab,
   drawdown: DrawdownLab, overfit: OverfitLab, cost_drag: CostDragLab,

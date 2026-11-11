@@ -46,10 +46,13 @@ export function riskRatios(returns: number[], periodsPerYear: number, riskFree =
   const m = mean(returns);
   const sd = stdev(returns);
   const downside = Math.sqrt(mean(returns.map((r) => Math.min(0, r - rfp) ** 2)));
+  // Constant returns leave only floating-point noise (~1e-18) in the deviation: that is "no variation",
+  // for which a ratio is undefined, not 10^16.
+  const tiny = 1e-12 * Math.max(1, Math.abs(m));
   return {
-    ok: true, mean_return: m * periodsPerYear, vol: sd * Math.sqrt(periodsPerYear),
-    sharpe: sd > 0 ? ((m - rfp) / sd) * Math.sqrt(periodsPerYear) : null,
-    sortino: downside > 0 ? ((m - rfp) / downside) * Math.sqrt(periodsPerYear) : null,
+    ok: true, mean_return: m * periodsPerYear, vol: sd > tiny ? sd * Math.sqrt(periodsPerYear) : 0,
+    sharpe: sd > tiny ? ((m - rfp) / sd) * Math.sqrt(periodsPerYear) : null,
+    sortino: downside > tiny ? ((m - rfp) / downside) * Math.sqrt(periodsPerYear) : null,
     downside_dev: downside * Math.sqrt(periodsPerYear), periods: returns.length, annualisation: periodsPerYear, risk_free: riskFree,
   };
 }

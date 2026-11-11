@@ -31,9 +31,13 @@ describe('oversized request bodies (regression, session 13)', () => {
       const bad = await c.patch('/v1/me', { display_prefs: { screener_columns: new Array(9_000).fill(1) } });
       expect(bad.status).toBe(400);
       expect(bad.json.errors.length).toBeLessThanOrEqual(20);
-      expect(bad.json.errors_truncated).toBeGreaterThan(20);
       expect(JSON.stringify(bad.json).length).toBeLessThan(20_000);
       expect(performance.now() - t).toBeLessThan(5_000);
+      // The issue cap itself: 25 invalid items within the length limit give 25 issues, of which 20 are returned.
+      const many = await c.patch('/v1/me', { display_prefs: { screener_columns: new Array(25).fill(1) } });
+      expect(many.status).toBe(400);
+      expect(many.json.errors).toHaveLength(20);
+      expect(many.json.errors_truncated).toBe(25);
       // Ordinary requests are unaffected.
       expect((await c.patch('/v1/me', { display_prefs: { screener_columns: ['pe', 'roe'] } })).status).toBe(200);
     } finally {

@@ -166,7 +166,7 @@ export async function adminRoutes(app: FastifyInstance, ctx: AppContext): Promis
   app.patch('/admin/v1/ai/review/:id', async (req) => {
     const a = requireRole(req, ['admin', 'data_ops']);
     const { id } = parse(z.object({ id: z.string().uuid() }), req.params);
-    const body = parse(z.object({ review_status: z.enum(['in_review', 'confirmed_error', 'not_an_error', 'added_to_eval']), review_label: z.string().max(500).optional(), expected: z.record(z.unknown()).optional() }), req.body);
+    const body = parse(z.object({ review_status: z.enum(['in_review', 'confirmed_error', 'not_an_error', 'added_to_eval']), review_label: z.string().max(500).optional(), expected: z.record(z.string(), z.unknown()).optional() }), req.body);
     const f = await db.maybeOne<{ message_id: string }>(`UPDATE ai.feedback SET review_status=$2, review_label=$3, reviewer_user_id=$4, triaged_at=COALESCE(triaged_at, now()) WHERE feedback_id=$1 RETURNING message_id`, [id, body.review_status, body.review_label ?? null, a.userId]);
     if (!f) throw notFound();
     if (body.review_status === 'added_to_eval' || body.review_status === 'confirmed_error') {

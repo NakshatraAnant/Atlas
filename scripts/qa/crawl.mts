@@ -19,7 +19,7 @@ export const ROUTES = [
   '/', '/status', '/pricing', '/methodology', '/help', '/login', '/signup',
   '/app', '/app/equities', '/app/equities/INDEX/NIFTY50', '/app/equities/statements', '/app/crypto', '/app/crypto/assets', '/app/crypto/assets/bitcoin', '/app/crypto/defi', '/app/crypto/onchain', '/app/crypto/events', '/app/crypto/research', '/app/crypto/sources',
   '/app/commodities', '/app/commodities/fred/DCOILBRENTEU', '/app/commodities/eia/WCESTUS1', '/app/macro', '/app/macro/DGS10', '/app/macro/explorer', '/app/research-hub', '/app/research/datasets',
-  '/app/academy', '/app/academy/progress', '/app/academy/commodity-decoder', '/app/academy/lesson/cm-l1', '/app/learn', '/app/data-health', '/app/notifications', '/app/account', '/app/settings',
+  '/app/academy', '/app/academy/progress', '/app/academy/commodity-decoder', '/app/academy/lesson/cm-l1', '/app/academy/lesson/cm-l3', '/app/academy/lesson/cm-l5', '/app/academy/lesson/md-l13', '/app/academy/lesson/se-l5', '/app/academy/lesson/ma-l2', '/app/academy/market-decoder', '/app/learn', '/app/data-health', '/app/notifications', '/app/account', '/app/settings',
 ];
 
 async function signIn(page: Page, email: string, totp?: string) {

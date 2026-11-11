@@ -29,14 +29,14 @@ export interface SourceQuestion {
   objective?: string;
 }
 
-export const WIDGETS = ['order_book', 'percent_path', 'ownership_split', 'diversification', 'compound_growth', 'real_return', 'index_weighting', 'statement_flow', 'dupont', 'ev_bridge', 'drawdown', 'overfit', 'cost_drag', 'dcf', 'dcf_surface_3d', 'portfolio_risk', 'multiple_testing', 'statements_3d', 'tx_journey_3d', 'tokenomics_3d', 'consensus_3d', 'signing', 'amm_pool_3d', 'quant_3d', 'depth_3d'] as const;
+export const WIDGETS = ['order_book', 'percent_path', 'ownership_split', 'diversification', 'compound_growth', 'real_return', 'index_weighting', 'statement_flow', 'dupont', 'ev_bridge', 'drawdown', 'overfit', 'cost_drag', 'dcf', 'dcf_surface_3d', 'portfolio_risk', 'multiple_testing', 'statements_3d', 'tx_journey_3d', 'tokenomics_3d', 'consensus_3d', 'signing', 'amm_pool_3d', 'quant_3d', 'depth_3d', 'horizon_surface_3d', 'param_surface_3d', 'term_structure_3d', 'seasonality_3d'] as const;
 export type Widget = (typeof WIDGETS)[number];
 
 export type Block =
   | { stage: 'discover'; kind: 'text'; title: string; body: string[] }
   | { stage: 'observe'; kind: 'interactive'; title: string; widget: Widget; intro: string; alt_text: string }
   /** A guided exercise inside the ATLAS product itself (practical use of real screens on permitted data). */
-  | { stage: 'observe'; kind: 'atlas_task'; title: string; href: string; steps: string[]; alt_text: string }
+  | { stage: 'observe'; kind: 'atlas_task'; title: string; href: string; steps: string[]; alt_text: string; /** Optional 3D analysis shown before the task. */ widget?: Widget; intro?: string }
   | { stage: 'predict'; kind: 'prediction'; prompt: string; options: string[]; answer: number; reveal: string }
   | { stage: 'investigate'; kind: 'worked_example'; title: string; steps: string[] }
   | { stage: 'decide'; kind: 'guided_practice'; prompt: string; hint: string; answer_text: string }

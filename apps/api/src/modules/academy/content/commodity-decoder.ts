@@ -88,7 +88,7 @@ const CM3: SourceLesson = {
       'Contango often reflects the cost of storing and financing a commodity until later delivery; backwardation often appears when nearby supply is tight and users pay more for prompt delivery. These are tendencies, not rules.',
       'Holding futures means repeatedly rolling from an expiring contract into a later one. In contango each roll replaces a cheaper contract with a dearer one, a drag known as negative roll yield; in backwardation the effect is reversed.',
     ] },
-    { stage: 'observe', kind: 'atlas_task', title: 'Read a curve state', href: '/app/commodities', steps: [
+    { stage: 'observe', kind: 'atlas_task', title: 'Read a curve state', widget: 'term_structure_3d', intro: "Twenty years of the real WTI futures curve, one slice per month. Turn it to see when later contracts sat above the nearest (contango) and when below (backwardation).", href: '/app/commodities', steps: [
       'Open the Term structure tab. If EIA data are configured, note the four contract positions, the slope from position 1 to 4 and the stated state.',
       'If they are not configured, read the method note and work the guided practice below instead.',
       'In either case, write down why a “position 2” series is not one single contract over time.',
@@ -152,7 +152,7 @@ const CM5: SourceLesson = {
       'So an inventory level means little on its own. Analysts compare it with the same week in earlier years, for example as a z-score: (latest − average of earlier years) ÷ their standard deviation.',
       'A seasonal average of past price changes describes history. With only a few years per month it is noisy, and a pattern can disappear when supply, demand or market structure changes.',
     ] },
-    { stage: 'observe', kind: 'atlas_task', title: 'Read a seasonality table', href: '/app/commodities/fred/DHHNGSP', steps: [
+    { stage: 'observe', kind: 'atlas_task', title: 'Read a seasonality table', widget: 'seasonality_3d', intro: "Ten years of real US crude stocks, one ridge per year. The same seasonal shape repeats, at a different level each year: that is why ATLAS compares a week with the same week in earlier years.", href: '/app/commodities/fred/DHHNGSP', steps: [
       'Open Henry Hub natural gas. Find the Seasonality table.',
       'Note the months with the largest average rise and fall, and the share of years with a rise.',
       'Read the “Years” row and the warning text, and write down how many years the averages rest on.',

@@ -127,7 +127,7 @@ export const SE_MODULE_3: SourceLesson[] = [
         'A fair backtest states the hypothesis, universe and membership rules, signal timing, execution and costs, benchmark, evaluation period and the number of variants you will try, before looking at results.',
         'ATLAS records every run with its data snapshot, engine version and cost table so it can be reproduced exactly.',
       ] },
-      { stage: 'observe', kind: 'atlas_task', title: 'Run and read a backtest', href: '/app/lab', steps: [
+      { stage: 'observe', kind: 'atlas_task', title: 'Run and read a backtest', widget: 'param_surface_3d', intro: "A fair backtest chooses its rules before it sees the test data. This surface is 25 versions of one rule on real Brent prices. Switch between in-sample and out-of-sample and watch where the best-looking peak lands.", href: '/app/lab', steps: [
         'Write your hypothesis in a note first (for example: "a 50/200-day crossover reduced drawdowns on this company without destroying returns").',
         'Run the moving-average template on one company with costs included.',
         'Read every warning (few trades, single security, benchmark mismatch) and open its explanation.',

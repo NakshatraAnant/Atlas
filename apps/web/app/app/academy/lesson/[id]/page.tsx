@@ -5,11 +5,12 @@ import { answered, DraftBanner, Lab, QuestionInput, StageStepper, type Answer, t
 import { Loading, Problem, useApi } from '@/components/ui';
 import { useApp } from '@/components/providers';
 import { isDemoPath } from '@/components/shell';
+import { LessonComplete, LessonProgress } from '@/components/academy-journey';
 
 type Block =
   | { stage: 'discover'; kind: 'text'; title: string; body: string[] }
   | { stage: 'observe'; kind: 'interactive'; title: string; widget: string; intro: string; alt_text: string }
-  | { stage: 'observe'; kind: 'atlas_task'; title: string; href: string; steps: string[]; alt_text: string }
+  | { stage: 'observe'; kind: 'atlas_task'; title: string; href: string; steps: string[]; alt_text: string; widget?: string; intro?: string }
   | { stage: 'predict'; kind: 'prediction'; prompt: string; options: string[]; answer: number; reveal: string }
   | { stage: 'investigate'; kind: 'worked_example'; title: string; steps: string[] }
   | { stage: 'decide'; kind: 'guided_practice'; prompt: string; hint: string; answer_text: string }
@@ -22,6 +23,7 @@ interface Lesson {
   blocks: Block[]; references: { title: string; url?: string; note: string }[]; mastery_rule: string; quiz: PublicQuestion[];
   progress: { last_block: number; completed_at: string | null } | null;
   videos?: LessonVideo[];
+  journey?: { position: number; total: number; completed: number; next_lesson: { lesson_id: string; title: string } | null };
 }
 interface LessonVideo { id: string; title: string; objective: string; duration_s: number; width: number; height: number; status: string; src: string; poster: string; captions: string; transcript: string }
 interface QuizResult { score: number; correct: number; of: number; outcomes: { question_id: string; correct: boolean; correct_answer: any; explanation: string; misconception: string | null }[]; mastery: { objective_id: string; state: string; estimate: number; evidence_count: number; next_review_at: string }[] }
@@ -61,6 +63,7 @@ export default function LessonPlayer({ params }: { params: Promise<{ id: string 
   return (
     <div className="academy narrow">
       <p><a href={`/app/academy/${d.course.course_id}`}>← {d.course.title}</a></p>
+      <LessonProgress stage={i} stages={d.blocks.length} inQuiz={inQuiz} journey={d.journey} courseTitle={d.course.title} />
       <h1>{d.title}</h1>
       <p className="mu">{d.minutes} min · {d.objectives.map((o) => o.statement).join(' ')}</p>
       {d.draft && <DraftBanner what="This lesson" />}
@@ -120,21 +123,24 @@ function BlockView({ b }: { b: Block }) {
       return <>{b.body.map((p) => <p key={p}>{p}</p>)}</>;
     case 'interactive':
       return <><p>{b.intro}</p><Lab widget={b.widget} /><p className="sr-only">{b.alt_text}</p></>;
-    case 'atlas_task':
+    case 'atlas_task': {
+      // An optional 3D analysis on real stored data comes first; it works in every installation.
+      const analysis = b.widget ? <div className="task-analysis"><p className="lab-intro">{b.intro}</p><Lab widget={b.widget} /><h3 className="task-h">Now practise in ATLAS</h3></div> : null;
       // Exercises built on the fictional practice companies cannot run when demo data is switched off.
       if (me?.demo_mode === false && isDemoPath(b.href)) return (
-        <div className="atlas-task">
+        <>{analysis}<div className="atlas-task">
           <p><strong>Practical exercise unavailable here.</strong> It uses the fictional practice companies, which are switched off in this installation (it shows only real, sourced data). Read the steps to follow the method:</p>
           <ol>{b.steps.map((st) => <li key={st}>{st}</li>)}</ol>
-        </div>
+        </div></>
       );
       return (
-        <div className="atlas-task">
+        <>{analysis}<div className="atlas-task">
           <p>Practise in ATLAS itself. Open the page below in a new tab, work through the steps, then come back.</p>
           <ol>{b.steps.map((s) => <li key={s}>{s}</li>)}</ol>
           <p><a className="btn s" href={b.href} target="_blank" rel="noopener">Open {b.href} in a new tab</a></p>
-        </div>
+        </div></>
       );
+    }
     case 'prediction':
       return (
         <fieldset className="qcard"><legend><strong>{b.prompt}</strong></legend>
@@ -190,11 +196,12 @@ function Quiz({ lesson }: { lesson: Lesson }) {
       <p className="mu">{lesson.mastery_rule}</p>
       {lesson.quiz.map((q, k) => <QuestionInput key={q.question_id} index={k} q={q} value={ans[q.question_id] ?? null} onChange={(a) => setAns({ ...ans, [q.question_id]: a })} disabled={!!res} outcome={res?.outcomes.find((o) => o.question_id === q.question_id)} />)}
       {res ? (
-        <div className="okbox" role="status">
-          <p><strong>{res.correct} of {res.of} correct.</strong> Lesson marked complete.</p>
-          {res.mastery.map((m) => <p key={m.objective_id}>{m.state === 'mastered' ? 'Objective mastered.' : `Still practising this objective (estimate ${Math.round(m.estimate * 100)}% from ${m.evidence_count} answers).`} Next review: {new Date(m.next_review_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}.</p>)}
-          <p><a href={`/app/academy/${lesson.course.course_id}`}>Back to the course</a></p>
-        </div>
+        <>
+          <LessonComplete correct={res.correct} of={res.of} courseId={lesson.course.course_id} next={lesson.journey?.next_lesson ?? null} />
+          <div className="mu" style={{ marginTop: 8 }}>
+            {res.mastery.map((m) => <p key={m.objective_id}>{m.state === 'mastered' ? 'Objective mastered.' : `Still practising this objective (estimate ${Math.round(m.estimate * 100)}% from ${m.evidence_count} answers).`} Next review: {new Date(m.next_review_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}.</p>)}
+          </div>
+        </>
       ) : (
         <button className="btn" disabled={!all || busy} onClick={() => void submit()}>{busy ? 'Checking…' : all ? 'Check answers' : 'Answer every question to check'}</button>
       )}

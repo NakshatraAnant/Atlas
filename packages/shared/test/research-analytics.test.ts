@@ -96,3 +96,17 @@ describe('discovery helpers', () => {
     expect(recentVsBaseline([0, 0, 1], 1, 2)).toBeNull();
   });
 });
+
+describe('riskRatios with constant returns (regression, session 13)', () => {
+  it('reports no ratio instead of a floating-point artefact', async () => {
+    const { riskRatios } = await import('../src/research-analytics.js');
+    const r = riskRatios(new Array(100).fill(0.001), 252);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.sharpe).toBeNull();
+      expect(r.vol).toBe(0);
+    }
+    const varied = riskRatios(Array.from({ length: 100 }, (_, i) => (i % 2 ? 0.02 : 0)), 252);
+    expect(varied.ok && varied.sharpe).toBeGreaterThan(0);
+  });
+});

@@ -168,7 +168,7 @@ export async function contentRoutes(app: FastifyInstance, ctx: AppContext): Prom
   // Support and feedback (SUP-01, SUP-03, SUP-04, J12)
   const ticketRef = () => `ATL-${randomToken(5).toUpperCase().replace(/[^A-Z0-9]/g, '7').slice(0, 7)}`;
   app.post('/v1/feedback', async (req) => {
-    const body = parse(z.object({ kind: z.enum(['feedback', 'data_issue', 'ai_issue', 'support', 'billing', 'coverage_request']).default('feedback'), subject: z.string().trim().min(2).max(200), comment: z.string().max(5000).optional(), page: z.string().max(300).optional(), surface: z.string().max(80).optional(), context: z.record(z.unknown()).optional(), email: z.string().email().max(254).optional(), screenshot_data_url: z.string().max(2_500_000).optional() }), req.body);
+    const body = parse(z.object({ kind: z.enum(['feedback', 'data_issue', 'ai_issue', 'support', 'billing', 'coverage_request']).default('feedback'), subject: z.string().trim().min(2).max(200), comment: z.string().max(5000).optional(), page: z.string().max(300).optional(), surface: z.string().max(80).optional(), context: z.record(z.string(), z.unknown()).optional(), email: z.string().email().max(254).optional(), screenshot_data_url: z.string().max(2_500_000).optional() }), req.body);
     const u = req.user;
     if (!u && !body.email) throw badRequest('Add an email address so we can reply.');
     const plan = u ? await userPlan(db, u.userId, ctx.clock()) : null;
@@ -208,7 +208,7 @@ export async function contentRoutes(app: FastifyInstance, ctx: AppContext): Prom
 
   // Client analytics (ANL-01): only allow-listed events, only with consent.
   app.post('/v1/analytics/events', async (req, reply) => {
-    const body = parse(z.object({ name: z.string().max(60), props: z.record(z.unknown()).default({}), anon_id: z.string().max(64).optional() }), req.body);
+    const body = parse(z.object({ name: z.string().max(60), props: z.record(z.string(), z.unknown()).default({}), anon_id: z.string().max(64).optional() }), req.body);
     if (!CLIENT_EVENTS.has(body.name as EventName)) return reply.status(202).send({ accepted: false, reason: 'server-side event' });
     if (!req.user || !(await hasAnalyticsConsent(db, req.user.userId))) return reply.status(202).send({ accepted: false, reason: 'no analytics consent' });
     const ok = await track(db, body.name, body.props, { userId: req.user.userId, sessionId: req.user.sessionHash, origin: 'client' });

@@ -75,3 +75,16 @@ Backups contain user accounts and notes: keep them private.
 | Browser (stop ATLAS first; it uses the same ports) | `npm run test:e2e` |
 
 None of these calls the real data providers or spends their quotas.
+
+
+## Sharing ATLAS with someone (Cloudflare quick tunnel)
+
+- **Start or refresh the link:** `node scripts/share.mjs start`. It starts the tunnel (or reuses a working one), writes the address to `WEB_ORIGIN` in `.env.local` (ATLAS only accepts sign-ins from that address), restarts ATLAS if the address changed, and updates `.atlas/share/SHARE_WITH_FRIEND.txt`.
+- **Check it:** `node scripts/share.mjs status`. **Close it:** `node scripts/share.mjs stop`.
+- **The guest account** is `guest@atlas.test` (Pro). Its password is only in the share file. To revoke access, stop the tunnel or reset that password.
+- **A quick tunnel gets a new address every time it starts.** After a restart, send the new link. A fixed address needs a free Cloudflare account and a domain.
+- **Data terms:** the EODHD free plan is for personal use and CoinGecko Demo is non-commercial. Share only with individuals, non-commercially.
+
+## Start automatically when you sign in to Windows
+
+Copy `scripts/autostart/ATLAS.cmd` into your Startup folder (press Win+R, type `shell:startup`, press Enter). At each sign-in it runs `atlas.mjs start` and then `share.mjs start`, logging to `.atlas/logs/autostart.log`. Delete the copy to turn it off. (It was not installed for you: that changes your Windows configuration.)
