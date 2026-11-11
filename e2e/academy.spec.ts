@@ -59,6 +59,8 @@ test('Academy: a game, the 3D/table DCF lab and the capstone page work', async (
 
   await page.goto('/app/academy/lesson/ma-l2');
   await page.getByRole('button', { name: 'Continue' }).click();
+  // The same values as the 3D bars sit in a table (inside "Table of values"), for screen readers and no-WebGL browsers.
+  await page.getByText('Table of values').first().click();
   await expect(page.getByRole('table', { name: /DCF value/ })).toBeVisible();
   await expect(page.locator('main')).toContainText('1,383');
 
