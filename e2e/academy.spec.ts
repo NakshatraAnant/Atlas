@@ -73,11 +73,14 @@ test('Academy: a game, the 3D/table DCF lab and the capstone page work', async (
 test('Academy is discoverable, every course opens, and a lesson resumes after refresh with XP recorded', async ({ page }) => {
   const w = watchErrors(page);
   await signIn(page, 'pro@atlas.test', '/app');
-  // Discoverable from Home and from the primary navigation (second item).
+  // Discoverable from Home and from the primary navigation (the Learn menu).
   await expect(page.getByRole('heading', { name: /ATLAS Academy|Learning progress/ })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Sections' });
-  await expect(nav.getByRole('link').nth(1)).toHaveText('Academy');
-  await nav.getByRole('link', { name: 'Academy', exact: true }).click();
+  const learn = nav.getByRole('button', { name: 'Learn' });
+  await expect(learn).toHaveAttribute('aria-expanded', 'false');
+  await learn.click();
+  await expect(learn).toHaveAttribute('aria-expanded', 'true');
+  await nav.getByRole('menuitem', { name: /^Academy/ }).click();
   await page.waitForURL('**/app/academy');
   for (const name of ['MARKET DECODER', 'EQUITY DETECTIVE', 'SIGNAL ENGINEER', 'MARKET ARCHITECT', 'CRYPTO MARKET DECODER', 'TOKENOMICS DETECTIVE', 'ON-CHAIN SIGNAL ENGINEER', 'DIGITAL ASSET ARCHITECT']) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   await expect(page.locator('main')).toContainText(/Preview mode|expert review/);

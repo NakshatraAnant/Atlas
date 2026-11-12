@@ -152,6 +152,10 @@ describe('display preferences', () => {
     expect((await pro.patch('/v1/me', { display_prefs: { tour_done: false } })).status).toBe(200);
     expect((await pro.get('/v1/me')).json.profile.display_prefs.tour_done).toBe(false);
     expect((await pro.patch('/v1/me', { display_prefs: { tour_done: 'yes' } })).status).toBe(400);
+    // Onboarding goal (session 13): one of three values, stored alongside the other preferences.
+    expect((await pro.patch('/v1/me', { display_prefs: { goal: 'learn', markets: ['crypto'] } })).status).toBe(200);
+    expect((await pro.get('/v1/me')).json.profile.display_prefs).toMatchObject({ goal: 'learn', markets: ['crypto'] });
+    expect((await pro.patch('/v1/me', { display_prefs: { goal: 'trade' } })).status).toBe(400);
     expect((await pro.patch('/v1/me', { display_prefs: { theme: 'neon' } })).status).toBe(400);
   });
 });

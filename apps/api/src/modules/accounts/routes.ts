@@ -22,6 +22,8 @@ export const DISPLAY_PREFS = z.object({
   screener_columns: z.array(z.string().max(40)).max(30),
   /** The first-run welcome on Home has been dismissed. */
   tour_done: z.boolean(),
+  /** What the learner said they came for in onboarding. */
+  goal: z.enum(['learn', 'track', 'research']),
 }).partial().strict();
 
 export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {

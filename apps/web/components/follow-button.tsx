@@ -14,7 +14,8 @@ export function FollowButton({ seriesKey, label }: { seriesKey: string; label: s
   const [on, setOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { void followed().then((s) => setOn(s.has(seriesKey))); }, [seriesKey]);
-  if (on === null) return null;
+  // While the current follows load, hold the space with a disabled button (no layout jump).
+  if (on === null) return <button className="btn s" disabled aria-busy="true">+ Follow</button>;
   const flip = async () => {
     setBusy(true);
     try {

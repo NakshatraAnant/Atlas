@@ -23,6 +23,85 @@ const REAL_NAV: [string, string][] = [
 const PUBLIC_NAV: [string, string][] = [['/', 'Overview'], ['/app/academy', 'Academy'], ['/briefing-sample', 'Sample briefing'], ['/pricing', 'Pricing'], ['/methodology', 'Methodology'], ['/help', 'Help']];
 const PUBLIC_NAV_REAL: [string, string][] = PUBLIC_NAV.filter(([h]) => h !== '/briefing-sample');
 
+// Grouped navigation: a few clear choices at the top (Hick's law); the detail one click away.
+type NavLink = { href: string; label: string; desc?: string };
+type NavGroup = { label: string; href?: string; items?: NavLink[] };
+const REAL_GROUPS: NavGroup[] = [
+  { label: 'Home', href: '/app' },
+  { label: 'Markets', items: [
+    { href: '/app/equities', label: 'Indian markets', desc: 'NIFTY 50, SENSEX, NIFTY BANK · end of day' },
+    { href: '/app/crypto', label: 'Digital assets', desc: 'Prices, DeFi and on-chain data' },
+    { href: '/app/commodities', label: 'Commodities', desc: 'Oil, gas, metals, crops, inventories' },
+    { href: '/app/macro', label: 'Macro', desc: 'Rates, inflation, jobs, the rupee' },
+  ] },
+  { label: 'Research', items: [
+    { href: '/app/research-hub', label: 'Research hub', desc: 'Portfolios, backtests, notebook, reports' },
+    { href: '/app/macro/explorer', label: 'Compare two series', desc: 'Correlation over time, explained' },
+    { href: '/app/research/datasets', label: 'Your data', desc: 'Upload and analyse your own files' },
+    { href: '/app/data-health', label: 'Data sources', desc: 'Where every number comes from, and how fresh it is' },
+  ] },
+  { label: 'Learn', items: [
+    { href: '/app/academy', label: 'Academy', desc: 'Nine courses with 3D charts, labs and videos' },
+    { href: '/app/learn', label: 'Quick lessons', desc: 'Short concept notes' },
+  ] },
+];
+const DEMO_GROUPS: NavGroup[] = [
+  { label: 'Home', href: '/app' },
+  { label: 'Markets', items: [{ href: '/app/market', label: 'Market (demo)' }, { href: '/app/equities', label: 'Indian equities' }, { href: '/app/crypto', label: 'Digital assets' }, { href: '/app/commodities', label: 'Commodities' }, { href: '/app/terminal', label: 'Terminal (demo)' }] },
+  { label: 'Research', items: [{ href: '/app/research-hub', label: 'Research hub' }, { href: '/app/companies', label: 'Companies (demo)' }, { href: '/app/screener', label: 'Screener (demo)' }, { href: '/app/lab', label: 'Quant Lab (demo)' }, { href: '/app/assistant', label: 'Assistant (demo)' }, { href: '/app/research', label: 'My research' }, { href: '/app/data-health', label: 'Data health' }] },
+  { label: 'Learn', items: [{ href: '/app/academy', label: 'Academy' }, { href: '/app/learn', label: 'Quick lessons' }] },
+];
+
+/** A top-level section: a plain link, or a menu that opens on click (keyboard and screen-reader friendly). */
+function NavMenu({ g, active, open, setOpen }: { g: NavGroup; active: (href: string) => boolean; open: boolean; setOpen: (v: boolean) => void }) {
+  if (g.href) return <a className="nav-top" href={g.href} aria-current={active(g.href) ? 'page' : undefined}>{g.label}</a>;
+  const on = g.items!.some((i) => active(i.href));
+  return (
+    <div className="nav-group" onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}>
+      <button className={`nav-top${on ? ' on' : ''}`} aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(!open)}>{g.label}<span className="caret" aria-hidden="true">▾</span></button>
+      {open && (
+        <div className="nav-menu" role="menu">
+          {g.items!.map((i) => (
+            <a key={i.href} role="menuitem" href={i.href} aria-current={active(i.href) ? 'page' : undefined}>
+              <span className="nm-label">{i.label}</span>{i.desc && <span className="nm-desc">{i.desc}</span>}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Everything about the account in one place: plan, settings, theme, feedback, sign out. */
+function AccountMenu({ email, name, plan, role, onTheme, onSignOut, onFeedback }: { email: string; name: string | null; plan: string; role: string; onTheme: () => void; onSignOut: () => void; onFeedback: () => void }) {
+  const [open, setOpen] = useState(false);
+  const initials = (name || email.replace(/@.*/, '')).split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || 'A';
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('.acct')) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('click', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  return (
+    <div className="acct">
+      <button className="avatar" aria-expanded={open} aria-haspopup="true" aria-label="Account menu" onClick={() => setOpen(!open)}>{initials}</button>
+      {open && (
+        <div className="acct-menu" role="menu">
+          <p className="acct-who"><strong>{name || email.replace(/@.*/, '')}</strong><span>{email}</span><a className="acct-plan" href="/app/billing">{plan} plan</a></p>
+          <a role="menuitem" href="/app/settings">Settings</a>
+          <a role="menuitem" href="/app/account">Account and privacy</a>
+          {['admin', 'support', 'data_ops'].includes(role) && <a role="menuitem" href="/admin">Admin</a>}
+          <button role="menuitem" onClick={onTheme}>Switch light / dark</button>
+          <button role="menuitem" onClick={() => { setOpen(false); onFeedback(); }}>Send feedback</button>
+          <button role="menuitem" className="acct-out" onClick={onSignOut}>Sign out</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Demo mode as reported by the API (public /v1/status), for pages shown before sign-in. */
 export function useDemoMode(): boolean | null {
   const s = useApi<{ demo_mode?: boolean }>('/v1/status');
@@ -39,6 +118,16 @@ export function Shell({ children }: { children: ReactNode }) {
   // Until either answers, no demo-only links are shown: in real-data mode they would lead to 403 pages.
   const demo = me ? me.demo_mode !== false : publicDemo;
   const nav = inApp ? (demo === false ? REAL_NAV : demo === null ? [] : APP_NAV) : publicDemo === true ? PUBLIC_NAV : PUBLIC_NAV_REAL;
+  const groups = inApp ? (demo === false ? REAL_GROUPS : demo === null ? [] : DEMO_GROUPS) : null;
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  // Menus close on any outside click and when the page changes.
+  useEffect(() => {
+    if (!openMenu) return;
+    const close = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('.nav-group')) setOpenMenu(null); };
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openMenu]);
+  useEffect(() => { setOpenMenu(null); }, [path]);
   const notes = useApi<{ notifications: { notification_id: string; read_at: string | null }[] }>(me ? '/v1/notifications' : null, [me?.profile.user_id]);
   const unread = notes.data?.notifications.filter((n) => !n.read_at).length ?? 0;
   const [fb, setFb] = useState(false);
@@ -84,28 +173,27 @@ export function Shell({ children }: { children: ReactNode }) {
       <a className="skip" href="#main">Skip to content</a>
       <header className="top">
         <a href={me ? '/app' : '/'} className="logo" aria-label="ATLAS home">ATLAS</a>
-        <span className="tag">Financial research workspace · markets, macro, commodities, digital assets</span>
+        {!inApp && <nav className="pub-nav" aria-label="Site">{nav.filter(([h]) => h !== '/').map(([href, label]) => <a key={href} href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}</nav>}
+        <span className="spacer" />
         {me ? (
           <>
             <button className="searchbtn" onClick={() => setSearch(true)} aria-label="Search ATLAS (Ctrl+K)"><span aria-hidden="true">⌕</span><span className="lbl">Search</span><kbd>Ctrl K</kbd></button>
-            <a className="pill" href="/app/billing" title="Your plan">{me.plan.name}{me.plan.status === 'past_due' ? ' · payment due' : ''}</a>
-            <a className="pill" href="/app/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}>Notices{unread ? ` (${unread})` : ''}</a>
-            {['admin', 'support', 'data_ops'].includes(me.profile.role) && <a className="pill" href="/admin">Admin</a>}
-            <a className="pill" href="/app/settings">Settings</a>
-            <a className="pill" href="/app/account">Account</a>
-            <button onClick={signOut}>Sign out</button>
+            <a className="bell" href="/app/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z" /></svg>{unread > 0 && <span className="badge">{unread > 9 ? '9+' : unread}</span>}</a>
+            {!inApp && path !== "/onboarding" && <a className="btn btn-cta" href="/app">Open ATLAS</a>}
+            <AccountMenu email={me.profile.email} name={me.profile.display_name} plan={me.plan.name} role={me.profile.role} onTheme={toggleTheme} onSignOut={signOut} onFeedback={() => setFb(true)} />
           </>
         ) : (
           <>
-            <a className="pill" href="/login">Sign in</a>
-            <a className="pill" href="/signup">Create free account</a>
+            <a className="signin" href="/login">Sign in</a>
+            <a className="btn btn-cta" href="/signup">Start free</a>
           </>
         )}
-        <button onClick={toggleTheme} aria-label="Toggle light or dark theme">Theme</button>
       </header>
-      <nav className="nav" aria-label="Sections">
-        {nav.map(([href, label]) => <a key={href} href={href} aria-current={active(href) ? 'page' : undefined}>{label}</a>)}
-      </nav>
+      {groups && groups.length > 0 && (
+        <nav className="nav" aria-label="Sections">
+          {groups.map((g) => <NavMenu key={g.label} g={g} active={active} open={openMenu === g.label} setOpen={(v) => setOpenMenu(v ? g.label : null)} />)}
+        </nav>
+      )}
       {me && !me.profile.email_verified_at && inApp && <div className="warn" style={{ margin: '0 auto', maxWidth: 1140 }}>Verify your email to save research, pay or receive alerts. <ResendLink /></div>}
       {me && inApp && isDemoPath(path) && !(me.demo_mode === false && path === '/app') && (me.demo_mode !== false
         ? <div className="warn" role="note" style={{ margin: '0 auto', maxWidth: 1140 }}><strong>Demo data.</strong> This section shows fictional development companies and generated figures, not real Indian market data. Real NSE/BSE prices are under <a href="/app/equities">Indian equities</a>.</div>
@@ -116,6 +204,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <a href="/methodology">Methodology</a><a href="/methodology/sources">Data sources</a><a href="/methodology/corrections">Correction log</a><a href="/methodology/ai">How AI answers work</a>
           <a href="/help">Help</a><a href="/status">Status</a><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/grievance">Grievances</a>
           <button className="link" onClick={() => setFb(true)}>Send feedback</button>
+          {!me && <button className="link" onClick={toggleTheme}>Light / dark</button>}
         </nav>
         <Disclosure />
       </footer>

@@ -31,7 +31,8 @@ const H = 4;
 function fmtVal(v: number | null | undefined, unit: string): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return 'no data';
   if (unit === '%') return `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
-  const s = Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2);
+  // Indian digit grouping (1,383; 1,23,456) so large values read at a glance.
+  const s = v.toLocaleString('en-IN', { maximumFractionDigits: Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2, minimumFractionDigits: Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2 });
   return unit ? `${s} ${unit}` : s;
 }
 

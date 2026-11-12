@@ -1,5 +1,5 @@
 'use client';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useApi, Loading } from './ui';
 import { useApp } from './providers';
 import { DEFAULT_PANELS } from '@/lib/home-panels';
@@ -115,17 +115,48 @@ export function RealHome({ name }: { name?: string | null }) {
     ),
   };
 
+  // One clear next step, chosen from what the person said they came for and what they have done.
+  const goal = prefs.goal;
+  const follows = attn.data?.following.length ?? null;
+  const rec = learn.data?.recommendation;
+  const next: { eyebrow: string; title: string; text: string; href: string; cta: string } | null =
+    goal === 'learn' && rec ? { eyebrow: 'Continue learning', title: rec.title, text: rec.reason, href: rec.href ?? '/app/academy', cta: 'Continue' }
+    : goal === 'research' ? { eyebrow: 'Your next step', title: 'Test an idea in the Research hub', text: 'Build a hypothetical portfolio or run an out-of-sample backtest on stored data.', href: '/app/research-hub', cta: 'Open the Research hub' }
+    : follows === 0 ? { eyebrow: 'Your next step', title: 'Follow a series to get notices', text: 'Pick something you care about. ATLAS tells you when a newer observation is stored.', href: '/app/macro', cta: 'Choose a series' }
+    : rec ? { eyebrow: 'Keep learning', title: rec.title, text: rec.reason, href: rec.href ?? '/app/academy', cta: 'Start' }
+    : null;
+
+  // Progressive disclosure: the first three panels, then the rest on request (remembered on this device).
+  const [more, setMore] = useState(false);
+  useEffect(() => { try { setMore(localStorage.getItem('atlas-home-more') === '1'); } catch { /* storage off */ } }, []);
+  const toggleMore = () => { const v = !more; setMore(v); try { localStorage.setItem('atlas-home-more', v ? '1' : '0'); } catch { /* storage off */ } };
+  const first = order.slice(0, 3);
+  const rest = order.slice(3);
+
   return (
     <>
       <div className="home-panel-hd">
         <h1>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}{name ? `, ${name}` : ''}</h1>
-        <a href="/app/settings" className="mu">Customise Home</a>
+        <a href="/app/settings" className="mu">Customise</a>
       </div>
-      <p className="mu">Every figure below is a stored observation from a named source, shown with the date it refers to. End-of-day and monthly data are not live prices. Press <kbd>Ctrl</kbd>+<kbd>K</kbd> to search.</p>
+      <p className="mu home-sub">Stored observations from named sources, each with the date it refers to. Not live prices.</p>
       <WelcomeTour />
-      {order.map((id) => panels[id]?.())}
+      {next && prefs.tour_done && (
+        <a className="next-step" href={next.href}>
+          <span className="ns-eyebrow">{next.eyebrow}</span>
+          <span className="ns-title">{next.title}</span>
+          <span className="ns-text">{next.text}</span>
+          <span className="btn btn-cta ns-cta">{next.cta} <span aria-hidden="true">→</span></span>
+        </a>
+      )}
+      {first.map((id) => panels[id]?.())}
+      {rest.length > 0 && (
+        <>
+          <div className={`home-more${more ? ' open' : ''}`}>{more && rest.map((id) => panels[id]?.())}</div>
+          <p className="home-more-btn"><button className="btn s" aria-expanded={more} onClick={toggleMore}>{more ? 'Show less' : `Show ${rest.length} more panel${rest.length === 1 ? '' : 's'}`}</button></p>
+        </>
+      )}
       {!order.length && <p className="mu">Every Home panel is hidden. <a href="/app/settings">Choose panels in Settings</a>.</p>}
-      <p><a href="/app/research-hub">Research hub</a> · <a href="/app/academy">Academy</a> · <a href="/app/data-health">Data sources and freshness</a></p>
     </>
   );
 }

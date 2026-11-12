@@ -1,5 +1,23 @@
 # ATLAS changelog
 
+## Session 13, part 4 (12 Nov 2026): simpler customer experience
+
+### Changed
+- **Header:** 3 controls instead of 7 (Search, notifications bell, account menu).
+- **Navigation:** 4 grouped choices (Home · Markets · Research · Learn) instead of 10 links, with described menu items.
+- **Landing:** one goal ("Start free") at the top and the bottom, a three-step "how it works", three benefits, limits folded away, an animated hero.
+- **Sign-up:** 2 fields and 2 confirmations; optional preferences folded away; show/hide password.
+- **Sign-in:** a first sign-in continues to onboarding.
+- **Onboarding (real-data installs):** goal → markets → one tailored first action. It replaces the demo-company flow, which was empty on this install. New display preference: `goal`.
+- **Home:** one next-step card, the first three panels, the rest behind "Show more".
+- **Motion:** page entrance, scroll reveal, CTA and card micro-interactions; all off with reduced motion.
+
+### Fixed
+- **Menus on phones** were clipped by an old fade-out mask on the nav bar.
+- **Follow buttons** were invisible while loading.
+
+Details and the evidence behind the choices: `reports/ATLAS_CUSTOMER_JOURNEYS.md`.
+
 ## Session 13, part 3 (11 Nov 2026, evening): Academy 3D and journeys, data audit, sharing, zod 4
 
 ### Added

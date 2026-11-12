@@ -22,8 +22,11 @@ export default function Login() {
         return;
       }
       await refresh();
-      const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : '/app';
-      window.location.href = safe;
+      const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
+      // A first sign-in without a destination continues the journey: a minute of setup before Home.
+      const who = await api<{ signed_in?: false; demo_mode?: boolean; profile?: { onboarding_completed_at: string | null } }>('/v1/me?optional=1').catch(() => null);
+      const setup = who?.profile && !who.profile.onboarding_completed_at && who.demo_mode === false;
+      window.location.href = safe ?? (setup ? '/onboarding' : '/app');
     } catch (x) {
       setErr(x as Error);
     } finally {
@@ -31,17 +34,17 @@ export default function Login() {
     }
   };
   return (
-    <div className="card" style={{ maxWidth: 440, margin: '24px auto' }}>
-      <h1>Sign in</h1>
+    <div className="auth-card" style={{ maxWidth: 440 }}>
+      <h1>Welcome back</h1>
       <form onSubmit={submit} className="stack">
         <label className="field">Email<input type="email" autoComplete="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
         <label className="field">Password<input type="password" autoComplete="current-password" required value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></label>
         {mfa && <label className="field">Verification code (authenticator app or a recovery code)<input inputMode="numeric" autoComplete="one-time-code" required autoFocus value={f.totp} onChange={(e) => setF({ ...f, totp: e.target.value })} /></label>}
         <Problem error={err} />
-        <button className="btn" type="submit" disabled={busy}>{busy ? 'Signing in…' : mfa ? 'Verify and sign in' : 'Sign in'}</button>
+        <button className="btn btn-cta btn-lg" type="submit" disabled={busy}>{busy ? 'Signing in…' : mfa ? 'Verify and sign in' : 'Sign in'}</button>
       </form>
-      <p><a href="/forgot-password">Forgot your password?</a> · <a href="/signup">Create a free account</a></p>
-      <p className="mu">Google sign-in is not available yet.</p>
+      <p><a href="/forgot-password">Forgot your password?</a></p>
+      <p className="mu">New to ATLAS? <a href="/signup">Create a free account</a></p>
     </div>
   );
 }
