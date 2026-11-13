@@ -606,3 +606,15 @@ a.card:hover, .cx-kpi:hover { border-color: rgba(217,181,108,.4); }
 .ob-follow { display: inline-flex; gap: 10px; align-items: center; }
 @media (max-width: 640px) { .ob-options.two { grid-template-columns: 1fr; } .ob-step { padding: 20px; } }
 @media (prefers-reduced-motion: reduce) { .next-step, .home-more.open > *, .auth-card, .auth-badge, .ob-step, .ob-option.on .ob-check { animation: none; } .next-step:hover, .ob-option:hover { transform: none; } }
+
+/* ───────── 3D hero scenes (hero3d.tsx) ───────── */
+.hero3d { position: relative; width: 100%; }
+.hero3d-canvas { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s var(--ease); }
+.hero3d.ready .hero3d-canvas { opacity: 1; }
+.lp-visual { padding: 0; overflow: hidden; }
+.lp-visual .lp-3d { border-radius: 20px; }
+.lp-visual .lp-svg { padding: 18px; }
+.ac-3d { position: relative; margin: 0 0 -60px; border-radius: 18px; overflow: hidden; border: 1px solid var(--ln); background: radial-gradient(ellipse at 50% 0%, #2a2350 0%, #0d1424 75%); -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent); mask-image: linear-gradient(180deg, #000 55%, transparent); animation: fade-in .8s var(--ease) both; }
+.ac-3d + .ac-hero { position: relative; }
+@media (max-width: 640px) { .ac-3d { margin-bottom: -30px; } }
+@media (prefers-reduced-motion: reduce) { .hero3d-canvas { transition: none; } .ac-3d { animation: none; } }

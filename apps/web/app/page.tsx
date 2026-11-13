@@ -5,6 +5,7 @@ import { pct, cls, formatIndianNumber } from '@/lib/format';
 import { useApp } from '@/components/providers';
 import { useDemoMode } from '@/components/shell';
 import { Reveal } from '@/components/motion';
+import { Hero3D } from '@/components/hero3d';
 
 interface Summary { date: string; as_of_label: string; indices: { index_code: string; name: string; close: number; returns: Record<string, number | null>; evidence_id: string; label: string }[]; breadth: { traded: number; advances: number; declines: number; unchanged: number } | null; freshness: { label: string; stale: boolean } | null }
 
@@ -84,11 +85,11 @@ function RealLanding() {
   );
 }
 
-/** Abstract, animated product motif (no data values): three lines draw in, a marker travels, source tags float. */
+/** Abstract animated 3D product motif (no data values); the 2D line drawing is the fallback without WebGL. */
 function HeroVisual() {
   return (
     <div className="lp-visual" aria-hidden="true">
-      <svg viewBox="0 0 480 320" className="lp-svg">
+      <Hero3D height={340} className="lp-3d" fallback={<svg viewBox="0 0 480 320" className="lp-svg">
         <defs>
           <linearGradient id="lpfill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#d9b56c" stopOpacity=".35" /><stop offset="100%" stopColor="#d9b56c" stopOpacity="0" /></linearGradient>
         </defs>
@@ -98,7 +99,7 @@ function HeroVisual() {
         <path className="lp-line l2" d="M20 180 C 80 190, 120 160, 170 170 S 250 210, 300 190 S 380 200, 460 160" />
         <path className="lp-line l3" d="M20 260 C 90 250, 140 262, 200 240 S 300 236, 340 226 S 420 214, 460 206" />
         <circle r="6" className="lp-dot"><animateMotion dur="7s" repeatCount="indefinite" path="M20 230 C 70 210, 100 240, 140 200 S 220 150, 260 170 S 340 110, 380 120 S 440 70, 460 64" /></circle>
-      </svg>
+      </svg>} />
       <span className="lp-tag t1">FRED · dated</span>
       <span className="lp-tag t2">EIA · weekly</span>
       <span className="lp-tag t3">Source and period on every number</span>

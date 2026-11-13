@@ -2,6 +2,7 @@
 import { useApp } from '@/components/providers';
 import { Empty, Loading, Problem, useApi } from '@/components/ui';
 import { ProgressRing } from '@/components/academy-journey';
+import { Hero3D } from '@/components/hero3d';
 
 interface Course {
   course_id: string; title: string; tagline: string; description: string; audience: string; position: number; track: 'equities' | 'digital_assets' | 'commodities'; level: number; draft: boolean; status: string; available: boolean;
@@ -30,6 +31,7 @@ export default function AcademyHome() {
   const firstOpen = cat.courses.find((c) => c.available);
   return (
     <div className="academy">
+      <div className="ac-3d" aria-hidden="true"><Hero3D palette="academy" height={220} /></div>
       <header className="ac-hero">
         <p className="eyebrow">ATLAS Academy</p>
         <h1>Learn to read markets the way ATLAS does: with evidence.</h1>
