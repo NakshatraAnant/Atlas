@@ -27,6 +27,7 @@ import { fundamentalsRoutes } from './modules/research/fundamentalsRoutes.js';
 import { commodityRoutes } from './modules/commodity/routes.js';
 import { macroRoutes } from './modules/macro/macro.js';
 import { explorerRoutes } from './modules/macro/explorer.js';
+import { networkRoutes } from './modules/macro/network.js';
 import { followRoutes } from './modules/macro/follows.js';
 import { mandiRoutes } from './modules/commodity/mandi.js';
 import { providerRoutes } from './modules/ops/providerRoutes.js';
@@ -240,6 +241,7 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
   await fundamentalsRoutes(app, ctx);
   await commodityRoutes(app, ctx);
   await explorerRoutes(app, ctx);
+  await networkRoutes(app, ctx);
   await followRoutes(app, ctx);
   await macroRoutes(app, ctx);
   await mandiRoutes(app, ctx);

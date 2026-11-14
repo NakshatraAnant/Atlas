@@ -4,6 +4,7 @@ import { useApi, Loading } from './ui';
 import { useApp } from './providers';
 import { DEFAULT_PANELS } from '@/lib/home-panels';
 import { WelcomeTour } from './welcome-tour';
+import { CountUp, readRecent, useMode } from './motion';
 
 // Home in real-data mode: a market snapshot built only from stored, sourced observations. Every figure
 // shows the date it refers to and its source; a panel without data says so instead of showing a number.
@@ -15,11 +16,11 @@ const fmt = (v: number | null | undefined, max = 2) => (v === null || v === unde
 const FRESH: Record<string, [string, string]> = { fresh: ['o', 'current'], current: ['o', 'current'], delayed: ['i', 'delayed'], stale: ['r', 'stale'], unavailable: ['m', 'no data'], provider_error: ['r', 'update failed'], no_data: ['m', 'no data'] };
 const Tag = ({ s }: { s: string }) => <span className={`t ${FRESH[s]?.[0] ?? 'm'}`}>{FRESH[s]?.[1] ?? s}</span>;
 
-function Tile({ k, v, s, sub, state, href }: { k: string; v: string; s?: string; sub?: string; state?: string; href?: string }) {
+function Tile({ k, v, s, sub, state, href, n, f }: { k: string; v: string; s?: string; sub?: string; state?: string; href?: string; n?: number | null; f?: (v: number) => string }) {
   return (
     <div className="cx-kpi">
       <span className="k">{href ? <a href={href}>{k}</a> : k}</span>
-      <span className="v">{v}</span>
+      <span className="v">{n !== undefined && n !== null && f ? <CountUp value={n} format={f} /> : v}</span>
       {s && <span className={`s ${s.startsWith('+') ? 'up' : s.startsWith('-') ? 'dn' : ''}`}>{s}</span>}
       {sub && <span className="s">{sub} {state && <Tag s={state} />}</span>}
     </div>
@@ -43,7 +44,7 @@ export function RealHome({ name }: { name?: string | null }) {
   const mc = useApi<{ configured: boolean; items: { series_id: string; title: string; units: string | null; latest: { d: string; v: number } | null; freshness: { state: string } }[] }>(on('macro') ? '/v1/macro' : null);
   const cr = useApi<{ majors: { canonical_key: string; name: string; symbol: string; price: number; change_24h_pct: number | null; provider_updated_at: string | null }[]; attribution?: string }>(on('crypto') ? '/v1/crypto/overview' : null);
   const attn = useApi<Attention>(on('attention') || on('following') ? '/v1/home/attention' : null);
-  const learn = useApi<{ xp: { level: number; xp: number }; streak: { daily: { current: number } }; recommendation: { title: string; reason: string; href?: string } }>(on('learning') ? '/v1/academy/me' : null);
+  const learn = useApi<{ xp: { level: number; xp: number }; streak: { daily: { current: number } }; recommendation: { title: string; reason: string; href?: string }; missions?: { id: string; kind: string; title: string; effort: string; reward: string; done: boolean; href?: string }[] }>(on('learning') ? '/v1/academy/me' : null);
   const commodities = cm.data?.categories.flatMap((c) => c.series).filter((x) => ['fred:DCOILBRENTEU', 'fred:DCOILWTICO', 'fred:DHHNGSP', 'fred:PCOPPUSDM'].includes(x.series_id)) ?? [];
   const macro = mc.data?.items.filter((x) => ['DGS10', 'DFF', 'DEXINUS', 'CPIAUCSL', 'UNRATE', 'T10Y2Y'].includes(x.series_id)) ?? [];
 
@@ -77,7 +78,7 @@ export function RealHome({ name }: { name?: string | null }) {
       <section className="card" aria-labelledby="h-in" key="indices">
         <h2 id="h-in"><a href="/app/equities">Indian indices</a> <span className="mu">· end of day, EODHD</span></h2>
         {eq.loading && !eq.data ? <Loading lines={2} /> : eq.data?.indices.length ? (
-          <div className="cx-kpis">{eq.data.indices.map((i) => <Tile key={i.symbol} k={i.name ?? i.symbol} href={`/app/equities/INDEX/${i.symbol}`} v={fmt(i.last_close)} s={pct(i.returns.d1, 2)} sub={`close on ${i.last_date}`} state={i.behind === 0 ? 'current' : i.behind === null ? 'no_data' : 'delayed'} />)}</div>
+          <div className="cx-kpis">{eq.data.indices.map((i) => <Tile key={i.symbol} k={i.name ?? i.symbol} href={`/app/equities/INDEX/${i.symbol}`} v={fmt(i.last_close)} n={i.last_close} f={(x) => fmt(x)} s={pct(i.returns.d1, 2)} sub={`close on ${i.last_date}`} state={i.behind === 0 ? 'current' : i.behind === null ? 'no_data' : 'delayed'} />)}</div>
         ) : <p className="mu">{eq.data?.empty_reason ?? 'No index data stored yet.'}</p>}
       </section>
     ),
@@ -121,10 +122,19 @@ export function RealHome({ name }: { name?: string | null }) {
   const rec = learn.data?.recommendation;
   const next: { eyebrow: string; title: string; text: string; href: string; cta: string } | null =
     goal === 'learn' && rec ? { eyebrow: 'Continue learning', title: rec.title, text: rec.reason, href: rec.href ?? '/app/academy', cta: 'Continue' }
-    : goal === 'research' ? { eyebrow: 'Your next step', title: 'Test an idea in the Research hub', text: 'Build a hypothetical portfolio or run an out-of-sample backtest on stored data.', href: '/app/research-hub', cta: 'Open the Research hub' }
+    : goal === 'research' ? { eyebrow: 'Your next step', title: 'Test an idea in the Research Studio', text: 'Build a hypothetical portfolio or run an out-of-sample backtest on stored data.', href: '/app/research-hub', cta: 'Open the Research Studio' }
     : follows === 0 ? { eyebrow: 'Your next step', title: 'Follow a series to get notices', text: 'Pick something you care about. ATLAS tells you when a newer observation is stored.', href: '/app/macro', cta: 'Choose a series' }
     : rec ? { eyebrow: 'Keep learning', title: rec.title, text: rec.reason, href: rec.href ?? '/app/academy', cta: 'Start' }
     : null;
+
+  // Command centre extras: today's mission, saved research and what was opened recently (this device).
+  const mode = useMode();
+  const reports = useApi<{ rows: { report_id: string; title: string }[] }>('/v1/research/reports');
+  const ports = useApi<{ rows: { portfolio_id: string; name: string; holdings: number }[] }>('/v1/research/portfolios');
+  const [recent, setRecent] = useState<{ href: string; label: string }[]>([]);
+  const [tools, setTools] = useState<{ href: string; label: string }[]>([]);
+  useEffect(() => { setRecent(readRecent('atlas-recent')); setTools(readRecent('atlas-tools')); }, []);
+  const mission = learn.data?.missions?.find((m) => m.kind === 'research' && !m.done) ?? learn.data?.missions?.find((m) => !m.done) ?? null;
 
   // Progressive disclosure: the first three panels, then the rest on request (remembered on this device).
   const [more, setMore] = useState(false);
@@ -149,6 +159,39 @@ export function RealHome({ name }: { name?: string | null }) {
           <span className="btn btn-cta ns-cta">{next.cta} <span aria-hidden="true">→</span></span>
         </a>
       )}
+      {mode === 'explore' && (
+        <a className="explore-banner" href="/app/universe">
+          <span className="eb-orb" aria-hidden="true" />
+          <span><strong>Enter the ATLAS Universe</strong><span className="mu">A 3D globe of everything ATLAS stores, region by region.</span></span>
+          <span className="eb-go" aria-hidden="true">→</span>
+        </a>
+      )}
+      <div className="cmd-row">
+        <section className="card cmd" aria-labelledby="cmd-m">
+          <h2 id="cmd-m">Today&rsquo;s mission</h2>
+          {learn.loading && !learn.data ? <Loading lines={2} /> : mission ? (
+            <><p className="cmd-title">{mission.title}</p><p className="mu">{mission.effort} · {mission.reward}</p><p><a className="btn s" href={mission.href ?? '/app/academy'}>Start</a></p></>
+          ) : <p className="mu">All of today&rsquo;s missions are done. <a href="/app/academy/progress">See your progress</a></p>}
+        </section>
+        <section className="card cmd" aria-labelledby="cmd-s">
+          <h2 id="cmd-s">Saved research</h2>
+          {(reports.loading || ports.loading) && !reports.data ? <Loading lines={2} /> : (reports.data?.rows.length || ports.data?.rows.length) ? (
+            <ul className="cmd-list">
+              {ports.data?.rows.slice(0, 2).map((p) => <li key={p.portfolio_id}><a href="/app/research-hub?tab=portfolios">{p.name}</a><span className="mu"> · hypothetical portfolio, {p.holdings} holdings</span></li>)}
+              {reports.data?.rows.slice(0, 2).map((r) => <li key={r.report_id}><a href="/app/research-hub?tab=reports">{r.title}</a><span className="mu"> · report</span></li>)}
+            </ul>
+          ) : <p className="mu">Nothing saved yet. <a href="/app/research-hub?tab=portfolios">Build a hypothetical portfolio</a> or <a href="/app/research-hub?tab=reports">write a report</a>.</p>}
+        </section>
+        <section className="card cmd" aria-labelledby="cmd-r">
+          <h2 id="cmd-r">Jump back in</h2>
+          {recent.length || tools.length ? (
+            <ul className="cmd-list">
+              {recent.slice(0, 3).map((r) => <li key={r.href}><a href={r.href}>{r.label}</a></li>)}
+              {tools.slice(0, 2).map((r) => <li key={r.href}><a href={r.href}>{r.label}</a><span className="mu"> · tool</span></li>)}
+            </ul>
+          ) : <p className="mu">Pages and tools you open appear here (kept on this device). Try <a href="/app/universe">the Universe</a> or <a href="/app/network">the Intelligence Network</a>.</p>}
+        </section>
+      </div>
       {first.map((id) => panels[id]?.())}
       {rest.length > 0 && (
         <>

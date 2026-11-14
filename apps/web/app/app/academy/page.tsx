@@ -3,6 +3,7 @@ import { useApp } from '@/components/providers';
 import { Empty, Loading, Problem, useApi } from '@/components/ui';
 import { ProgressRing } from '@/components/academy-journey';
 import { Hero3D } from '@/components/hero3d';
+import { useMode } from '@/components/motion';
 
 interface Course {
   course_id: string; title: string; tagline: string; description: string; audience: string; position: number; track: 'equities' | 'digital_assets' | 'commodities'; level: number; draft: boolean; status: string; available: boolean;
@@ -22,6 +23,7 @@ export default function AcademyHome() {
   const showStreak = useApp().me?.profile.display_prefs?.show_streak !== false;
   const progress = useApi<Progress>('/v1/academy/progress');
   const me = useApi<MeLite>('/v1/academy/me');
+  const mode = useMode();
   if (courses.loading) return <Loading lines={6} label="Loading courses" />;
   if (courses.error) return <Problem error={courses.error} retry={courses.reload} />;
   const cat = courses.data!;
@@ -31,7 +33,7 @@ export default function AcademyHome() {
   const firstOpen = cat.courses.find((c) => c.available);
   return (
     <div className="academy">
-      <div className="ac-3d" aria-hidden="true"><Hero3D palette="academy" height={220} /></div>
+      {mode === 'explore' && <div className="ac-3d" aria-hidden="true"><Hero3D palette="academy" height={220} /></div>}
       <header className="ac-hero">
         <p className="eyebrow">ATLAS Academy</p>
         <h1>Learn to read markets the way ATLAS does: with evidence.</h1>
@@ -47,6 +49,7 @@ export default function AcademyHome() {
           {enrolled ? <a className="btn" href={`/app/academy/${enrolled.course_id}`}>Continue {enrolled.title.replace('ATLAS: ', '')}</a> : firstOpen ? <a className="btn" href={`/app/academy/${firstOpen.course_id}`}>Start with {firstOpen.title.replace('ATLAS: ', '')}</a> : null}
           {p && p.reviews_due > 0 && <a className="btn s" href="/app/academy/review">Review {p.reviews_due} due concept{p.reviews_due === 1 ? '' : 's'}</a>}
           {firstOpen && <a className="btn s" href="/app/academy/games">Practice games</a>}
+          <a className="btn s" href="/app/academy/constellation">Knowledge Constellation</a>
           <a className="btn s" href="/app/academy/progress">My progress and achievements</a>
         </p>
       </header>

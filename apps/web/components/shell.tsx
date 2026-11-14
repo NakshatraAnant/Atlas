@@ -34,14 +34,21 @@ const REAL_GROUPS: NavGroup[] = [
     { href: '/app/commodities', label: 'Commodities', desc: 'Oil, gas, metals, crops, inventories' },
     { href: '/app/macro', label: 'Macro', desc: 'Rates, inflation, jobs, the rupee' },
   ] },
+  { label: 'Discover', items: [
+    { href: '/app/universe', label: 'ATLAS Universe', desc: 'A 3D globe of everything ATLAS stores' },
+    { href: '/app/network', label: 'Intelligence Network', desc: 'How markets moved together, measured' },
+    { href: '/app/pulse', label: 'Market Pulse', desc: 'What moved and what was published' },
+  ] },
   { label: 'Research', items: [
-    { href: '/app/research-hub', label: 'Research hub', desc: 'Portfolios, backtests, notebook, reports' },
+    { href: '/app/research-hub', label: 'Research Studio', desc: 'Portfolios, backtests, notebook, reports' },
     { href: '/app/macro/explorer', label: 'Compare two series', desc: 'Correlation over time, explained' },
     { href: '/app/research/datasets', label: 'Your data', desc: 'Upload and analyse your own files' },
     { href: '/app/data-health', label: 'Data sources', desc: 'Where every number comes from, and how fresh it is' },
   ] },
   { label: 'Learn', items: [
     { href: '/app/academy', label: 'Academy', desc: 'Nine courses with 3D charts, labs and videos' },
+    { href: '/app/academy/constellation', label: 'Knowledge Constellation', desc: 'Your learning as a 3D sky' },
+    { href: '/app/academy/progress', label: 'My progress', desc: 'XP, levels, missions and badges' },
     { href: '/app/learn', label: 'Quick lessons', desc: 'Short concept notes' },
   ] },
 ];
@@ -49,8 +56,16 @@ const DEMO_GROUPS: NavGroup[] = [
   { label: 'Home', href: '/app' },
   { label: 'Markets', items: [{ href: '/app/market', label: 'Market (demo)' }, { href: '/app/equities', label: 'Indian equities' }, { href: '/app/crypto', label: 'Digital assets' }, { href: '/app/commodities', label: 'Commodities' }, { href: '/app/terminal', label: 'Terminal (demo)' }] },
   { label: 'Research', items: [{ href: '/app/research-hub', label: 'Research hub' }, { href: '/app/companies', label: 'Companies (demo)' }, { href: '/app/screener', label: 'Screener (demo)' }, { href: '/app/lab', label: 'Quant Lab (demo)' }, { href: '/app/assistant', label: 'Assistant (demo)' }, { href: '/app/research', label: 'My research' }, { href: '/app/data-health', label: 'Data health' }] },
-  { label: 'Learn', items: [{ href: '/app/academy', label: 'Academy' }, { href: '/app/learn', label: 'Quick lessons' }] },
+  { label: 'Discover', items: [{ href: '/app/universe', label: 'ATLAS Universe' }, { href: '/app/network', label: 'Intelligence Network' }, { href: '/app/pulse', label: 'Market Pulse' }] },
+  { label: 'Learn', items: [{ href: '/app/academy', label: 'Academy' }, { href: '/app/academy/constellation', label: 'Knowledge Constellation' }, { href: '/app/academy/progress', label: 'My progress' }, { href: '/app/learn', label: 'Quick lessons' }] },
 ];
+const TOOL_PATHS: Record<string, string> = { '/app/research-hub': 'Research Studio', '/app/universe': 'ATLAS Universe', '/app/network': 'Intelligence Network', '/app/pulse': 'Market Pulse', '/app/macro/explorer': 'Compare two series', '/app/academy/constellation': 'Knowledge Constellation', '/app/research/datasets': 'Your data' };
+const remember = (key: string, item: { href: string; label: string }) => {
+  try {
+    const list = (JSON.parse(localStorage.getItem(key) ?? '[]') as { href: string; label: string }[]).filter((x) => x.href !== item.href);
+    localStorage.setItem(key, JSON.stringify([item, ...list].slice(0, 6)));
+  } catch { /* storage off */ }
+};
 
 /** A top-level section: a plain link, or a menu that opens on click (keyboard and screen-reader friendly). */
 function NavMenu({ g, active, open, setOpen }: { g: NavGroup; active: (href: string) => boolean; open: boolean; setOpen: (v: boolean) => void }) {
@@ -128,6 +143,32 @@ export function Shell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('click', close);
   }, [openMenu]);
   useEffect(() => { setOpenMenu(null); }, [path]);
+  // Experience mode: Focus by default; the saved choice applies on any device, the local one wins.
+  const [mode, setModeState] = useState<'focus' | 'explore'>('focus');
+  useEffect(() => {
+    let m: string | null = null;
+    try { m = localStorage.getItem('atlas-mode'); } catch { /* storage off */ }
+    const v = (m ?? me?.profile.display_prefs?.mode) === 'explore' ? 'explore' : 'focus';
+    document.documentElement.dataset.mode = v;
+    setModeState(v);
+    window.dispatchEvent(new Event('atlas-mode'));
+  }, [me]);
+  const setMode = (v: 'focus' | 'explore') => {
+    document.documentElement.dataset.mode = v;
+    setModeState(v);
+    try { localStorage.setItem('atlas-mode', v); } catch { /* storage off */ }
+    window.dispatchEvent(new Event('atlas-mode'));
+    if (me) void api('/v1/me', { method: 'PATCH', body: { display_prefs: { mode: v } } }).catch(() => undefined);
+  };
+  // Recently viewed pages and tools, kept on this device for the command centre.
+  useEffect(() => {
+    if (!me || !inApp) return;
+    const tool = TOOL_PATHS[path];
+    if (tool) { remember('atlas-tools', { href: path, label: tool }); return; }
+    if (!/^\/app\/(equities\/[^/]+\/[^/]+|crypto\/assets\/[^/]+|commodities\/[^/]+\/[^/]+|macro\/(?!explorer)[^/]+|academy\/lesson\/[^/]+)$/.test(path)) return;
+    const t = setTimeout(() => { const h = document.querySelector('main h1')?.textContent?.trim(); if (h) remember('atlas-recent', { href: path, label: h.slice(0, 70) }); }, 1800);
+    return () => clearTimeout(t);
+  }, [path, me, inApp]);
   const notes = useApi<{ notifications: { notification_id: string; read_at: string | null }[] }>(me ? '/v1/notifications' : null, [me?.profile.user_id]);
   const unread = notes.data?.notifications.filter((n) => !n.read_at).length ?? 0;
   const [fb, setFb] = useState(false);
@@ -177,6 +218,12 @@ export function Shell({ children }: { children: ReactNode }) {
         <span className="spacer" />
         {me ? (
           <>
+            {inApp && (
+              <div className="mode-switch" role="group" aria-label="Experience mode">
+                <button className={mode === 'focus' ? 'on' : ''} aria-pressed={mode === 'focus'} onClick={() => setMode('focus')} title="Focus: dense and quiet, for working">Focus</button>
+                <button className={mode === 'explore' ? 'on' : ''} aria-pressed={mode === 'explore'} onClick={() => setMode('explore')} title="Explore: immersive 3D and richer motion">Explore</button>
+              </div>
+            )}
             <button className="searchbtn" onClick={() => setSearch(true)} aria-label="Search ATLAS (Ctrl+K)"><span aria-hidden="true">⌕</span><span className="lbl">Search</span><kbd>Ctrl K</kbd></button>
             <a className="bell" href="/app/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z" /></svg>{unread > 0 && <span className="badge">{unread > 9 ? '9+' : unread}</span>}</a>
             {!inApp && path !== "/onboarding" && <a className="btn btn-cta" href="/app">Open ATLAS</a>}

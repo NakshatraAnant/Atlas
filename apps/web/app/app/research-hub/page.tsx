@@ -15,20 +15,32 @@ const TABS: [string, string][] = [
 export default function ResearchHub() {
   const [tab, setTab] = useState('workbench');
   useEffect(() => {
-    const t = new URLSearchParams(location.search).get('tab');
+    // The address wins; otherwise the studio reopens on the tool you used last (this device).
+    let t = new URLSearchParams(location.search).get('tab');
+    if (!t) { try { t = localStorage.getItem('atlas-studio-tab'); } catch { /* storage off */ } }
     if (t && TABS.some((x) => x[0] === t)) setTab(t);
+  }, []);
+  // Alt+1 … Alt+9 jump between the first nine tools.
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.altKey && /^[1-9]$/.test(e.key) && TABS[Number(e.key) - 1]) { e.preventDefault(); change(TABS[Number(e.key) - 1]![0]); } };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
   }, []);
   const change = (t: string) => {
     setTab(t);
+    try { localStorage.setItem('atlas-studio-tab', t); } catch { /* storage off */ }
     const u = new URL(location.href);
     u.searchParams.set('tab', t);
     history.replaceState(null, '', u);
   };
   return (
     <>
-      <h1 style={{ marginBottom: 4 }}>Research hub</h1>
-      <p className="mu" style={{ marginTop: 0 }}>Cross-asset research on stored real data (crypto, imported Indian equities) and your own files. Every figure shows its source, basis and calendar; nothing here is advice or a forecast.</p>
-      <Tabs tabs={TABS} active={tab} onChange={change} />
+      <header className="studio-hd">
+        <div><p className="eyebrow">Research Studio</p><h1>Research hub</h1></div>
+        <p className="mu">Stored real data and your own files. Every figure shows its source, basis and calendar; nothing here is advice or a forecast. <kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd> switches tools · <kbd>Ctrl</kbd>+<kbd>K</kbd> searches.</p>
+      </header>
+      <div className="studio-tabs"><Tabs tabs={TABS} active={tab} onChange={change} /></div>
+      <div className="studio-body" key={tab}>
       {tab === 'workbench' && <T.Workbench />}
       {tab === 'screener' && <T.Screener />}
       {tab === 'portfolios' && <T.Portfolios />}
@@ -41,6 +53,7 @@ export default function ResearchHub() {
       {tab === 'notebook' && <T.Notebook />}
       {tab === 'reports' && <T.Reports />}
       {tab === 'alerts' && <T.Alerts />}
+      </div>
     </>
   );
 }

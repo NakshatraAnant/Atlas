@@ -6,6 +6,8 @@ import { useApp } from '@/components/providers';
 import { useDemoMode } from '@/components/shell';
 import { Reveal } from '@/components/motion';
 import { Hero3D } from '@/components/hero3d';
+import { Globe3D } from '@/components/globe3d';
+import { useEffect, useState } from 'react';
 
 interface Summary { date: string; as_of_label: string; indices: { index_code: string; name: string; close: number; returns: Record<string, number | null>; evidence_id: string; label: string }[]; breadth: { traded: number; advances: number; declines: number; unchanged: number } | null; freshness: { label: string; stale: boolean } | null }
 
@@ -22,12 +24,32 @@ export default function Landing() {
 function RealLanding() {
   const { me } = useApp();
   const cta = me ? { href: '/app', label: 'Open your workspace' } : { href: '/signup', label: 'Start free' };
+  const [entering, setEntering] = useState(false);
+  // Signed-in visitors go straight to their workspace: nobody is made to watch the arrival twice.
+  useEffect(() => { if (me) window.location.replace('/app'); }, [me]);
+  const enter = () => {
+    const go = () => { window.location.href = me ? '/app' : '/signup'; };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return go();
+    setEntering(true);
+    setTimeout(go, 650);
+  };
   return (
     <div className="lp">
-      <section className="lp-hero">
+      <section className={`arrival${entering ? ' entering' : ''}`} aria-labelledby="arrival-h">
+        <div className="arrival-globe"><Globe3D bare interactive={false} height={620} /></div>
+        <div className="arrival-copy">
+          <p className="arrival-brand">ATLAS</p>
+          <h1 id="arrival-h">See beyond the markets.</h1>
+          <p className="arrival-sub">Explore global markets. Discover hidden relationships. Build financial intelligence.</p>
+          <button className="btn btn-cta btn-lg arrival-cta" onClick={enter}>Enter ATLAS <span aria-hidden="true">→</span></button>
+          {!me && <p className="lp-micro">Free plan · No card needed · <a href="/login">Sign in</a></p>}
+        </div>
+        <a className="arrival-scroll" href="#how" aria-label="See how it works">How it works ↓</a>
+      </section>
+      <section className="lp-hero lp-hero-2">
         <div className="lp-copy">
           <p className="lp-eyebrow">Research workspace · Learning academy</p>
-          <h1>Understand markets with evidence, not noise.</h1>
+          <h2 className="lp-h1">Understand markets with evidence, not noise.</h2>
           <p className="lp-sub">Indian indices, global macro, commodities and crypto, with the source and date of every number. Plus nine hands-on courses with 3D charts built on real data.</p>
           <div className="lp-ctas">
             <a className="btn btn-cta btn-lg" href={cta.href}>{cta.label} <span aria-hidden="true">→</span></a>

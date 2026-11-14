@@ -91,14 +91,32 @@ const MARKETS: { id: Market; title: string; desc: string }[] = [
   { id: 'commodities', title: 'Commodities', desc: 'Oil, gas, metals, crops' },
   { id: 'crypto', title: 'Digital assets', desc: 'Bitcoin, ether and more' },
 ];
+const PERSONAS: { id: string; title: string; desc: string; course: [string, string] }[] = [
+  { id: 'student', title: 'Finance student', desc: 'Building foundations', course: ['market-decoder', 'Market Decoder'] },
+  { id: 'aspiring_analyst', title: 'Aspiring analyst', desc: 'Preparing for a research role', course: ['equity-detective', 'Equity Detective'] },
+  { id: 'equity_researcher', title: 'Equity researcher', desc: 'Analysing companies', course: ['equity-detective', 'Equity Detective'] },
+  { id: 'investor', title: 'Investor', desc: 'Managing my own money', course: ['market-decoder', 'Market Decoder'] },
+  { id: 'trader', title: 'Trader', desc: 'Testing rules honestly', course: ['signal-engineer', 'Signal Engineer'] },
+  { id: 'quant', title: 'Quantitative researcher', desc: 'Data, statistics, backtests', course: ['signal-engineer', 'Signal Engineer'] },
+  { id: 'professional', title: 'Finance professional', desc: 'Sharpening my edge', course: ['market-architect', 'Market Architect'] },
+  { id: 'learner', title: 'Independent learner', desc: 'Curious about markets', course: ['market-decoder', 'Market Decoder'] },
+];
+const LEVELS: [string, string][] = [['beginner', 'New to this'], ['intermediate', 'Some experience'], ['advanced', 'Experienced']];
 const PANEL_FOR: Record<Market, string> = { india: 'indices', us: 'macro', commodities: 'commodities', crypto: 'crypto' };
 const FIRST_LESSON: Record<Market, [string, string]> = { india: ['md-l1', 'How the Indian share market works'], us: ['md-l1', 'How the Indian share market works'], commodities: ['cm-l1', 'What a commodity price actually is'], crypto: ['cd-l1', 'Your first crypto lesson'] };
 const SUGGESTED_FOLLOWS: Partial<Record<Market, [string, string]>> = { india: ['macro:DEXINUS', 'Rupee per US dollar'], us: ['macro:DGS10', 'US 10-year Treasury yield'], commodities: ['commodity:fred:DCOILBRENTEU', 'Brent crude oil'] };
 
 function RealOnboarding() {
   const { refresh } = useApp();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
+  const [persona, setPersona] = useState<string | null>(null);
+  const [level, setLevel] = useState('intermediate');
   const [goal, setGoal] = useState<Goal | null>(null);
+  const skip = async () => {
+    await api('/v1/me', { method: 'PATCH', body: { onboarding_completed: true, display_prefs: { tour_done: true } } }).catch(() => undefined);
+    await refresh();
+    window.location.href = '/app';
+  };
   const [markets, setMarkets] = useState<Market[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<Error | null>(null);
@@ -110,7 +128,7 @@ function RealOnboarding() {
       const chosen = markets.map((m) => PANEL_FOR[m]);
       const rest = ['indices', 'macro', 'commodities', 'crypto'].filter((p) => !chosen.includes(p));
       const panels = goal === 'learn' ? ['learning', 'attention', 'following', ...chosen, ...rest] : ['attention', 'following', ...chosen, 'learning', ...rest];
-      await api('/v1/me', { method: 'PATCH', body: { experience_level: goal === 'research' ? 'advanced' : goal === 'learn' ? 'beginner' : 'intermediate', display_prefs: { markets, home_panels: panels, goal: goal!, tour_done: true }, onboarding_completed: true } });
+      await api('/v1/me', { method: 'PATCH', body: { experience_level: level, display_prefs: { markets, home_panels: panels, goal: goal!, tour_done: true, ...(persona ? { persona } : {}) }, onboarding_completed: true } });
       await refresh();
       setStep(3);
     } catch (x) {
@@ -122,10 +140,24 @@ function RealOnboarding() {
   const first = markets[0] ?? 'india';
   const lesson = FIRST_LESSON[first];
   const follows = markets.map((m) => SUGGESTED_FOLLOWS[m]).filter((x): x is [string, string] => !!x).slice(0, 2);
-  const primary = goal === 'learn' ? { href: `/app/academy/lesson/${lesson[0]}`, label: `Start: ${lesson[1]}` } : goal === 'research' ? { href: '/app/research-hub', label: 'Open the Research hub' } : { href: '/app', label: 'Go to your Home' };
+  const primary = goal === 'learn' ? { href: `/app/academy/lesson/${lesson[0]}`, label: `Start: ${lesson[1]}` } : goal === 'research' ? { href: '/app/research-hub', label: 'Open the Research Studio' } : { href: '/app', label: 'Go to your Home' };
   return (
     <div className="ob">
-      <ol className="ob-dots" aria-label={`Step ${step} of 3`}>{[1, 2, 3].map((n) => <li key={n} className={n === step ? 'on' : n < step ? 'done' : ''} />)}</ol>
+      <ol className="ob-dots" aria-label={`Step ${step + 1} of 4`}>{[0, 1, 2, 3].map((n) => <li key={n} className={n === step ? 'on' : n < step ? 'done' : ''} />)}</ol>
+      {step === 0 && (
+        <section className="ob-step" key="s0">
+          <h1>Welcome. Who are you?</h1>
+          <p className="mu">This only shapes suggestions. You can change it later in Settings.</p>
+          <div className="ob-options two" role="radiogroup" aria-label="What describes you best">
+            {PERSONAS.map((x) => (
+              <button key={x.id} role="radio" aria-checked={persona === x.id} className={`ob-option${persona === x.id ? ' on' : ''}`} onClick={() => setPersona(x.id)}>
+                <span className="ob-check" aria-hidden="true">{persona === x.id ? '✓' : ''}</span><strong>{x.title}</strong><span className="mu">{x.desc}</span>
+              </button>
+            ))}
+          </div>
+          <div className="ob-actions"><button className="link" onClick={() => void skip()}>Skip setup</button><button className="btn btn-cta btn-lg" disabled={!persona} onClick={() => setStep(1)}>Continue <span aria-hidden="true">→</span></button></div>
+        </section>
+      )}
       {step === 1 && (
         <section className="ob-step" key="s1">
           <h1>What brings you to ATLAS?</h1>
@@ -137,7 +169,8 @@ function RealOnboarding() {
               </button>
             ))}
           </div>
-          <div className="ob-actions"><button className="btn btn-cta btn-lg" disabled={!goal} onClick={() => setStep(2)}>Continue <span aria-hidden="true">→</span></button></div>
+          <div className="ob-level" role="radiogroup" aria-label="Your experience"><span className="mu">Your experience:</span>{LEVELS.map(([v, l]) => <button key={v} role="radio" aria-checked={level === v} className={`chip${level === v ? ' on' : ''}`} onClick={() => setLevel(v)}>{l}</button>)}</div>
+          <div className="ob-actions"><button className="btn s" onClick={() => setStep(0)}>Back</button><button className="btn btn-cta btn-lg" disabled={!goal} onClick={() => setStep(2)}>Continue <span aria-hidden="true">→</span></button></div>
         </section>
       )}
       {step === 2 && (
@@ -169,6 +202,7 @@ function RealOnboarding() {
             </div>
           )}
           <div className="ob-actions center"><a className="btn btn-cta btn-lg" href={primary.href}>{primary.label} <span aria-hidden="true">→</span></a></div>
+          {persona && goal !== 'learn' && <p className="mu">Suggested course for you: <a href={`/app/academy/${PERSONAS.find((x) => x.id === persona)!.course[0]}`}>{PERSONAS.find((x) => x.id === persona)!.course[1]}</a></p>}
           <p><a href="/app" className="mu">{goal === 'track' ? '' : 'Or go to Home'}</a></p>
         </section>
       )}

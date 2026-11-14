@@ -21,6 +21,10 @@ export interface SceneApi {
   /** Place an HTML label at a 3D point; the handle updates its text or moves it. */
   label: (text: string, at: ThreeNS.Vector3, className?: string) => LabelHandle;
   reducedMotion: boolean;
+  /** Current camera angles and distance; flyTo eases the camera to a new view. */
+  view: { get: () => { yaw: number; pitch: number; distance: number }; flyTo: (v: { yaw?: number; pitch?: number; distance?: number }, seconds?: number) => void };
+  /** Calls back with normalised device coordinates when the scene is clicked or tapped (not dragged). */
+  onClick: (cb: (ndc: { x: number; y: number }) => void) => void;
 }
 
 export function webglAvailable(): boolean {
@@ -32,7 +36,7 @@ export function webglAvailable(): boolean {
   }
 }
 
-export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: SceneApi) => (() => void) | void, opts: { height?: number; target?: [number, number, number]; distance?: number; yaw?: number; pitch?: number } = {}) {
+export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: SceneApi) => (() => void) | void, opts: { height?: number; target?: [number, number, number]; distance?: number; yaw?: number; pitch?: number; zoom?: [number, number]; minPitch?: number } = {}) {
   const [state, setState] = useState<'loading' | 'ready' | 'unavailable' | 'failed'>('loading');
   const resetRef = useRef<() => void>(() => undefined);
   useEffect(() => {
@@ -60,7 +64,8 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(40, (el.clientWidth || 600) / height, 0.1, 200);
       const target = new THREE.Vector3(...(opts.target ?? [0, 1.5, 0]));
-      const distance = opts.distance ?? 16;
+      let distance = opts.distance ?? 16;
+      const minPitch = opts.minPitch ?? 0.05;
       const yaw0 = opts.yaw ?? -0.35;
       const pitch0 = opts.pitch ?? 0.42;
       let yaw = yaw0;
@@ -108,8 +113,28 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
           raf = requestAnimationFrame(frame);
         }
       };
+      const clickCbs: ((ndc: { x: number; y: number }) => void)[] = [];
       const api: SceneApi = {
         THREE, scene, camera, invalidate, reducedMotion,
+        onClick: (cb) => { clickCbs.push(cb); },
+        view: {
+          get: () => ({ yaw, pitch, distance }),
+          flyTo: (v, seconds = 1.1) => {
+            const from = { yaw, pitch, distance };
+            // Turn the short way round.
+            let dy = (v.yaw ?? yaw) - yaw;
+            dy = ((dy + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+            const to = { yaw: yaw + dy, pitch: Math.max(minPitch, Math.min(1.2, v.pitch ?? pitch)), distance: v.distance ?? distance };
+            let k = 0;
+            api.animate((dt) => {
+              k = Math.max(0, Math.min(1, k + dt / seconds));
+              const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+              yaw = from.yaw + (to.yaw - from.yaw) * e; pitch = from.pitch + (to.pitch - from.pitch) * e; distance = from.distance + (to.distance - from.distance) * e;
+              placeCamera();
+              return k < 1;
+            });
+          },
+        },
         animate: (step) => {
           if (reducedMotion) {
             while (step(1)) { /* jump straight to the end state */ }
@@ -135,22 +160,38 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
       let dragging = false;
       let lx = 0;
       let ly = 0;
-      const onDown = (e: PointerEvent) => { dragging = true; lx = e.clientX; ly = e.clientY; el.setPointerCapture?.(e.pointerId); };
+      let downX = 0, downY = 0;
+      const onDown = (e: PointerEvent) => { dragging = true; lx = downX = e.clientX; ly = downY = e.clientY; el.setPointerCapture?.(e.pointerId); };
       const onMove = (e: PointerEvent) => {
         if (!dragging) return;
         yaw -= (e.clientX - lx) * 0.006;
-        pitch = Math.max(0.05, Math.min(1.2, pitch + (e.clientY - ly) * 0.004));
+        pitch = Math.max(minPitch, Math.min(1.2, pitch + (e.clientY - ly) * 0.004));
         lx = e.clientX;
         ly = e.clientY;
         placeCamera();
         invalidate();
       };
-      const onUp = () => { dragging = false; };
-      const reset = () => { yaw = yaw0; pitch = pitch0; placeCamera(); invalidate(); };
+      const onUp = (e: PointerEvent) => {
+        if (dragging && e.type === 'pointerup' && Math.hypot(e.clientX - downX, e.clientY - downY) < 5) {
+          const r = el.getBoundingClientRect();
+          const ndc = { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 };
+          for (const cb of clickCbs) cb(ndc);
+        }
+        dragging = false;
+      };
+      const onWheel = (e: WheelEvent) => {
+        if (!opts.zoom) return;
+        e.preventDefault();
+        distance = Math.max(opts.zoom[0], Math.min(opts.zoom[1], distance * (e.deltaY > 0 ? 1.08 : 0.92)));
+        placeCamera();
+        invalidate();
+      };
+      const distance0 = distance;
+      const reset = () => { yaw = yaw0; pitch = pitch0; distance = distance0; placeCamera(); invalidate(); };
       resetRef.current = reset;
       const onKey = (e: KeyboardEvent) => {
         const k = e.key;
-        if (k === 'ArrowLeft') yaw += 0.12; else if (k === 'ArrowRight') yaw -= 0.12; else if (k === 'ArrowUp') pitch = Math.min(1.2, pitch + 0.08); else if (k === 'ArrowDown') pitch = Math.max(0.05, pitch - 0.08); else if (k === 'Home') { reset(); e.preventDefault(); return; } else return;
+        if (k === 'ArrowLeft') yaw += 0.12; else if (k === 'ArrowRight') yaw -= 0.12; else if (k === 'ArrowUp') pitch = Math.min(1.2, pitch + 0.08); else if (k === 'ArrowDown') pitch = Math.max(minPitch, pitch - 0.08); else if (opts.zoom && (k === '+' || k === '=')) distance = Math.max(opts.zoom[0], distance * 0.9); else if (opts.zoom && k === '-') distance = Math.min(opts.zoom[1], distance * 1.1); else if (k === 'Home') { reset(); e.preventDefault(); return; } else return;
         e.preventDefault();
         placeCamera();
         invalidate();
@@ -160,6 +201,7 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
       el.addEventListener('pointerup', onUp);
       el.addEventListener('pointercancel', onUp);
       el.addEventListener('keydown', onKey);
+      el.addEventListener('wheel', onWheel, { passive: false });
       const resize = new ResizeObserver(() => {
         const w = el.clientWidth || 600;
         renderer.setSize(w, height);
@@ -181,6 +223,7 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
         el.removeEventListener('pointerup', onUp);
         el.removeEventListener('pointercancel', onUp);
         el.removeEventListener('keydown', onKey);
+        el.removeEventListener('wheel', onWheel);
         disposeScene();
         scene.traverse((o) => {
           const m = o as ThreeNS.Mesh;

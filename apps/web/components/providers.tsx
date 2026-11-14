@@ -6,7 +6,7 @@ import { api, ApiError } from '@/lib/api';
 // App-wide state: the signed-in user, the evidence drawer and toasts.
 
 /** Stored display preferences (validated server-side; every key optional). */
-export interface DisplayPrefs { theme?: 'dark' | 'light'; home_panels?: string[]; markets?: string[]; notify?: { releases?: boolean; digest?: boolean }; show_streak?: boolean; tour_done?: boolean; goal?: 'learn' | 'track' | 'research' }
+export interface DisplayPrefs { theme?: 'dark' | 'light'; home_panels?: string[]; markets?: string[]; notify?: { releases?: boolean; digest?: boolean }; show_streak?: boolean; tour_done?: boolean; goal?: 'learn' | 'track' | 'research'; mode?: 'focus' | 'explore'; persona?: string }
 
 export interface Me {
   profile: { user_id: string; email: string; email_verified_at: string | null; display_name: string | null; role: string; experience_level: string | null; interests: string[]; briefing_email: string; totp_enabled_at: string | null; onboarding_completed_at: string | null; state_code: string | null; is_beta: boolean; display_prefs?: DisplayPrefs };

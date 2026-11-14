@@ -24,6 +24,10 @@ export const DISPLAY_PREFS = z.object({
   tour_done: z.boolean(),
   /** What the learner said they came for in onboarding. */
   goal: z.enum(['learn', 'track', 'research']),
+  /** Focus (dense, quiet) or Explore (immersive) experience. */
+  mode: z.enum(['focus', 'explore']),
+  /** Who the user says they are (onboarding); used only to order suggestions. */
+  persona: z.enum(['student', 'aspiring_analyst', 'equity_researcher', 'investor', 'trader', 'quant', 'professional', 'learner']),
 }).partial().strict();
 
 export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
@@ -89,7 +93,7 @@ export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Prom
   // Sessions (ACC-03)
   app.get('/v1/me/sessions', async (req) => {
     const u = requireUser(req);
-    const rows = await ctx.db.query<{ session_hash: string; created_at: string; last_seen_at: string; ip: string; user_agent: string }>(`SELECT session_hash, created_at, last_seen_at, ip, user_agent FROM app.sessions WHERE user_id=$1 AND revoked_at IS NULL AND expires_at > now() ORDER BY last_seen_at DESC`, [u.userId]);
+    const rows = await ctx.db.query<{ session_hash: string; created_at: string; last_seen_at: string; ip: string; user_agent: string }>(`SELECT session_hash, created_at, last_seen_at, ip, user_agent FROM app.sessions WHERE user_id=$1 AND revoked_at IS NULL AND expires_at > $2 ORDER BY last_seen_at DESC`, [u.userId, ctx.clock().toISOString()]);
     return { sessions: rows.map((s) => ({ id: s.session_hash.slice(0, 16), created_at: s.created_at, last_seen_at: s.last_seen_at, ip: s.ip, user_agent: s.user_agent, current: s.session_hash === u.sessionHash })) };
   });
   app.post('/v1/me/sessions/revoke-all', async (req, reply) => {
