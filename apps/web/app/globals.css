@@ -731,3 +731,45 @@ kbd { font: 600 11px var(--font); padding: 1px 5px; border: 1px solid var(--ln);
   .arrival-brand, .arrival h1, .arrival-sub, .arrival-cta, .uni-detail, .pulse-bar i, .pulse-timeline li, .explore-banner, .eb-orb, .studio-body { animation: none; }
   .globe-bare { transition: none; }
 }
+
+/* ───────── Studio, progress, academy topics, command centre (session 14b) ───────── */
+.studio-tabs { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.studio-tabs .tabs { margin: 0; }
+.studio-layout { display: flex; gap: 6px; }
+.studio-help { margin: 6px 0 10px; font-size: 13px; min-height: 18px; }
+.studio-grid.with-side { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
+.studio-grid.dense .card { padding: 10px; margin-bottom: 10px; }
+.studio-grid.dense table td, .studio-grid.dense table th { padding: 3px 6px; }
+.studio-grid.dense { font-size: 14px; }
+.studio-side { position: sticky; top: 112px; display: grid; gap: 12px; animation: fade-up .3s var(--ease) both; }
+.studio-side section { background: var(--sf); border: 1px solid var(--ln); border-radius: 12px; padding: 12px; }
+.studio-side h2 { font: 700 12px var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--mu); margin: 0 0 8px; }
+.studio-side ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; font-size: 13px; }
+.studio-side input, .studio-side textarea { width: 100%; }
+.prog-hero { display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center; padding: 20px 22px; margin: 6px 0 var(--gap); border-radius: 18px; border: 1px solid rgba(217,181,108,.4); background: radial-gradient(ellipse at 0% 0%, rgba(217,181,108,.18), transparent 60%), var(--sf); animation: fade-up .45s var(--ease) both; }
+.prog-hero .ring { width: 112px; height: 112px; } .prog-hero .ring-text { font-size: 18px; }
+.ph-level { font: 600 34px var(--serif); margin: 0; line-height: 1.1; } .ph-xp { font-size: 18px; color: var(--ink); }
+.prog-hero .eyebrow { margin: 0; }
+.ph-stats { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 8px 22px; margin: 0; }
+.ph-stats dt { font-size: 12px; color: var(--mu); } .ph-stats dd { margin: 0; font: 600 24px var(--serif); } .ph-stats dd span { font-size: 14px; color: var(--mu); }
+.wk-bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; align-items: end; height: 170px; margin: 10px 0; }
+.wk { display: grid; grid-template-rows: auto 1fr auto auto; height: 100%; text-align: center; gap: 4px; }
+.wk-v { font-weight: 700; font-variant-numeric: tabular-nums; }
+.wk-bar { align-self: end; height: max(4px, var(--h)); border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, var(--gold), rgba(217,181,108,.35)); transform-origin: bottom; animation: rise-bar .7s var(--ease) both; animation-delay: calc(var(--i) * 70ms); }
+@keyframes rise-bar { from { transform: scaleY(0); } }
+.wk-l { font-size: 12px; } .wk-d { font-size: 11px; }
+.ac-cats { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 4px; }
+.cmd-port { display: grid; gap: 2px; }
+.cmd-kpis { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 0 6px; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; align-items: baseline; }
+.cmd-kpis .mu { font-weight: 400; font-size: 12px; } .cmd-kpis .up { color: var(--ok); } .cmd-kpis .dn { color: var(--rd); }
+@media (max-width: 1000px) { .studio-grid.with-side { grid-template-columns: 1fr; } .studio-side { position: static; } }
+@media (max-width: 760px) { .prog-hero { grid-template-columns: 1fr; justify-items: start; } .wk-bars { gap: 6px; } }
+@media (prefers-reduced-motion: reduce) { .studio-side, .prog-hero, .wk-bar { animation: none; } }
+
+.pulse-field { margin: 12px 0; } .pulse-field h2 { margin: 0; font-size: 18px; }
+.pulse-field .seg { display: inline-flex; border: 1px solid var(--ln); border-radius: 999px; padding: 3px; background: var(--sf2); }
+.pulse-field .seg button { border: 0; background: none; color: var(--mu); padding: 5px 12px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 13px; }
+.pulse-field .seg button.on { background: var(--gold); color: #0b0f17; font-weight: 600; }
+.pulse-history h3 { font-size: 15px; margin: 6px 0; } .ph-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pulse-history .up { color: var(--ok); font-weight: 700; } .pulse-history .dn { color: var(--rd); font-weight: 700; }
+@media (max-width: 860px) { .ph-grid { grid-template-columns: 1fr; } }

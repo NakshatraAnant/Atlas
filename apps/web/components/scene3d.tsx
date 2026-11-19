@@ -21,10 +21,18 @@ export interface SceneApi {
   /** Place an HTML label at a 3D point; the handle updates its text or moves it. */
   label: (text: string, at: ThreeNS.Vector3, className?: string) => LabelHandle;
   reducedMotion: boolean;
+  /** Few cores, little memory or data saver: scenes should use fewer objects. */
+  lowPower: boolean;
   /** Current camera angles and distance; flyTo eases the camera to a new view. */
   view: { get: () => { yaw: number; pitch: number; distance: number }; flyTo: (v: { yaw?: number; pitch?: number; distance?: number }, seconds?: number) => void };
   /** Calls back with normalised device coordinates when the scene is clicked or tapped (not dragged). */
   onClick: (cb: (ndc: { x: number; y: number }) => void) => void;
+}
+
+/** A device that should get lighter 3D: few CPU cores, little memory, or data saver on. */
+export function isLowPower(): boolean {
+  const n = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+  return (n.hardwareConcurrency ?? 8) <= 4 || (n.deviceMemory ?? 8) <= 4 || !!n.connection?.saveData;
 }
 
 export function webglAvailable(): boolean {
@@ -52,8 +60,10 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
       const el = host.current;
       const height = opts.height ?? 360;
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+      const lowPower = isLowPower();
+      const renderer = new THREE.WebGLRenderer({ antialias: !lowPower, alpha: true, powerPreference: lowPower ? 'low-power' : 'high-performance' });
+      let ratio = Math.min(lowPower ? 1 : 2, devicePixelRatio);
+      renderer.setPixelRatio(ratio);
       renderer.setSize(el.clientWidth || 600, height);
       renderer.domElement.style.display = 'block';
       renderer.domElement.setAttribute('aria-hidden', 'true');
@@ -94,6 +104,7 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
       };
       const animations = new Set<(dt: number) => boolean>();
       let raf = 0;
+      let slowAcc = 0;
       let visible = true;
       let last = performance.now();
       const frame = (t: number) => {
@@ -104,6 +115,8 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
         last = t;
         for (const a of [...animations]) if (!a(dt)) animations.delete(a);
         renderer.render(scene, camera);
+        // If frames stay slow (over ~45 ms for a second of continuous animation), render fewer pixels.
+        if (dt > 0) { slowAcc = slowAcc * 0.95 + (dt > 0.045 ? 0.05 : 0); if (slowAcc > 0.6 && ratio > 0.75) { ratio = Math.max(0.75, ratio * 0.75); renderer.setPixelRatio(ratio); renderer.setSize(el.clientWidth || 600, height); slowAcc = 0; } }
         placeLabels();
         if (animations.size && visible) raf = requestAnimationFrame(frame);
       };
@@ -115,7 +128,7 @@ export function useScene3D(host: RefObject<HTMLDivElement | null>, setup: (api: 
       };
       const clickCbs: ((ndc: { x: number; y: number }) => void)[] = [];
       const api: SceneApi = {
-        THREE, scene, camera, invalidate, reducedMotion,
+        THREE, scene, camera, invalidate, reducedMotion, lowPower,
         onClick: (cb) => { clickCbs.push(cb); },
         view: {
           get: () => ({ yaw, pitch, distance }),

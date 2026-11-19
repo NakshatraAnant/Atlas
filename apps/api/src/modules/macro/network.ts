@@ -38,7 +38,7 @@ const hrefOf = (key: string) => {
 };
 const timing = (key: string) => (key.startsWith('equity:') ? 'End of day' : key.startsWith('crypto:') ? 'Daily close (UTC), venue price' : 'Latest official observation');
 
-async function loadCrypto(db: Db, key: string): Promise<Loaded | null> {
+export async function loadCrypto(db: Db, key: string): Promise<Loaded | null> {
   const asset = key.slice(7);
   const s = await db.maybeOne<{ series_id: string; name: string; source_id: string }>(
     `SELECT ps.series_id, a.name, ps.source_id FROM crypto.price_series ps JOIN crypto.assets a USING (asset_id)

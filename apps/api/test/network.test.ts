@@ -41,3 +41,19 @@ describe('intelligence network', () => {
     });
   });
 });
+
+describe('market history moves', () => {
+  it('finds the largest moves between close observations and skips gaps and non-positive values', async () => {
+    const { largestMoves } = await import('../src/modules/macro/pulse.js');
+    const D = 86_400_000;
+    const s = { key: 'k', label: 'l', units: 'USD', source: '', frequency: 'daily', percentUnits: false, obs: [
+      { t: 0, v: 100 }, { t: D, v: 110 }, { t: 2 * D, v: 99 }, { t: 30 * D, v: 200 }, { t: 31 * D, v: -5 }, { t: 32 * D, v: 10 }, { t: 33 * D, v: 11 },
+    ] };
+    const m = largestMoves(s as never, { short: 'X', href: '/x' }, 5);
+    // 100→110 (+10%), 110→99 (−10%), 10→11 (+10%); the 28-day gap and moves across −5 are excluded.
+    expect(m.map((x) => x.date).sort()).toEqual(['1970-01-02', '1970-01-03', '1970-02-03']); // all three are ±10%: a tie
+    expect(Math.abs(m[0]!.change)).toBeCloseTo(0.1, 12);
+    const y = largestMoves({ ...s, percentUnits: true, obs: [{ t: 0, v: 4 }, { t: D, v: 4.3 }] } as never, { short: 'Y', href: '/y' }, 1);
+    expect([y[0]!.kind, y[0]!.change]).toEqual(['pp', expect.closeTo(0.3, 12)]);
+  });
+});

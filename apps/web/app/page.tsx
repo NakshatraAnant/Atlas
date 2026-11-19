@@ -24,28 +24,9 @@ export default function Landing() {
 function RealLanding() {
   const { me } = useApp();
   const cta = me ? { href: '/app', label: 'Open your workspace' } : { href: '/signup', label: 'Start free' };
-  const [entering, setEntering] = useState(false);
-  // Signed-in visitors go straight to their workspace: nobody is made to watch the arrival twice.
-  useEffect(() => { if (me) window.location.replace('/app'); }, [me]);
-  const enter = () => {
-    const go = () => { window.location.href = me ? '/app' : '/signup'; };
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return go();
-    setEntering(true);
-    setTimeout(go, 650);
-  };
   return (
     <div className="lp">
-      <section className={`arrival${entering ? ' entering' : ''}`} aria-labelledby="arrival-h">
-        <div className="arrival-globe"><Globe3D bare interactive={false} height={620} /></div>
-        <div className="arrival-copy">
-          <p className="arrival-brand">ATLAS</p>
-          <h1 id="arrival-h">See beyond the markets.</h1>
-          <p className="arrival-sub">Explore global markets. Discover hidden relationships. Build financial intelligence.</p>
-          <button className="btn btn-cta btn-lg arrival-cta" onClick={enter}>Enter ATLAS <span aria-hidden="true">→</span></button>
-          {!me && <p className="lp-micro">Free plan · No card needed · <a href="/login">Sign in</a></p>}
-        </div>
-        <a className="arrival-scroll" href="#how" aria-label="See how it works">How it works ↓</a>
-      </section>
+      <Arrival />
       <section className="lp-hero lp-hero-2">
         <div className="lp-copy">
           <p className="lp-eyebrow">Research workspace · Learning academy</p>
@@ -129,13 +110,44 @@ function HeroVisual() {
   );
 }
 
+/**
+ * The arrival: the ATLAS globe, the promise and one action. Shown in every mode. Signed-in visitors go
+ * straight to their workspace, so nobody is made to watch it twice.
+ */
+function Arrival() {
+  const { me } = useApp();
+  const [entering, setEntering] = useState(false);
+  // ?arrival=1 replays it on purpose (for example from a demo); otherwise signed-in visitors skip it.
+  useEffect(() => { if (me && !new URLSearchParams(location.search).has('arrival')) window.location.replace('/app'); }, [me]);
+  const enter = () => {
+    const go = () => { window.location.href = me ? '/app' : '/signup'; };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return go();
+    setEntering(true);
+    setTimeout(go, 650);
+  };
+  return (
+    <section className={`arrival${entering ? ' entering' : ''}`} aria-labelledby="arrival-h">
+      <div className="arrival-globe"><Globe3D bare interactive={false} height={620} /></div>
+      <div className="arrival-copy">
+        <p className="arrival-brand">ATLAS</p>
+        <h1 id="arrival-h">See beyond the markets.</h1>
+        <p className="arrival-sub">Explore global markets. Discover hidden relationships. Build financial intelligence.</p>
+        <button className="btn btn-cta btn-lg arrival-cta" onClick={enter}>Enter ATLAS <span aria-hidden="true">→</span></button>
+        {!me && <p className="lp-micro">Free plan · No card needed · <a href="/login">Sign in</a></p>}
+      </div>
+      <a className="arrival-scroll" href="#how" aria-label="See how it works">How it works ↓</a>
+    </section>
+  );
+}
+
 function DemoLanding() {
   const { me } = useApp();
   const s = useApi<Summary>('/v1/market/summary');
   return (
     <>
-      <section className="hero">
-        <h1>Understand a company’s financial performance and the market context around it — in one research workspace.</h1>
+      <Arrival />
+      <section className="hero" id="how">
+        <h2 className="lp-h1">Understand a company’s financial performance and the market context around it — in one research workspace.</h2>
         <p className="mu" style={{ maxWidth: 720, fontSize: 15 }}>ATLAS connects the post-close market briefing, company fundamentals with every figure linked to its source, honest historical testing with Indian trading costs, and an AI research assistant whose numbers come from code, not guesses. This is a product promise, not a promise of investment returns.</p>
         <div className="row">{me ? <a className="btn" href="/app">Open your workspace</a> : <><a className="btn" href="/signup">Create free account</a><a className="btn s" href="/briefing-sample">Read a sample briefing</a></>}<a className="btn s" href="/methodology/ai">How AI answers work</a></div>
       </section>

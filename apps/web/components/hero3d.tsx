@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { isLowPower } from './scene3d';
 
 // Hero 3D scene: a living "market terrain" of glowing points, three flowing series ribbons with travelling
 // light heads, and drifting dust, under a slowly orbiting camera that leans toward the pointer.
@@ -27,10 +28,12 @@ export function Hero3D({ palette = 'gold', height = 360, fallback, className = '
     void import('three').then((THREE) => {
       if (disposed || !host.current) return;
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const low = isLowPower();
       const C = COLOURS[palette];
       const w = () => el.clientWidth || 600;
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-      renderer.setPixelRatio(Math.min(1.75, devicePixelRatio));
+      let ratio = Math.min(low ? 1 : 1.75, devicePixelRatio);
+      renderer.setPixelRatio(ratio);
       renderer.setSize(w(), height);
       renderer.domElement.setAttribute('aria-hidden', 'true');
       renderer.domElement.style.display = 'block';
@@ -41,7 +44,7 @@ export function Hero3D({ palette = 'gold', height = 360, fallback, className = '
       const uniforms = { uTime: { value: 0 }, uFade: { value: 0 }, uLow: { value: new THREE.Color(C.low) }, uHigh: { value: new THREE.Color(C.high) }, uPixel: { value: renderer.getPixelRatio() } };
 
       // 1. Terrain of points: height comes from layered waves computed in the vertex shader.
-      const NX = 120, NZ = 70, SX = 22, SZ = 13;
+      const NX = low ? 70 : 120, NZ = low ? 40 : 70, SX = 22, SZ = 13;
       const pos = new Float32Array(NX * NZ * 3);
       let k = 0;
       for (let i = 0; i < NZ; i++) for (let j = 0; j < NX; j++) { pos[k++] = (j / (NX - 1) - 0.5) * SX; pos[k++] = 0; pos[k++] = (i / (NZ - 1) - 0.5) * SZ; }
@@ -106,7 +109,7 @@ export function Hero3D({ palette = 'gold', height = 360, fallback, className = '
       });
 
       // 3. Drifting dust for depth.
-      const DUST = 380;
+      const DUST = low ? 120 : 380;
       const dpos = new Float32Array(DUST * 3);
       const seed = new Float32Array(DUST);
       for (let i = 0; i < DUST; i++) { dpos[i * 3] = (Math.random() - 0.5) * 26; dpos[i * 3 + 1] = Math.random() * 7 - 1; dpos[i * 3 + 2] = (Math.random() - 0.5) * 16; seed[i] = Math.random() * 100; }
@@ -148,6 +151,8 @@ export function Hero3D({ palette = 'gold', height = 360, fallback, className = '
       // Reduced motion shows the composed end state: everything drawn, at a pleasing phase of the waves.
       const stillAt = reduced ? 4 : null;
       let raf = 0;
+      let lastT = 0;
+      let slow = 0;
       let visible = true;
       const frame = () => {
         raf = 0;
@@ -172,6 +177,9 @@ export function Hero3D({ palette = 'gold', height = 360, fallback, className = '
         });
         place(t);
         renderer.render(scene, camera);
+        // Slow frames for a sustained stretch: drop resolution once (never below 0.75).
+        const ft = t - lastT; lastT = t;
+        if (ft > 0) { slow = slow * 0.95 + (ft > 0.045 ? 0.05 : 0); if (slow > 0.6 && ratio > 0.75) { ratio = Math.max(0.75, ratio * 0.75); renderer.setPixelRatio(ratio); renderer.setSize(w(), height); slow = 0; } }
         if (!reduced && visible && !document.hidden) raf = requestAnimationFrame(frame);
       };
       const kick = () => { if (!raf && visible && !document.hidden && !reduced) raf = requestAnimationFrame(frame); };

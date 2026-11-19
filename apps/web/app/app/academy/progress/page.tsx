@@ -3,6 +3,8 @@ import { useApp } from '@/components/providers';
 import { useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { Loading, Problem, useApi } from '@/components/ui';
+import { ProgressRing } from '@/components/academy-journey';
+import { CountUp } from '@/components/motion';
 
 interface Me {
   settings: { timezone: string; weekly_goal_days: number };
@@ -18,6 +20,19 @@ interface Me {
   rank: { rank: number; title: string; next: null | { title: string; needs_level: number; level_ok: boolean; needs_mastered: number; mastered_ok: boolean; needs_practices: { kind: string; label: string; done: boolean }[] } };
   skill_map: { id: string; title: string; objectives: number; mastered: number; practices: { kind: string; label: string; done: boolean }[]; needs_practice: { objective_id: string; statement: string }[] }[];
   research: { this_week: number; hypotheses_open: { entry_id: string; title: string; review_date: string; due: boolean }[] };
+}
+
+/** Group the calendar's days into Monday-start weeks with their XP and active days. */
+function weeks(cal: { date: string; active: boolean; future: boolean; xp: number }[]) {
+  const out: { start: string; xp: number; days: number }[] = [];
+  for (const c of cal) {
+    const d = new Date(`${c.date}T00:00:00Z`);
+    const mon = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10);
+    let w = out.find((x) => x.start === mon);
+    if (!w) out.push((w = { start: mon, xp: 0, days: 0 }));
+    if (!c.future) { w.xp += c.xp; if (c.active) w.days++; }
+  }
+  return out;
 }
 
 const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -48,6 +63,27 @@ export default function LearningProgress() {
     <div className="academy">
       <p><a href="/app/academy">← Academy</a></p>
       <h1>Your learning and research progress</h1>
+      <section className="prog-hero" aria-label="Level and milestones">
+        <ProgressRing value={pct / 100} size={112} label={`${pct}% of the way to level ${m.xp.level + 1}`} />
+        <div className="ph-main">
+          <p className="eyebrow">{m.rank.title}</p>
+          <p className="ph-level">Level {m.xp.level}</p>
+          <p className="mu"><strong className="ph-xp"><CountUp value={m.xp.xp} format={(v) => Math.round(v).toLocaleString('en-IN')} /></strong> XP · {m.xp.next_level_at - m.xp.xp} to level {m.xp.level + 1}</p>
+        </div>
+        <dl className="ph-stats">
+          <div><dt>Badges</dt><dd>{unlocked.length}<span>/{m.achievements.length}</span></dd></div>
+          <div><dt>Objectives mastered</dt><dd>{m.skill_map.reduce((a, s) => a + s.mastered, 0)}<span>/{m.skill_map.reduce((a, s) => a + s.objectives, 0)}</span></dd></div>
+          <div><dt>Research this week</dt><dd>{m.research.this_week}</dd></div>
+          {showStreak && <div><dt>Day streak</dt><dd>{m.streak.daily.current}</dd></div>}
+        </dl>
+      </section>
+      <section className="card" aria-labelledby="wk">
+        <h2 id="wk">XP by week <span className="mu">· last five weeks</span></h2>
+        <div className="wk-bars">{weeks(m.calendar).map((w, i, all) => { const max = Math.max(1, ...all.map((x) => x.xp)); return (
+          <div key={w.start} className="wk"><span className="wk-v">{w.xp}</span><span className="wk-bar" style={{ ['--h' as string]: `${(w.xp / max) * 100}%`, ['--i' as string]: i }} /><span className="wk-l">{day(w.start)}</span><span className="mu wk-d">{w.days} day{w.days === 1 ? '' : 's'}</span></div>
+        ); })}</div>
+        <p className="mu">Weeks start on Monday ({m.settings.timezone}). Explore your courses as a <a href="/app/academy/constellation">Knowledge Constellation</a>.</p>
+      </section>
 
       <section className="card next-action" aria-labelledby="na">
         <h2 id="na">Recommended next</h2>

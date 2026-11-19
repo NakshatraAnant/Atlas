@@ -134,6 +134,9 @@ export function RealHome({ name }: { name?: string | null }) {
   const [recent, setRecent] = useState<{ href: string; label: string }[]>([]);
   const [tools, setTools] = useState<{ href: string; label: string }[]>([]);
   useEffect(() => { setRecent(readRecent('atlas-recent')); setTools(readRecent('atlas-tools')); }, []);
+  const firstPort = ports.data?.rows[0];
+  const pa = useApi<{ result: null | { total_return: number; max_drawdown: number; ratios: { vol?: number } }; reason?: string }>(firstPort ? `/v1/research/portfolios/${firstPort.portfolio_id}/analysis?range=1y` : null, [firstPort?.portfolio_id]);
+  const nb = useApi<{ reviews_due: { entry_id: string; title: string; review_date: string }[] }>('/v1/research/notebook');
   const mission = learn.data?.missions?.find((m) => m.kind === 'research' && !m.done) ?? learn.data?.missions?.find((m) => !m.done) ?? null;
 
   // Progressive disclosure: the first three panels, then the rest on request (remembered on this device).
@@ -177,10 +180,25 @@ export function RealHome({ name }: { name?: string | null }) {
           <h2 id="cmd-s">Saved research</h2>
           {(reports.loading || ports.loading) && !reports.data ? <Loading lines={2} /> : (reports.data?.rows.length || ports.data?.rows.length) ? (
             <ul className="cmd-list">
-              {ports.data?.rows.slice(0, 2).map((p) => <li key={p.portfolio_id}><a href="/app/research-hub?tab=portfolios">{p.name}</a><span className="mu"> · hypothetical portfolio, {p.holdings} holdings</span></li>)}
+              {firstPort && pa.data?.result && (
+                <li className="cmd-port"><a href="/app/research-hub?tab=portfolios">{firstPort.name}</a>
+                  <span className="cmd-kpis"><span className={pa.data.result.total_return >= 0 ? 'up' : 'dn'}>{pct(pa.data.result.total_return)}</span><span className="mu">return</span><span className="dn">{pct(pa.data.result.max_drawdown)}</span><span className="mu">max drawdown</span>{pa.data.result.ratios.vol !== undefined && <><span>{(pa.data.result.ratios.vol * 100).toFixed(0)}%</span><span className="mu">volatility</span></>}</span>
+                  <span className="mu">Hypothetical, last year, on stored prices</span></li>
+              )}
+              {ports.data?.rows.slice(firstPort && pa.data?.result ? 1 : 0, 2).map((p) => <li key={p.portfolio_id}><a href="/app/research-hub?tab=portfolios">{p.name}</a><span className="mu"> · hypothetical portfolio, {p.holdings} holdings</span></li>)}
               {reports.data?.rows.slice(0, 2).map((r) => <li key={r.report_id}><a href="/app/research-hub?tab=reports">{r.title}</a><span className="mu"> · report</span></li>)}
             </ul>
           ) : <p className="mu">Nothing saved yet. <a href="/app/research-hub?tab=portfolios">Build a hypothetical portfolio</a> or <a href="/app/research-hub?tab=reports">write a report</a>.</p>}
+        </section>
+        <section className="card cmd" aria-labelledby="cmd-u">
+          <h2 id="cmd-u">Research updates</h2>
+          {nb.loading && !nb.data ? <Loading lines={2} /> : (
+            <ul className="cmd-list">
+              {nb.data?.reviews_due.slice(0, 3).map((r) => <li key={r.entry_id}><a href="/app/research-hub?tab=notebook">{r.title}</a><span className="t i"> review due</span></li>)}
+              {attn.data?.releases.slice(0, nb.data?.reviews_due.length ? 1 : 3).map((r) => <li key={r.href}><a href={r.href}>{r.title.length > 48 ? `${r.title.slice(0, 46)}…` : r.title}</a><span className="mu"> · published {r.published}</span></li>)}
+              {!nb.data?.reviews_due.length && !attn.data?.releases.length && <li className="mu">No reviews due and no new releases this week.</li>}
+            </ul>
+          )}
         </section>
         <section className="card cmd" aria-labelledby="cmd-r">
           <h2 id="cmd-r">Jump back in</h2>

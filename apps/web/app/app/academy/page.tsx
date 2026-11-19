@@ -4,6 +4,7 @@ import { Empty, Loading, Problem, useApi } from '@/components/ui';
 import { ProgressRing } from '@/components/academy-journey';
 import { Hero3D } from '@/components/hero3d';
 import { useMode } from '@/components/motion';
+import { useState } from 'react';
 
 interface Course {
   course_id: string; title: string; tagline: string; description: string; audience: string; position: number; track: 'equities' | 'digital_assets' | 'commodities'; level: number; draft: boolean; status: string; available: boolean;
@@ -13,6 +14,17 @@ interface Progress { courses: { course_id: string; title: string; lessons: numbe
 interface MeLite { xp: { level: number; xp: number }; streak: { daily: { current: number; today_active: boolean } }; recommendation: { title: string; reason: string; href?: string } }
 interface Catalogue { courses: Course[]; not_a_qualification: string; preview_mode: boolean; review_note: string }
 
+// Eight learning categories; a course can teach several.
+const CATEGORIES: [string, string, string[]][] = [
+  ['statements', 'Financial statements', ['equity-detective']],
+  ['equity', 'Equity research', ['equity-detective', 'market-architect']],
+  ['valuation', 'Valuation', ['market-architect', 'equity-detective']],
+  ['macro', 'Macroeconomics', ['market-decoder', 'commodity-decoder']],
+  ['quant', 'Quantitative finance', ['signal-engineer', 'onchain-engineer']],
+  ['portfolio', 'Portfolio management', ['market-architect', 'market-decoder', 'asset-architect']],
+  ['capital', 'Capital markets', ['market-decoder', 'commodity-decoder', 'crypto-decoder']],
+  ['crypto', 'Digital assets', ['crypto-decoder', 'tokenomics-detective', 'onchain-engineer', 'asset-architect']],
+];
 const READINESS: Record<string, string> = { high: 'Ready', borderline: 'Nearly ready', low: 'Review first' };
 const LEVEL: Record<number, string> = { 1: 'Beginner', 2: 'Intermediate', 3: 'Advanced', 4: 'Expert' };
 const STATUS: Record<string, string> = { published: 'Published', in_review: 'In expert review', draft: 'Draft' };
@@ -24,27 +36,28 @@ export default function AcademyHome() {
   const progress = useApi<Progress>('/v1/academy/progress');
   const me = useApi<MeLite>('/v1/academy/me');
   const mode = useMode();
+  const [cat, setCat] = useState<string | null>(null);
   if (courses.loading) return <Loading lines={6} label="Loading courses" />;
   if (courses.error) return <Problem error={courses.error} retry={courses.reload} />;
-  const cat = courses.data!;
+  const cat_ = courses.data!;
   const p = progress.data;
   // The most useful next action: continue an enrolled course, else start with the first available one.
-  const enrolled = cat.courses.find((c) => c.enrolment && c.available);
-  const firstOpen = cat.courses.find((c) => c.available);
+  const enrolled = cat_.courses.find((c) => c.enrolment && c.available);
+  const firstOpen = cat_.courses.find((c) => c.available);
   return (
     <div className="academy">
       {mode === 'explore' && <div className="ac-3d" aria-hidden="true"><Hero3D palette="academy" height={220} /></div>}
       <header className="ac-hero">
         <p className="eyebrow">ATLAS Academy</p>
         <h1>Learn to read markets the way ATLAS does: with evidence.</h1>
-        <p className="mu" style={{ maxWidth: 640 }}>Three tracks, nine courses: Indian equities, from how a share works to defending a valuation; digital assets, from how a blockchain works to an evidence-based crypto research report; and commodities, from reading a price label to futures curves and inventories. Lessons include 3D charts built on real stored data, interactive labs and narrated videos. Each course starts with a short readiness check so you begin at the right place. {cat.not_a_qualification}</p>
+        <p className="mu" style={{ maxWidth: 640 }}>Three tracks, nine courses: Indian equities, from how a share works to defending a valuation; digital assets, from how a blockchain works to an evidence-based crypto research report; and commodities, from reading a price label to futures curves and inventories. Lessons include 3D charts built on real stored data, interactive labs and narrated videos. Each course starts with a short readiness check so you begin at the right place. {cat_.not_a_qualification}</p>
         {me.data && (
           <div className="card next-action">
             <p className="big">Next: {me.data.recommendation.href ? <a href={me.data.recommendation.href}>{me.data.recommendation.title}</a> : me.data.recommendation.title}</p>
             <p className="mu">{me.data.recommendation.reason} · Level {me.data.xp.level} · {me.data.xp.xp} XP{showStreak ? ` · ${me.data.streak.daily.current}-day streak` : ''}</p>
           </div>
         )}
-        <p className={cat.preview_mode ? 'warn' : 'mu'} role="note">{cat.review_note}</p>
+        <p className={cat_.preview_mode ? 'warn' : 'mu'} role="note">{cat_.review_note}</p>
         <p className="ac-actions">
           {enrolled ? <a className="btn" href={`/app/academy/${enrolled.course_id}`}>Continue {enrolled.title.replace('ATLAS: ', '')}</a> : firstOpen ? <a className="btn" href={`/app/academy/${firstOpen.course_id}`}>Start with {firstOpen.title.replace('ATLAS: ', '')}</a> : null}
           {p && p.reviews_due > 0 && <a className="btn s" href="/app/academy/review">Review {p.reviews_due} due concept{p.reviews_due === 1 ? '' : 's'}</a>}
@@ -53,14 +66,19 @@ export default function AcademyHome() {
           <a className="btn s" href="/app/academy/progress">My progress and achievements</a>
         </p>
       </header>
-      {cat.courses.length === 0 ? (
+      {cat_.courses.length === 0 ? (
         <Empty>No courses are set up in this environment yet. The curriculum loads when the API starts; if this persists, check the API log for the curriculum sync.</Empty>
       ) : (
-        <>{(['equities', 'digital_assets', 'commodities'] as const).map((t) => cat.courses.some((c) => c.track === t) && (
+        <>
+        <div className="ac-cats" role="group" aria-label="Filter by topic">
+          <button className={`chip${!cat ? ' on' : ''}`} aria-pressed={!cat} onClick={() => setCat(null)}>All topics</button>
+          {CATEGORIES.map(([id, label]) => <button key={id} className={`chip${cat === id ? ' on' : ''}`} aria-pressed={cat === id} onClick={() => setCat(cat === id ? null : id)}>{label}</button>)}
+        </div>
+        {(['equities', 'digital_assets', 'commodities'] as const).map((t) => cat_.courses.some((c) => c.track === t && (!cat || CATEGORIES.find((x) => x[0] === cat)![2].includes(c.course_id))) && (
           <section key={t} aria-labelledby={`track-${t}`}>
             <h2 id={`track-${t}`} className="eyebrow" style={{ margin: '18px 0 8px' }}>{t === 'equities' ? 'Track 1 · Indian equities' : t === 'digital_assets' ? 'Track 2 · Digital assets' : 'Track 3 · Commodities'}</h2>
           <ol className="course-grid">
-          {cat.courses.filter((c) => c.track === t).map((c, idx) => {
+          {cat_.courses.filter((c) => c.track === t && (!cat || CATEGORIES.find((x) => x[0] === cat)![2].includes(c.course_id))).map((c, idx) => {
             const mine = p?.courses.find((x) => x.course_id === c.course_id);
             return (
               <li key={c.course_id} className={`course c${c.level}${c.available ? '' : ' locked'}`} style={{ ['--i' as string]: idx }}>
@@ -76,6 +94,7 @@ export default function AcademyHome() {
                   <p id={`st-${c.course_id}`} className="mu">
                     Status: {STATUS[c.status] ?? c.status}{c.available && c.draft ? ' · shown as a draft preview' : ''}{!c.available ? ' · not yet open' : ''}
                   </p>
+                  {c.available && !mine?.lessons_completed && !c.enrolment && c.position > 1 && cat_.courses.some((p) => p.position === c.position - 1 && p.track === c.track && !p.enrolment) && <span className="t i">Suggested after {cat_.courses.find((p) => p.position === c.position - 1 && p.track === c.track)!.title.replace('ATLAS: ', '')}</span>}
                   {!c.available ? <span className="t">Opens after expert review</span> : mine ? (
                     <div className="mini">
                       <ProgressRing value={mine.lessons ? mine.lessons_completed / mine.lessons : 0} size={44} label={`${mine.lessons_completed} of ${mine.lessons} lessons completed`} />

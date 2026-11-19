@@ -31,16 +31,14 @@ export const SCENES: Scene[] = [
     narration: 'This is ATLAS, a financial research workspace for Indian and global markets. Everything you will see is the local build running on this computer, using real data from named sources. The narration is a synthetic computer voice.',
   },
   {
-    id: 'home', chapter: 'Home', kind: 'app',
-    narration: 'A first visit to Home opens with three welcome steps: choose your markets, follow two series, and try search. Below them is a snapshot built only from stored observations. Each figure carries the date it refers to and its source. The What changed panel lists economic data published in the last seven days, and the largest recent commodity moves.',
-    run: async (p, h) => {
-      await h.go('/app'); await h.wait(1500);
-      await h.hover('.welcome-tour li:nth-child(2)'); await h.wait(2600);
-      await h.hover('.welcome-tour li:nth-child(3)'); await h.wait(1800);
-      await h.click('button:has-text("Done, hide this")'); await h.wait(1500);
-      await p.locator('#h-at').waitFor({ timeout: 10_000 }).catch(() => undefined);
-      await h.moveTo(420, 330, 900); await h.wait(1200); await h.scroll(260, 1600);
-    },
+    id: 'arrival', chapter: 'Arrival', kind: 'app',
+    narration: "ATLAS opens on a globe built from real geography. Gold points are places and markets with stored data. Enter ATLAS leads straight into your workspace; returning visitors skip this screen.",
+    run: async (p, h) => { await h.go('/?arrival=1'); await h.wait(5200); await h.moveTo(640, 470, 900); await h.wait(600); await h.click('button:has-text("Enter ATLAS")'); await p.waitForURL('**/app', { timeout: 15000 }).catch(() => undefined); await h.wait(1200); },
+  },
+  {
+    id: 'home', chapter: 'Command centre', kind: 'app',
+    narration: 'Home is a personal command centre. One next step leads, chosen from what you said you came for. Below it are today’s research mission, saved research with its real figures, research updates and the pages you opened recently. In Explore mode, the ATLAS Universe is one click away; Focus mode keeps the same page quiet and dense.',
+    run: async (p, h) => { await h.go('/app'); await h.wait(2500); await h.hover('.next-step'); await h.wait(2200); await h.hover('.cmd-row .cmd:nth-child(2)'); await h.wait(2200); await h.hover('.explore-banner'); await h.wait(1800); await h.scroll(300, 1500); },
   },
   {
     id: 'home-more', chapter: 'Home', kind: 'app',
@@ -62,6 +60,21 @@ export const SCENES: Scene[] = [
     },
   },
   {
+    id: 'universe', chapter: 'ATLAS Universe', kind: 'app',
+    narration: "The ATLAS Universe turns the same idea into a place to explore. Select India and the panel lists what is stored: the three indices at end of day, the rupee and Indian inflation, each with its date. It also says what is not available, such as individual shares, which need a licence.",
+    run: async (p, h) => { await h.go('/app/universe'); await h.wait(3500); await h.click('.uni-quick button:has-text("India")'); await h.wait(4200); await h.scroll(260, 1500); await h.wait(1500); },
+  },
+  {
+    id: 'network', chapter: 'Intelligence Network', kind: 'app',
+    narration: "The Intelligence Network shows how stored series moved together. Each line is a measured correlation of weekly changes: gold moved together, blue moved opposite. Select Brent crude and the panel ranks its relationships, with the number of weeks behind each one. Correlation is not causation, and the page says so.",
+    run: async (p, h) => { await h.go('/app/network'); await h.wait(4000); await h.click('.uni-quick button:has-text("Brent crude")'); await h.wait(4500); await h.scroll(300, 1500); await h.wait(1200); },
+  },
+  {
+    id: 'pulse', chapter: 'Market Pulse', kind: 'app',
+    narration: "Market Pulse shows what moved and what was published, grouped by how current it is. In the move field, each column of particles is one instrument, sized by its move. Further down, the largest moves and record highs and lows are found in the stored history itself.",
+    run: async (p, h) => { await h.go('/app/pulse'); await h.wait(3500); await h.click('.pulse-field .seg button:nth-child(2)'); await h.wait(2500); await h.click('.pulse-field .seg button:nth-child(1)'); await h.wait(2000); await h.scroll(700, 2500); await h.wait(1500); await h.scroll(700, 2500); },
+  },
+  {
     id: 'macro-series', chapter: 'Macro series', kind: 'app',
     narration: 'A macro series page shows the latest value, the period it refers to, when FRED first published it, and when ATLAS retrieved it. The chart has range presets, a hover read-out, drag to zoom, CSV export, a table view and full screen.',
     run: async (p, h) => {
@@ -80,22 +93,6 @@ export const SCENES: Scene[] = [
         await h.moveTo(plot.x + plot.width * 0.7, plot.y + plot.height * 0.5, 1200); await p.mouse.up(); await h.wait(1500);
         await h.click('button.chip:text-is("Reset zoom")'); await h.wait(800);
       }
-    },
-  },
-  {
-    id: 'follow', chapter: 'Follow a series', kind: 'app',
-    narration: 'Follow a series, and ATLAS posts a notice when a newer observation is stored. You are never notified about the backlog that already existed when you followed.',
-    run: async (_p, h) => { await h.scroll(-600, 600); await h.wait(600); await h.click('button:has-text("Follow")'); await h.wait(3500); },
-  },
-  {
-    id: 'explorer', chapter: 'Relationship explorer', kind: 'app',
-    narration: 'The relationship explorer compares any two stored series, for example Brent crude against the NIFTY 50. Both are put on a common frequency, and their changes are correlated over a rolling window. The page states its method and limits: a correlation is not causation.',
-    run: async (p, h) => {
-      await h.go('/app/macro/explorer'); await h.wait(1200);
-      // The presets render once /v1/macro/explorer/options has loaded; allow for a slow first answer.
-      await p.locator('button.link:has-text("Brent crude vs NIFTY 50")').first().waitFor({ timeout: 15_000 }).catch(() => undefined);
-      await h.click('button.link:has-text("Brent crude vs NIFTY 50")'); await h.wait(2500);
-      await h.scroll(330, 1800); await h.wait(1500); await h.scroll(450, 2000); await h.wait(1500); await h.scroll(500, 2000);
     },
   },
   {
@@ -145,6 +142,16 @@ export const SCENES: Scene[] = [
     run: async (_p, h) => { await h.go('/app/academy'); await h.wait(1500); await h.scroll(300, 1500); await h.go('/app/academy/progress'); await h.wait(1500); await h.scroll(400, 2200); await h.wait(600); },
   },
   {
+    id: 'constellation', chapter: 'Knowledge Constellation', kind: 'app',
+    narration: 'The Academy can be explored as a constellation. Each course is a cluster and each lesson a star; gold stars are lessons completed, and the pulsing star is the next one. It shows recorded progress only.',
+    run: async (p, h) => {
+      await h.go('/app/academy/constellation'); await h.wait(3500);
+      const b = await p.locator('.scene3d-host').first().boundingBox().catch(() => null);
+      if (b) { await h.moveTo(b.x + b.width * 0.4, b.y + b.height * 0.5, 600); await p.mouse.down(); await h.moveTo(b.x + b.width * 0.65, b.y + b.height * 0.45, 2200); await p.mouse.up(); }
+      await h.wait(2500);
+    },
+  },
+  {
     id: 'lesson-video', chapter: 'Academy lessons', kind: 'app',
     narration: 'Every course opens with a narrated introduction video, with English captions and a transcript; the voice is synthetic. Lessons then move through stages, from discovery and prediction to a worked example and a short quiz, and progress is saved to your account.',
     run: async (p, h) => {
@@ -154,16 +161,6 @@ export const SCENES: Scene[] = [
       await p.evaluate(() => { const v = document.querySelector('video'); if (v) v.pause(); });
       await h.scroll(380, 1600); await h.wait(800);
     },
-  },
-  {
-    id: 'notifications', chapter: 'Notifications', kind: 'app',
-    narration: 'Notifications collect release notices for the series you follow and other account messages. Nothing is sent by email unless you turn on the weekly summary in Settings.',
-    run: async (_p, h) => { await h.go('/app/notifications'); await h.wait(1800); await h.scroll(300, 1600); },
-  },
-  {
-    id: 'settings', chapter: 'Settings', kind: 'app',
-    narration: 'Settings decides which Home panels appear and in which order, whether release notices or a weekly summary arrive, the theme, and whether learning streaks are shown at all.',
-    run: async (_p, h) => { await h.go('/app/settings'); await h.wait(1500); await h.hover('button[aria-label^="Move"]'); await h.wait(800); await h.scroll(420, 2200); await h.wait(800); await h.scroll(400, 1800); },
   },
   {
     id: 'data-health', chapter: 'Data sources', kind: 'app',

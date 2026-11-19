@@ -95,13 +95,14 @@ async function signIn(page: Page) {
     // A clean, repeatable starting state: default Home, notices on, streaks shown, dark theme,
     // two followed series (Brent, the US 10-year yield) and the rupee rate not yet followed.
     const setup = [];
-    setup.push(await post('/v1/me', { display_prefs: { home_panels: ['attention', 'following', 'indices', 'commodities', 'macro', 'crypto', 'learning'], markets: [], notify: { releases: true, digest: false }, show_streak: true, theme: 'dark', tour_done: false } }, 'PATCH'));
+    setup.push(await post('/v1/me', { display_prefs: { home_panels: ['attention', 'following', 'indices', 'commodities', 'macro', 'crypto', 'learning'], markets: [], notify: { releases: true, digest: false }, show_streak: true, theme: 'dark', tour_done: true, mode: 'explore' } }, 'PATCH'));
     setup.push(await post('/v1/follows', { key: 'macro:DEXINUS', follow: false }, 'PUT'));
     setup.push(await post('/v1/follows', { key: 'commodity:fred:DCOILBRENTEU', follow: true }, 'PUT'));
     setup.push(await post('/v1/follows', { key: 'macro:DGS10', follow: true }, 'PUT'));
     const bad = setup.find((x) => !x.ok);
     if (bad) return 'setup ' + bad.status + ' ' + bad.url;
     localStorage.setItem('atlas-theme', 'dark');
+    localStorage.setItem('atlas-mode', 'explore');
     return 200;
   })()`);
   if (status !== 200) throw new Error(`sign-in failed (${status})`);

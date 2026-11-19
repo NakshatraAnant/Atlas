@@ -73,9 +73,11 @@ export async function seedUsers(ctx: AppContext): Promise<Record<string, string>
       }
       if (u.plan !== 'free') {
         const price = u.plan === 'plus' ? 499 : 1499;
+        // Development accounts keep their sandbox plan: a short period silently downgraded them once it
+        // passed (cached test fixtures and long-lived dev databases outlive any fixed window).
         await db.query(
           `INSERT INTO app.subscriptions (user_id, plan_code, status, gateway, gateway_subscription_id, price_inr, current_period_start, current_period_end, mandate_status, first_charge_at, place_of_supply_state)
-           VALUES ($1,$2,'active','sandbox',$3,$4, now() - interval '3 days', now() + interval '27 days', 'active', now() - interval '3 days', '27')`,
+           VALUES ($1,$2,'active','sandbox',$3,$4, now() - interval '3 days', now() + interval '10 years', 'active', now() - interval '3 days', '27')`,
           [id, u.plan, `sub_seed_${id.slice(0, 8)}`, price],
         );
       }

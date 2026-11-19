@@ -84,11 +84,11 @@ export function Disclosure() {
   return <p className="disc">{STANDARD_DISCLOSURE.text}{STANDARD_DISCLOSURE.status !== 'approved' && ' (Draft disclosure pending counsel review.)'}</p>;
 }
 
-export function Tabs({ tabs, active, onChange }: { tabs: [string, string][]; active: string; onChange: (k: string) => void }) {
+export function Tabs({ tabs, active, onChange, help }: { tabs: [string, string][]; active: string; onChange: (k: string) => void; help?: Record<string, string> }) {
   return (
     <div className="tabs" role="tablist">
       {tabs.map(([k, label]) => (
-        <button key={k} role="tab" aria-selected={active === k} onClick={() => onChange(k)} onKeyDown={(e) => {
+        <button key={k} role="tab" aria-selected={active === k} title={help?.[k]} aria-description={help?.[k]} onClick={() => onChange(k)} onKeyDown={(e) => {
           const i = tabs.findIndex((t) => t[0] === active);
           if (e.key === 'ArrowRight') onChange(tabs[(i + 1) % tabs.length]![0]);
           if (e.key === 'ArrowLeft') onChange(tabs[(i - 1 + tabs.length) % tabs.length]![0]);
