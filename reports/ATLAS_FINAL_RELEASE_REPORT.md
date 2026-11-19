@@ -2,6 +2,39 @@
 
 Session 13, 11 Nov 2026. Branch `feat/atlas-mvp`. Every count below comes from a run on this date; nothing is carried over from earlier sessions.
 
+## Update, 19 Nov 2026 (session 14)
+
+**Test results on 19 Nov:**
+
+| Suite | Result |
+|---|---|
+| Shared | 126 passed |
+| API | 531 passed, 13 skipped (the PostgreSQL suite, run separately) |
+| Web | 5 passed |
+| End-to-end | **28 passed**, including 4 new tests for the immersive layer |
+| Typecheck | Passed |
+| QA crawl | 48 pages, 0 findings, desktop and mobile |
+| `npm audit --omit=dev` | 0 vulnerabilities |
+
+**Added:**
+- The arrival globe.
+- Focus and Explore modes.
+- The command centre (mission, saved research with real portfolio figures, research updates, recent pages).
+- ATLAS Universe, the Intelligence Network (measured correlations, with method and n) and Market Pulse (timing groups, history found in stored data, a data-driven move field).
+- The Knowledge Constellation.
+- The Research Studio side panel and layouts.
+- A redesigned progress page and Academy topic filters.
+- Low-power 3D fallbacks.
+
+**Defects fixed:**
+- The session list compared expiry with the database clock instead of the app clock.
+- Seeded development subscriptions expired after 27 days, which silently moved `pro@atlas.test` to the free plan from 15 Nov.
+- Next.js patched (16.4.6) for two moderate advisories.
+
+**Readiness verdicts:** unchanged from 11 Nov, below. The new experiences add no new data sources, and anything not stored is shown as unavailable.
+
+**Environment note:** with about 0.1–0.5 GB of free memory (of 7.7 GB) on this PC, one earlier end-to-end run hit proxy timeouts. Re-runs with the same code passed. ATLAS needs memory headroom to stay responsive.
+
 ## Test results (11 Nov 2026)
 
 | Suite | Command | Result |

@@ -1,14 +1,28 @@
 # ATLAS walkthrough: recording notes
 
-**Status: recorded and verified, 11 Nov 2026 (take 5).**
+**Status: recorded and verified, 19 Nov 2026 (take 6).** It covers the arrival, the command centre, ATLAS Universe, the Intelligence Network, Market Pulse and the Knowledge Constellation, plus the earlier research and Academy scenes. Take 5 (11 Nov) is kept locally as `.atlas/walkthrough-take5-nov11.mp4`.
+
+**Take 6 verification:**
+
+| Check | Result |
+|---|---|
+| Container | MP4 (`isom`), H.264 + AAC, 113,817,638 bytes |
+| Duration | 426.06 s, against 424.76 s expected |
+| Resolution | 1280×720 |
+| Scenes | 19 scenes, 10,943 frames, no missed actions |
+| Console | 0 errors |
+| Sound | 424.96 s stereo, mean RMS 0.076. Within 366 captioned seconds, 19 isolated quiet seconds (sentence gaps) |
+| Captions | 85 cues |
+
+The take 5 details below are kept for history.
 
 ## Files
 
 | File | What it is | In git? |
 |---|---|---|
-| `artifacts/ATLAS_COMPLETE_PRODUCT_WALKTHROUGH.mp4` | The narrated screen recording | No (git-ignored: 92.6 MB) |
+| `artifacts/ATLAS_COMPLETE_PRODUCT_WALKTHROUGH.mp4` | The narrated screen recording | No (git-ignored: 113.8 MB) |
 | `artifacts/ATLAS_WALKTHROUGH_SCRIPT.md` | Narration and on-screen content, scene by scene, with timings | Yes |
-| `artifacts/ATLAS_WALKTHROUGH.srt` | English captions, 76 cues (also burned into the video) | Yes |
+| `artifacts/ATLAS_WALKTHROUGH.srt` | English captions, 85 cues (also burned into the video) | Yes |
 | `artifacts/walkthrough-frames/` | 20 frames sampled by the verifier | No (git-ignored) |
 
 ## How it was made
