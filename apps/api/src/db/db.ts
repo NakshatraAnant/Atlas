@@ -82,16 +82,22 @@ class PgDb implements Db {
   async tx<T>(fn: (db: Db) => Promise<T>): Promise<T> {
     if (this.client) return fn(this);
     const client = await this.pool.connect();
+    let broken = false;
     try {
       await client.query('BEGIN');
       const out = await fn(new PgDb(this.pool, client));
       await client.query('COMMIT');
       return out;
     } catch (err) {
-      await client.query('ROLLBACK');
+      // A failed rollback means the connection is unusable: discard it and report the original error.
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        broken = true;
+      }
       throw err;
     } finally {
-      client.release();
+      client.release(broken);
     }
   }
   async close(): Promise<void> {
@@ -132,7 +138,9 @@ export async function openDb(opts: OpenDbOptions): Promise<Db> {
     // An explicit ssl setting wins over sslmode in the URL (node-postgres would otherwise let the URL override it).
     const ssl = pgSsl(opts.ssl);
     const connectionString = ssl === undefined ? opts.databaseUrl : stripSslParams(opts.databaseUrl);
-    const pool = new pg.Pool({ connectionString, max: Number(process.env.DATABASE_POOL_MAX ?? 10), types: types as pg.CustomTypesConfig, ...(ssl === undefined ? {} : { ssl }) });
+    const pool = new pg.Pool({ connectionString, max: Number(process.env.DATABASE_POOL_MAX ?? 10), types: types as pg.CustomTypesConfig, connectionTimeoutMillis: 10_000, ...(ssl === undefined ? {} : { ssl }) });
+    // Without a listener, a dropped idle connection (restart, failover) is an uncaught exception that ends the process.
+    pool.on('error', (err) => process.stderr.write(`${new Date().toISOString()} idle database connection lost: ${err.message}\n`));
     await pool.query('SELECT 1');
     return new PgDb(pool);
   }

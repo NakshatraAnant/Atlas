@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { safeInternalPath } from '@/lib/safe-path';
 import { Problem } from '@/components/ui';
 import { useApp } from '@/components/providers';
 
@@ -22,7 +23,7 @@ export default function Login() {
         return;
       }
       await refresh();
-      const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
+      const safe = safeInternalPath(next);
       // A first sign-in without a destination continues the journey: a minute of setup before Home.
       const who = await api<{ signed_in?: false; demo_mode?: boolean; profile?: { onboarding_completed_at: string | null } }>('/v1/me?optional=1').catch(() => null);
       const setup = who?.profile && !who.profile.onboarding_completed_at && who.demo_mode === false;

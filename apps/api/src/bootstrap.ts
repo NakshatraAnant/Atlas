@@ -11,7 +11,7 @@ import { checkAiCost } from './modules/ai/service.js';
 import { processBacktestQueue } from './modules/backtest/service.js';
 import { RazorpayGateway, SandboxGateway, type PaymentGateway } from './modules/billing/gateway.js';
 import { reconcileSubscriptions, settlePeriods } from './modules/billing/service.js';
-import { deliverOutbox, OutboxOnlyTransport } from './modules/notify/email.js';
+import { deliverOutbox, OutboxOnlyTransport, SmtpTransport } from './modules/notify/email.js';
 import { schedulerTick } from './pipeline/daily.js';
 import { createCryptoModule, type CryptoOptions } from './modules/crypto/index.js';
 import { syncEquityProviders } from './modules/equity/ingest.js';
@@ -43,7 +43,7 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   const clock = opts.clock ?? (() => new Date());
   const store = opts.store ?? (opts.memory ? new MemoryObjectStore() : new LocalObjectStore(cfg.OBJECT_STORE_DIR));
   let payments: PaymentGateway;
-  if (cfg.PAYMENT_GATEWAY === 'razorpay') payments = new RazorpayGateway(cfg.RAZORPAY_KEY_ID, cfg.RAZORPAY_KEY_SECRET, cfg.RAZORPAY_WEBHOOK_SECRET, JSON.parse(process.env.RAZORPAY_PLAN_IDS ?? '{}'));
+  if (cfg.PAYMENT_GATEWAY === 'razorpay') payments = new RazorpayGateway(cfg.RAZORPAY_KEY_ID, cfg.RAZORPAY_KEY_SECRET, cfg.RAZORPAY_WEBHOOK_SECRET, cfg.RAZORPAY_PLAN_IDS, cfg.RAZORPAY_OFFER_IDS);
   else payments = new SandboxGateway(db, cfg.SANDBOX_WEBHOOK_SECRET, cfg.WEB_ORIGIN, clock);
   const ai = opts.ai ?? (cfg.AI_PROVIDER === 'anthropic' && cfg.ANTHROPIC_API_KEY ? new AnthropicGateway(cfg.ANTHROPIC_API_KEY, cfg.AI_MODEL, cfg.AI_USD_INR) : new DeterministicGateway());
   // Demo data is an explicit mode: with ALLOW_SYNTHETIC_DATA=false nothing synthetic is generated (NoVendor)
@@ -57,7 +57,7 @@ export async function createContext(opts: ContextOptions = {}): Promise<AppConte
   await syncProviderState(db, { fred: !!cfg.FRED_API_KEY, fred_csv: true, eia: !!cfg.EIA_API_KEY, coingecko: true, eodhd: !!cfg.EODHD_API_TOKEN, data_gov_in: !!cfg.DATA_GOV_IN_API_KEY });
   const offline: FetchFn = async (url) => { throw new Error(`Network access is disabled in this environment (${url.replace(/(api_token|apikey|api_key|api-key)=[^&]+/g, '$1=REDACTED')})`); };
   const equityFetch = opts.equityFetch ?? (cfg.NODE_ENV === 'test' ? offline : (globalThis.fetch as unknown as FetchFn));
-  return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg), crypto, equityFetch };
+  return { cfg, db, store, log, clock, limiter: new MemoryRateLimiter(), email: cfg.EMAIL_TRANSPORT === 'smtp' ? new SmtpTransport(cfg.SMTP_URL, cfg.EMAIL_FROM) : new OutboxOnlyTransport(), payments, ai, vendor, rights: cachedRights(db, cfg), crypto, equityFetch };
 }
 
 /**
@@ -75,16 +75,18 @@ export async function syntheticUniverseSize(db: Db, log?: { warn: (msg: string, 
 /** In-process scheduler for single-instance deployments; production runs the same jobs in the worker. */
 export function startBackgroundJobs(ctx: AppContext): () => void {
   const timers: NodeJS.Timeout[] = [];
-  let busy = false;
+  // One flag per job. A shared flag let the 1.5 s queue poll win every tick it shared with the hourly jobs,
+  // so reconciliation, period settlement and retention could be skipped again and again.
+  const running = new Set<string>();
   const guard = (name: string, fn: () => Promise<unknown>) => async () => {
-    if (busy) return;
-    busy = true;
+    if (running.has(name)) return;
+    running.add(name);
     try {
       await fn();
     } catch (err) {
       ctx.log.error('background job failed', { job: name, error: err instanceof Error ? err.message : String(err) });
     } finally {
-      busy = false;
+      running.delete(name);
     }
   };
   const pctx = { db: ctx.db, store: ctx.store, cfg: ctx.cfg, log: ctx.log, now: ctx.clock };
@@ -96,6 +98,9 @@ export function startBackgroundJobs(ctx: AppContext): () => void {
   timers.push(setInterval(guard('settle', () => settlePeriods(ctx)), 60 * 60_000));
   timers.push(setInterval(guard('ai_cost', () => checkAiCost(ctx)), 60 * 60_000));
   timers.push(setInterval(guard('retention', () => runRetention(ctx)), 6 * 60 * 60_000));
+  // Also shortly after start, so an installation that is never up for six hours still settles and erases.
+  timers.push(setTimeout(guard('settle', () => settlePeriods(ctx)), 60_000));
+  timers.push(setTimeout(guard('retention', () => runRetention(ctx)), 90_000));
   return () => timers.forEach(clearInterval);
 }
 
@@ -115,6 +120,7 @@ export async function runRetention(ctx: AppContext): Promise<Record<string, numb
   const erase = await db.query<{ user_id: string }>(`SELECT user_id FROM app.account_deletions WHERE erased_at IS NULL AND erase_after <= now()`);
   for (const e of erase) {
     await db.tx(async (t) => {
+      const who = await t.maybeOne<{ email: string }>(`SELECT email FROM app.users WHERE user_id=$1`, [e.user_id]);
       // Personal data erased; tax invoices and payment records are kept as the law requires (pseudonymised user row).
       await t.query(`UPDATE app.users SET email = 'deleted-' || user_id || '@deleted.invalid', password_hash=NULL, display_name=NULL, totp_secret=NULL, recovery_codes='[]', interests='{}', display_prefs='{}', google_sub=NULL WHERE user_id=$1`, [e.user_id]);
       for (const tbl of ['app.watchlist_items WHERE watchlist_id IN (SELECT watchlist_id FROM app.watchlists WHERE user_id=$1)', 'app.watchlists WHERE user_id=$1', 'app.notes WHERE user_id=$1', 'app.workspaces WHERE user_id=$1', 'app.saved_screens WHERE user_id=$1', 'app.hypotheses WHERE user_id=$1', 'app.research_history WHERE user_id=$1', 'app.learning_progress WHERE user_id=$1', 'app.peer_sets WHERE user_id=$1', 'app.last_visits WHERE user_id=$1', 'app.company_views WHERE user_id=$1', 'app.notifications WHERE user_id=$1', 'app.series_follows WHERE user_id=$1']) {
@@ -130,11 +136,34 @@ export async function runRetention(ctx: AppContext): Promise<Record<string, numb
       for (const tbl of ['research.alert_events', 'research.alert_rules', 'research.portfolios', 'research.saved_views', 'research.notebook_entries', 'research.reports', 'research.activity', 'research.user_fundamentals', 'crypto.watchlist_items', 'crypto.research_notes', 'app.user_datasets']) {
         await t.query(`DELETE FROM ${tbl} WHERE user_id=$1`, [e.user_id]);
       }
+      // Mail, support, AI, alert, export and sign-in records hold personal data too.
+      const convs = 'SELECT conversation_id FROM ai.conversations WHERE user_id=$1';
+      const msgs = `SELECT message_id FROM ai.messages WHERE conversation_id IN (${convs})`;
+      for (const sql of [
+        `DELETE FROM ai.claims WHERE message_id IN (${msgs})`,
+        `DELETE FROM ai.tool_calls WHERE message_id IN (${msgs})`,
+        `DELETE FROM ai.feedback WHERE user_id=$1 OR message_id IN (${msgs})`,
+        `DELETE FROM ai.messages WHERE conversation_id IN (${convs})`,
+        'DELETE FROM ai.conversations WHERE user_id=$1',
+        'DELETE FROM app.alert_events WHERE user_id=$1',
+        'DELETE FROM app.alert_rules WHERE user_id=$1',
+        'DELETE FROM app.exports WHERE user_id=$1',
+        'DELETE FROM app.usage_counters WHERE user_id=$1',
+        'DELETE FROM app.experiment_assignments WHERE user_id=$1',
+        'DELETE FROM app.auth_tokens WHERE user_id=$1',
+        'DELETE FROM app.sessions WHERE user_id=$1',
+        'DELETE FROM app.email_outbox WHERE user_id=$1',
+        'UPDATE app.consents SET ip=NULL WHERE user_id=$1',
+        "UPDATE app.support_tickets SET email=NULL, comment=NULL, context='{}', subject='[erased]', resolution=NULL WHERE user_id=$1",
+      ]) await t.query(sql, [e.user_id]);
+      if (who) await t.query(`DELETE FROM app.login_attempts WHERE lower(email)=lower($1)`, [who.email]);
       await t.query(`UPDATE app.analytics_events SET user_id=NULL, anon_id='erased' WHERE user_id=$1`, [e.user_id]);
       await t.query(`UPDATE app.account_deletions SET erased_at=now() WHERE user_id=$1`, [e.user_id]);
     });
   }
   const sessions = await db.query(`DELETE FROM app.sessions WHERE expires_at < now() - interval '30 days' RETURNING 1`);
+  await db.query(`DELETE FROM app.login_attempts WHERE at < now() - interval '90 days'`);
+  await db.query(`DELETE FROM app.auth_tokens WHERE expires_at < now() - interval '30 days'`);
   const events = await db.query(`DELETE FROM app.analytics_events WHERE occurred_at < now() - interval '24 months' RETURNING 1`);
   return { conversations: conv.length, accounts: erase.length, sessions: sessions.length, analytics_events: events.length };
 }

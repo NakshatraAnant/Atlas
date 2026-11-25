@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { fiscalYearOf, formatRupees, fyLabel, type PlanCode } from '@atlas/shared';
 import type { AppContext } from '../../context.js';
 import type { Db } from '../../db/db.js';
@@ -74,7 +75,7 @@ export async function planPrice(db: Db, plan: PlanCode): Promise<number> {
 export async function startCheckout(ctx: AppContext, user: { userId: string; email: string }, input: { plan: PlanCode; coupon?: string; stateCode: string; buyerName?: string; gstin?: string }): Promise<{ subscriptionId: string; checkout: unknown; amount: { taxable: number; gst: number; total: number; discount: number } }> {
   if (input.plan === 'free') throw badRequest('The Free plan needs no checkout.');
   if (input.gstin && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(input.gstin)) throw badRequest('The GSTIN format is not valid.');
-  const live = await ctx.db.maybeOne<{ subscription_id: string; status: string; plan_code: string }>(`SELECT subscription_id, status, plan_code FROM app.subscriptions WHERE user_id=$1 AND status IN ('created','pending','active','past_due')`, [user.userId]);
+  const live = await ctx.db.maybeOne<{ subscription_id: string; status: string; plan_code: string; gateway_subscription_id: string | null }>(`SELECT subscription_id, status, plan_code, gateway_subscription_id FROM app.subscriptions WHERE user_id=$1 AND status IN ('created','pending','active','past_due')`, [user.userId]);
   if (live && ['active', 'past_due'].includes(live.status)) throw conflict('You already have a subscription. Change plan from Billing instead.');
   let price = await planPrice(ctx.db, input.plan);
   let discount = 0;
@@ -84,7 +85,7 @@ export async function startCheckout(ctx: AppContext, user: { userId: string; ema
   const code = input.coupon?.trim().toUpperCase() || (u.is_beta ? 'FOUNDING' : undefined);
   if (code) {
     const c = await ctx.db.maybeOne<{ code: string; percent_off: number | null; amount_off_inr: number | null; duration_months: number; max_redemptions: number | null; redeemed: number; expires_at: string | null; applies_to: string[]; beta_only: boolean }>(`SELECT * FROM app.coupons WHERE code=$1`, [code]);
-    const valid = c && (!c.expires_at || c.expires_at > ctx.clock().toISOString()) && (c.max_redemptions === null || c.redeemed < c.max_redemptions) && c.applies_to.includes(input.plan) && (!c.beta_only || u.is_beta);
+    const valid = c && (!c.expires_at || c.expires_at > ctx.clock().toISOString()) && (c.max_redemptions === null || c.redeemed < c.max_redemptions) && c.applies_to.includes(input.plan) && (!c.beta_only || u.is_beta) && ctx.payments.supportsCoupon(c.code);
     if (!valid && input.coupon) throw badRequest('This coupon cannot be applied.');
     if (valid && c) {
       discount = r2(c.percent_off ? (price * c.percent_off) / 100 : Math.min(price, c.amount_off_inr ?? 0));
@@ -97,28 +98,34 @@ export async function startCheckout(ctx: AppContext, user: { userId: string; ema
   const sub = live?.status === 'created' || live?.status === 'pending'
     ? (await ctx.db.one<{ subscription_id: string }>(`UPDATE app.subscriptions SET plan_code=$2, price_inr=$3, coupon_code=$4, discount_months_left=$5, place_of_supply_state=$6, buyer_name=$7, buyer_gstin=$8, updated_at=now() WHERE subscription_id=$1 RETURNING subscription_id`, [live.subscription_id, input.plan, price, couponCode, months, input.stateCode, input.buyerName ?? null, input.gstin ?? null]))
     : await ctx.db.one<{ subscription_id: string }>(`INSERT INTO app.subscriptions (user_id, plan_code, status, gateway, price_inr, coupon_code, discount_months_left, place_of_supply_state, buyer_name, buyer_gstin) VALUES ($1,$2,'created',$3,$4,$5,$6,$7,$8,$9) RETURNING subscription_id`, [user.userId, input.plan, ctx.payments.name, price, couponCode, months, input.stateCode, input.buyerName ?? null, input.gstin ?? null]);
-  const g = await ctx.payments.createSubscription({ subscriptionRef: sub.subscription_id, planCode: input.plan, amountPaise: Math.round(split.total * 100), customer: user });
+  // A restarted checkout replaces the earlier one at the gateway too, so the old page cannot be paid as well.
+  if (live?.gateway_subscription_id) await ctx.payments.cancelSubscription(live.gateway_subscription_id, false).catch((err) => ctx.log.warn('could not cancel the superseded checkout', { subscription: live.subscription_id, error: String(err) }));
+  const g = await ctx.payments.createSubscription({ subscriptionRef: sub.subscription_id, planCode: input.plan, amountPaise: Math.round(split.total * 100), customer: user, couponCode });
   await ctx.db.query(`UPDATE app.subscriptions SET gateway_subscription_id=$2, status='pending', mandate_status='pending' WHERE subscription_id=$1`, [sub.subscription_id, g.gatewaySubscriptionId]);
   await track(ctx.db, 'checkout_started', { plan: input.plan, coupon: couponCode ?? undefined }, { userId: user.userId, origin: 'server' });
   return { subscriptionId: sub.subscription_id, checkout: g.checkout, amount: { taxable: split.taxable, gst: r2(split.total - split.taxable), total: split.total, discount } };
 }
 
 /** Process one verified gateway event idempotently (BIL-02). Returns what happened. */
-export async function processWebhook(ctx: AppContext, rawBody: string, signature: string | undefined): Promise<{ status: 'processed' | 'duplicate' | 'rejected' | 'ignored'; eventId?: string }> {
+export async function processWebhook(ctx: AppContext, rawBody: string, signature: string | undefined, eventId?: string): Promise<{ status: 'processed' | 'duplicate' | 'rejected' | 'ignored'; eventId?: string }> {
   const valid = ctx.payments.verifyWebhook(rawBody, signature);
   let evt: WebhookEvent;
   try {
-    evt = JSON.parse(rawBody) as WebhookEvent;
+    const raw: unknown = JSON.parse(rawBody);
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { status: 'rejected' };
+    evt = ctx.payments.parseWebhook(raw as Record<string, unknown>, eventId);
   } catch {
     return { status: 'rejected' };
   }
   if (!valid) {
-    await ctx.db.query(`INSERT INTO app.webhook_events (event_id, gateway, event_type, payload, signature_valid, status, error) VALUES ($1,$2,$3,$4,false,'rejected','invalid signature') ON CONFLICT DO NOTHING`, [`rejected:${evt.id ?? Date.now()}:${Date.now()}`, ctx.payments.name, String(evt.event ?? 'unknown'), rawBody.slice(0, 5000)]);
+    await ctx.db.query(`INSERT INTO app.webhook_events (event_id, gateway, event_type, payload, signature_valid, status, error) VALUES ($1,$2,$3,$4,false,'rejected','invalid signature') ON CONFLICT DO NOTHING`, [`rejected:${randomUUID()}`, ctx.payments.name, String(evt.event ?? 'unknown').slice(0, 100), JSON.stringify({ raw: rawBody.slice(0, 5000) })]);
     ctx.log.warn('webhook signature rejected', { gateway: ctx.payments.name });
     return { status: 'rejected' };
   }
-  // Store first, then process; a duplicate delivery hits the primary key and is a no-op.
-  const stored = await ctx.db.query(`INSERT INTO app.webhook_events (event_id, gateway, event_type, payload, signature_valid, status) VALUES ($1,$2,$3,$4,true,'received') ON CONFLICT (event_id) DO NOTHING RETURNING event_id`, [evt.id, ctx.payments.name, evt.event, rawBody]);
+  if (!evt.id || !evt.event) return { status: 'rejected' };
+  // Store first, then process; a duplicate delivery hits the primary key and is a no-op. A redelivery of an
+  // event whose processing failed (or was cut off by a crash) is processed again: the handlers are idempotent.
+  const stored = await ctx.db.query(`INSERT INTO app.webhook_events (event_id, gateway, event_type, payload, signature_valid, status) VALUES ($1,$2,$3,$4,true,'received') ON CONFLICT (event_id) DO UPDATE SET status='received', received_at=now(), error=NULL WHERE app.webhook_events.status='failed' OR (app.webhook_events.status='received' AND app.webhook_events.received_at < now() - interval '5 minutes') RETURNING event_id`, [evt.id, ctx.payments.name, evt.event, rawBody]);
   if (!stored.length) return { status: 'duplicate', eventId: evt.id };
   try {
     const handled = await ctx.db.tx((db) => applyEvent(ctx, db, evt));
@@ -167,7 +174,9 @@ async function applyEvent(ctx: AppContext, db: Db, evt: WebhookEvent): Promise<b
       const isRenewal = !!sub.first_charge_at;
       const plan = isRenewal && sub.scheduled_plan_code ? sub.scheduled_plan_code : sub.plan_code;
       let taxable = isRenewal && sub.scheduled_plan_code ? await planPrice(db, plan) : sub.price_inr;
-      if (isRenewal && sub.discount_months_left <= 1 && sub.coupon_code) taxable = await planPrice(db, plan);
+      // discount_months_left was already reduced when the previous period was charged: at 1 this renewal is still
+      // discounted, at 0 the discount has run out.
+      if (isRenewal && sub.discount_months_left <= 0 && sub.coupon_code) taxable = await planPrice(db, plan);
       const split = gstSplit(taxable, ctx.cfg.GST_RATE, ctx.cfg.SUPPLIER_STATE_CODE, sub.place_of_supply_state ?? ctx.cfg.SUPPLIER_STATE_CODE);
       const pay = await db.one<{ payment_id: string }>(
         `INSERT INTO app.payments (user_id, subscription_id, gateway_payment_id, kind, taxable_inr, gst_inr, amount_inr, status, method, is_sandbox) VALUES ($1,$2,$3,'charge',$4,$5,$6,'captured',$7,$8) RETURNING payment_id`,
@@ -188,6 +197,8 @@ async function applyEvent(ctx: AppContext, db: Db, evt: WebhookEvent): Promise<b
     case 'payment.failed': {
       const sub = await subByGateway(db, p?.subscription_id);
       if (!sub) return false;
+      // A late failure notice must not bring back a subscription that has already ended.
+      if (['cancelled', 'expired', 'halted'].includes(sub.status)) return true;
       if (!sub.first_charge_at) {
         // First payment failed: stay pending; the user can retry with another method (J9).
         await notify(db, sub.user_id, 'payment_failed', 'Payment did not go through', 'Your payment was declined. You can retry with a different method from the pricing page.', '/app/billing');
@@ -204,7 +215,7 @@ async function applyEvent(ctx: AppContext, db: Db, evt: WebhookEvent): Promise<b
     case 'subscription.halted': {
       const sub = await subByGateway(db, s?.id);
       if (!sub) return false;
-      await db.query(`UPDATE app.subscriptions SET status='halted', mandate_status='revoked', updated_at=now() WHERE subscription_id=$1`, [sub.subscription_id]);
+      await db.query(`UPDATE app.subscriptions SET status='halted', mandate_status='revoked', updated_at=now() WHERE subscription_id=$1 AND status NOT IN ('cancelled','expired')`, [sub.subscription_id]);
       await notify(db, sub.user_id, 'downgraded', 'Your plan moved to Free', 'Renewal payments failed after the grace period. Your saved work is kept; content above Free limits is read-only.', '/app/billing');
       return true;
     }
@@ -278,8 +289,8 @@ export async function cancelSubscription(ctx: AppContext, user: { userId: string
   const sub = await ctx.db.maybeOne<{ subscription_id: string; gateway_subscription_id: string; current_period_end: string; status: string; created_at: string; first_charge_at: string | null }>(`SELECT * FROM app.subscriptions WHERE user_id=$1 AND status IN ('active','past_due','pending','created')`, [user.userId]);
   if (!sub) throw notFound('No subscription to cancel.');
   // Stop auto-renewal and revoke the mandate; access continues to the end of the paid period (BIL-05).
-  await ctx.payments.cancelSubscription(sub.gateway_subscription_id, true);
   const immediate = !sub.first_charge_at;
+  if (sub.gateway_subscription_id) await ctx.payments.cancelSubscription(sub.gateway_subscription_id, !immediate);
   await ctx.db.query(
     `UPDATE app.subscriptions SET cancel_at_period_end=true, status=CASE WHEN $4 THEN 'cancelled' ELSE status END, cancelled_at=now(), cancel_reason=$2, cancel_comment=$3, mandate_status='revoked', updated_at=now() WHERE subscription_id=$1`,
     [sub.subscription_id, input.reason ?? null, input.comment ?? null, immediate],
@@ -298,7 +309,17 @@ export async function refundPayment(ctx: AppContext, admin: { userId: string; ro
   if (pay.status === 'refunded') throw conflict('This payment has already been refunded.');
   const sub = pay.subscription_id ? await ctx.db.maybeOne<{ first_charge_at: string | null }>(`SELECT first_charge_at FROM app.subscriptions WHERE subscription_id=$1`, [pay.subscription_id]) : undefined;
   const withinPolicy = !!sub?.first_charge_at && ctx.clock().getTime() - Date.parse(sub.first_charge_at) <= REFUND_WINDOW_DAYS * 86_400_000;
-  const r = await ctx.payments.refund(pay.gateway_payment_id, Math.round(pay.amount_inr * 100));
+  // Claim the payment before calling the gateway: the webhook that marks it refunded arrives later, so two
+  // quick clicks would otherwise send two refunds.
+  const claimed = await ctx.db.query(`UPDATE app.payments SET status='pending' WHERE payment_id=$1 AND status='captured' RETURNING 1`, [paymentId]);
+  if (!claimed.length) throw conflict('A refund for this payment is already in progress, or the payment was not captured.');
+  let r: { refundId: string };
+  try {
+    r = await ctx.payments.refund(pay.gateway_payment_id, Math.round(pay.amount_inr * 100));
+  } catch (err) {
+    await ctx.db.query(`UPDATE app.payments SET status='captured' WHERE payment_id=$1 AND status='pending'`, [paymentId]);
+    throw err;
+  }
   if (withinPolicy && pay.subscription_id) {
     // Full refund under the 7-day policy ends paid access now.
     await ctx.db.query(`UPDATE app.subscriptions SET status='cancelled', cancel_at_period_end=true, current_period_end=$2, mandate_status='revoked', cancel_reason=COALESCE(cancel_reason,'refunded'), updated_at=now() WHERE subscription_id=$1`, [pay.subscription_id, ctx.clock().toISOString()]);
@@ -312,7 +333,14 @@ export async function reconcileSubscriptions(ctx: AppContext): Promise<{ checked
   const pending = await ctx.db.query<{ subscription_id: string; gateway_subscription_id: string; user_id: string }>(`SELECT subscription_id, gateway_subscription_id, user_id FROM app.subscriptions WHERE status IN ('pending','created') AND gateway_subscription_id IS NOT NULL AND updated_at < now() - interval '1 minute'`);
   let repaired = 0;
   for (const p of pending) {
-    const g = await ctx.payments.fetchSubscription(p.gateway_subscription_id);
+    let g: Awaited<ReturnType<typeof ctx.payments.fetchSubscription>>;
+    try {
+      g = await ctx.payments.fetchSubscription(p.gateway_subscription_id);
+    } catch (err) {
+      // One unreachable subscription must not stop the others from being reconciled.
+      ctx.log.warn('reconciliation could not read a subscription', { subscription: p.subscription_id, error: String(err) });
+      continue;
+    }
     if (g.status === 'active' && g.lastPaymentId) {
       const have = await ctx.db.maybeOne(`SELECT 1 FROM app.payments WHERE gateway_payment_id=$1`, [g.lastPaymentId]);
       if (!have) {

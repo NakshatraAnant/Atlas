@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
-import { badRequest, notFound, parse } from '../../lib/http.js';
+import { badRequest, notFound, parse, isIsoDate } from '../../lib/http.js';
 import { activation, churn, cohorts, eventHealth, funnel, weeklyActiveResearchers } from '../analytics/dashboards.js';
 import { requireRole } from '../auth/service.js';
 import { refundPayment } from '../billing/service.js';
@@ -92,7 +92,7 @@ export async function adminRoutes(app: FastifyInstance, ctx: AppContext): Promis
   });
   app.post('/admin/v1/pipeline/rerun', async (req) => {
     const a = requireRole(req, ['admin', 'data_ops']);
-    const body = parse(z.object({ dataset: z.string().max(40).optional(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), reason: z.string().trim().min(5).max(500), full_cycle: z.boolean().default(false) }), req.body);
+    const body = parse(z.object({ dataset: z.string().max(40).optional(), date: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)'), reason: z.string().trim().min(5).max(500), full_cycle: z.boolean().default(false) }), req.body);
     await audit(db, { actorUserId: a.userId, actorRole: a.role, action: 'pipeline.rerun', targetType: 'dataset', targetId: body.dataset ?? 'daily_cycle', reason: body.reason, details: { date: body.date } });
     const pctx = { db, store: ctx.store, cfg: ctx.cfg, log: ctx.log, now: ctx.clock };
     if (body.full_cycle) {
@@ -185,7 +185,7 @@ export async function adminRoutes(app: FastifyInstance, ctx: AppContext): Promis
   app.post('/admin/v1/flags/:key', async (req) => {
     const a = requireRole(req, ['admin']);
     const { key } = parse(z.object({ key: z.string().max(60) }), req.params);
-    const body = parse(z.object({ enabled: z.boolean(), reason: z.string().trim().min(5).max(500), plan_scope: z.array(z.string().max(10)).max(3).optional(), user_allowlist: z.array(z.string().uuid()).max(500).optional(), approval: z.object({ approver: z.string().trim().min(3).max(200), approved_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), document_ref: z.string().trim().min(3).max(300) }).optional() }), req.body);
+    const body = parse(z.object({ enabled: z.boolean(), reason: z.string().trim().min(5).max(500), plan_scope: z.array(z.string().max(10)).max(3).optional(), user_allowlist: z.array(z.string().uuid()).max(500).optional(), approval: z.object({ approver: z.string().trim().min(3).max(200), approved_on: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)'), document_ref: z.string().trim().min(3).max(300) }).optional() }), req.body);
     await setFlag(db, key, { enabled: body.enabled, planScope: body.plan_scope, userAllowlist: body.user_allowlist, approval: body.approval }, { userId: a.userId, role: a.role, reason: body.reason });
     return { saved: true };
   });

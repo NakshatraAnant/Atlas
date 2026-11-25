@@ -26,14 +26,14 @@ export default defineConfig({
     {
       command: 'npx tsx apps/api/src/server.ts',
       url: 'http://127.0.0.1:4000/healthz',
-      timeout: 120_000,
+      timeout: 300_000,
       reuseExistingServer: false,
       env: { PGLITE_DIR: join(DATA, 'pglite'), OBJECT_STORE_DIR: join(DATA, 'objects'), ATLAS_BACKGROUND_JOBS: 'false', CRYPTO_INGESTION: 'false', CRYPTO_LIVE_FEED: 'false', ALLOW_SYNTHETIC_DATA: 'true', LOG_LEVEL: 'warn', APP_SECRET: 'e2e-secret-e2e-secret-e2e-secret-e2e', WEB_ORIGIN: 'http://localhost:3000', RATE_LIMIT_MULTIPLIER: '100' },
     },
     {
       command: 'npm run start -w @atlas/web',
       url: 'http://127.0.0.1:3000/login',
-      timeout: 120_000,
+      timeout: 300_000,
       reuseExistingServer: false,
     },
   ],

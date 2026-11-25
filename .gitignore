@@ -14,6 +14,7 @@ playwright-report/
 **/test/.fixture/
 *.tsbuildinfo
 seed-timing.log
+artifacts/*.json
 
 # Local hosting runtime state and backups (never commit)
 .atlas/

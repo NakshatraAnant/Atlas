@@ -26,8 +26,9 @@ export const RESEND_PER_HOUR = 5;
 export const NEUTRAL_SIGNUP = 'If this email can be used, we have sent a verification link. Check your inbox.';
 export const NEUTRAL_RESET = 'If an account exists for this email, we have sent a reset link valid for 60 minutes.';
 
-export function cookieOptions(ctx: AppContext, maxAgeSeconds: number, httpOnly = true) {
-  return { path: '/', httpOnly, secure: ctx.cfg.isProduction, sameSite: 'lax' as const, maxAge: maxAgeSeconds };
+/** Cookies are Secure in production and whenever the request came over HTTPS (for example through the tunnel). */
+export function cookieOptions(ctx: AppContext, maxAgeSeconds: number, httpOnly = true, https = false) {
+  return { path: '/', httpOnly, secure: ctx.cfg.isProduction || https, sameSite: 'lax' as const, maxAge: maxAgeSeconds };
 }
 
 export async function createSession(ctx: AppContext, reply: FastifyReply, req: FastifyRequest, userId: string, opts: { mfaVerified: boolean; role: string }): Promise<string> {
@@ -35,8 +36,8 @@ export async function createSession(ctx: AppContext, reply: FastifyReply, req: F
   const hours = opts.role === 'user' ? SESSION_DAYS * 24 : ADMIN_SESSION_HOURS;
   const expires = new Date(ctx.clock().getTime() + hours * 3600_000);
   await ctx.db.query(`INSERT INTO app.sessions (session_hash, user_id, expires_at, ip, user_agent, mfa_verified) VALUES ($1,$2,$3,$4,$5,$6)`, [sha256Hex(token), userId, expires.toISOString(), req.ip, String(req.headers['user-agent'] ?? '').slice(0, 300), opts.mfaVerified]);
-  reply.setCookie(SESSION_COOKIE, token, cookieOptions(ctx, hours * 3600));
-  reply.setCookie(CSRF_COOKIE, randomToken(18), cookieOptions(ctx, hours * 3600, false));
+  reply.setCookie(SESSION_COOKIE, token, cookieOptions(ctx, hours * 3600, true, req.protocol === 'https'));
+  reply.setCookie(CSRF_COOKIE, randomToken(18), cookieOptions(ctx, hours * 3600, false, req.protocol === 'https'));
   return token;
 }
 
@@ -89,7 +90,8 @@ export function requireRole(req: FastifyRequest, roles: SessionUser['role'][]): 
 
 async function recentFailures(db: Db, email: string, ip: string): Promise<{ byEmail: number; byIp: number }> {
   const r = await db.one<{ by_email: number; by_ip: number }>(
-    `SELECT count(*) FILTER (WHERE lower(email)=lower($1))::int AS by_email, count(*) FILTER (WHERE ip=$2)::int AS by_ip
+    // Failures before this email's last successful sign-in do not count towards its lockout.
+    `SELECT count(*) FILTER (WHERE lower(email)=lower($1) AND at > COALESCE((SELECT max(s.at) FROM app.login_attempts s WHERE lower(s.email)=lower($1) AND s.success), '-infinity'))::int AS by_email, count(*) FILTER (WHERE ip=$2)::int AS by_ip
        FROM app.login_attempts WHERE NOT success AND at > now() - make_interval(mins => $3)`,
     [email, ip, LOCKOUT.windowMinutes],
   );
@@ -104,12 +106,13 @@ export async function signup(ctx: AppContext, req: FastifyRequest, input: { emai
   const email = input.email.trim().toLowerCase();
   const existing = await ctx.db.maybeOne<{ user_id: string }>(`SELECT user_id FROM app.users WHERE lower(email)=$1 AND status='active'`, [email]);
   if (existing) {
+    await hashPassword(input.password); // same work as a new account, so timing does not reveal that it exists
     // No account enumeration: same response; the owner is told by email instead.
     await queueEmail(ctx.db, { to: email, userId: existing.user_id, template: 'signup_existing', category: 'security', subject: 'Someone tried to create an ATLAS account with your email', text: 'An attempt was made to create an account with this email address. If it was you, sign in or reset your password. If not, you can ignore this message.' });
     return { userId: null };
   }
   const hash = await hashPassword(input.password);
-  const user = await ctx.db.tx(async (db) => {
+  const create = () => ctx.db.tx(async (db) => {
     const u = await db.one<{ user_id: string }>(`INSERT INTO app.users (email, password_hash, display_name) VALUES ($1,$2,$3) RETURNING user_id`, [email, hash, input.displayName ?? null]);
     const consents: [string, string, boolean][] = [
       ['terms', TERMS_VERSION, true],
@@ -124,6 +127,14 @@ export async function signup(ctx: AppContext, req: FastifyRequest, input: { emai
     }
     return u;
   });
+  let user: { user_id: string };
+  try {
+    user = await create();
+  } catch (err) {
+    // Two sign-ups for one address at the same moment: the second gets the same neutral answer.
+    if ((err as { code?: string }).code === '23505') return { userId: null };
+    throw err;
+  }
   await sendVerification(ctx, user.user_id, email);
   return { userId: user.user_id };
 }
@@ -182,8 +193,9 @@ async function checkSecondFactor(ctx: AppContext, userId: string, encSecret: str
   const row = await ctx.db.one<{ recovery_codes: string[] }>(`SELECT recovery_codes FROM app.users WHERE user_id=$1`, [userId]);
   const h = sha256Hex(code.trim().toUpperCase());
   if (row.recovery_codes.includes(h)) {
-    await ctx.db.query(`UPDATE app.users SET recovery_codes = $2 WHERE user_id=$1`, [userId, JSON.stringify(row.recovery_codes.filter((c) => c !== h))]);
-    return true;
+    // Conditional on the code still being there, so one code cannot be used twice at the same moment.
+    const used = await ctx.db.query(`UPDATE app.users SET recovery_codes = recovery_codes - $2::text WHERE user_id=$1 AND recovery_codes @> to_jsonb($2::text) RETURNING 1`, [userId, h]);
+    return used.length > 0;
   }
   return false;
 }
@@ -201,7 +213,7 @@ export async function requestPasswordReset(ctx: AppContext, emailRaw: string): P
 
 export async function resetPassword(ctx: AppContext, token: string, password: string): Promise<void> {
   const row = await ctx.db.maybeOne<{ user_id: string; email: string }>(
-    `SELECT t.user_id, u.email FROM app.auth_tokens t JOIN app.users u USING (user_id) WHERE t.token_hash=$1 AND t.kind='reset_password' AND t.used_at IS NULL AND t.expires_at > now()`,
+    `SELECT t.user_id, u.email FROM app.auth_tokens t JOIN app.users u USING (user_id) WHERE t.token_hash=$1 AND t.kind='reset_password' AND t.used_at IS NULL AND t.expires_at > now() AND u.status='active'`,
     [sha256Hex(token)],
   );
   if (!row) throw badRequest('This reset link is invalid or has expired. Request a new one.');
@@ -209,7 +221,12 @@ export async function resetPassword(ctx: AppContext, token: string, password: st
   if (!pw.ok) throw badRequest(pw.reason!);
   const hash = await hashPassword(password);
   await ctx.db.tx(async (db) => {
-    await db.query(`UPDATE app.auth_tokens SET used_at=now() WHERE token_hash=$1`, [sha256Hex(token)]);
+    // Single use, even for two simultaneous requests; every other outstanding reset link dies with it.
+    const claimed = await db.query(`UPDATE app.auth_tokens SET used_at=now() WHERE token_hash=$1 AND used_at IS NULL RETURNING 1`, [sha256Hex(token)]);
+    if (!claimed.length) throw badRequest('This reset link is invalid or has expired. Request a new one.');
+    await db.query(`UPDATE app.auth_tokens SET used_at=now() WHERE user_id=$1 AND kind='reset_password' AND used_at IS NULL`, [row.user_id]);
+    // A completed reset lifts the sign-in lockout, as the lockout message promises.
+    await db.query(`DELETE FROM app.login_attempts WHERE lower(email)=lower($1) AND NOT success`, [row.email]);
     await db.query(`UPDATE app.users SET password_hash=$2, updated_at=now() WHERE user_id=$1`, [row.user_id, hash]);
     // All sessions are revoked after a reset (ACC-04).
     await db.query(`UPDATE app.sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, [row.user_id]);
@@ -219,7 +236,8 @@ export async function resetPassword(ctx: AppContext, token: string, password: st
 
 export async function beginTotpEnrolment(ctx: AppContext, user: SessionUser): Promise<{ secret: string; otpauth: string }> {
   const secret = base32Encode(randomBytes(20));
-  await ctx.db.query(`UPDATE app.users SET totp_secret=$2 WHERE user_id=$1 AND totp_enabled_at IS NULL`, [user.userId, encryptSecret(secret, ctx.cfg.APP_SECRET)]);
+  const r = await ctx.db.query(`UPDATE app.users SET totp_secret=$2 WHERE user_id=$1 AND totp_enabled_at IS NULL RETURNING 1`, [user.userId, encryptSecret(secret, ctx.cfg.APP_SECRET)]);
+  if (!r.length) throw badRequest('Two-step verification is already on for this account.');
   return { secret, otpauth: `otpauth://totp/ATLAS:${encodeURIComponent(user.email)}?secret=${secret}&issuer=ATLAS&period=30&digits=6` };
 }
 

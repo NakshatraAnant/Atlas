@@ -25,7 +25,7 @@ const apiEnv = { ...env, PGLITE_DIR: join(DATA, 'pglite'), OBJECT_STORE_DIR: joi
 const api = spawn('npx', ['tsx', 'apps/api/src/server.ts'], { shell, env: apiEnv, stdio: 'ignore' });
 try {
   let up = false;
-  for (let i = 0; i < 60 && !up; i++) {
+  for (let i = 0; i < 240 && !up; i++) {
     await new Promise((r) => setTimeout(r, 1000));
     up = await fetch('http://127.0.0.1:4000/healthz').then((r) => r.ok).catch(() => false);
   }

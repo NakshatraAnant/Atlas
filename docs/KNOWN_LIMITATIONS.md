@@ -33,7 +33,7 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
   - PGlite is single-process. The API and a CLI command (seed, eval, pipeline) cannot open the same data directory at the same time.
   - PGlite computes on the API's own thread. While the evening post-close cycle runs inside the API (after 18:30 IST, about 3 minutes at 120 companies on this machine), requests wait, and the web proxy may show "could not be reached". Startup catch-up avoids this by running before the API starts. A hosted PostgreSQL (`DATABASE_URL`) does not have this limitation.
   - No lint is configured.
-- GitHub repository not created; code is committed locally only (B-GH-01).
+- Code is on GitHub (public). The CI workflow has not completed a run there yet, so checks have been run only on the development machine.
 - The Supabase schema is applied and matches local (migrations 001–008, identical fingerprint), but the app has not connected to Supabase because it needs the database password (B-SB-01). The node-postgres driver path is tested against a real local PostgreSQL 17 (`npm run test:postgres`), not against Supabase itself.
 - No Docker route (no WSL on the dev machine). Production deployment is not part of this build.
 
@@ -89,3 +89,11 @@ Honest list of what ATLAS cannot do or has not verified, as of 19 Oct 2026 (end 
 - **The shared link changes after a restart** (Cloudflare quick tunnel). Run `node scripts/share.mjs start` and send the new link. ATLAS and the tunnel run only while this PC is on.
 - **The narrated walkthrough** (recorded 11 Nov, before the evening's Academy work) does not show the 3D chart analyses or the course journey map.
 - **Not available with current sources:** Indian individual shares (EODHD free plan answers 404), company fundamentals, gold and silver prices, real-time quotes. CoinGecko data is about 15 minutes delayed; Indian indices and FRED series are end of day or slower.
+
+## Production audit (24 Nov 2026)
+- **Public development passwords.** The `@atlas.test` passwords and admin TOTP secret are in the public repository. Run `node scripts/atlas.mjs secure-accounts` before letting anyone else reach an install; `scripts/share.mjs` refuses to share until this is done.
+- **Email.** Production sends through SMTP (`EMAIL_TRANSPORT=smtp`, `SMTP_URL`, `EMAIL_FROM`). The adapter has not been exercised against a real mail provider.
+- **Razorpay.** Webhook parsing follows the published envelope but has not been exercised against a real account. A coupon needs a matching Razorpay offer (`RAZORPAY_OFFER_IDS`); without one it is refused. A mid-period upgrade is refused with a clear error.
+- **Client addresses.** The API trusts forwarded addresses only from loopback (the local web proxy). A deployment with the web and API on separate hosts must set this deliberately, or all users share one rate limit.
+- **Low memory.** Under about 0.6 GB of free RAM the API can stall long enough for the web proxy to give up (30 s), which shows as errors that clear by themselves. Startup can take over 90 s.
+- **No external penetration test** has been done.

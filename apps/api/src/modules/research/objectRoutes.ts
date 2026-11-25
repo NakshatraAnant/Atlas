@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import type { Db } from '../../db/db.js';
-import { badRequest, notFound, parse } from '../../lib/http.js';
+import { badRequest, notFound, parse, isIsoDate } from '../../lib/http.js';
 import { requireUser } from '../auth/service.js';
 import { recordActivity } from './activity.js';
 import { alignmentNote, describe } from './crossRoutes.js';
@@ -177,7 +177,7 @@ export async function objectRoutes(app: FastifyInstance, ctx: AppContext): Promi
     instruments: z.array(instrumentKey).max(20).default([]), sources: z.array(z.object({ title: z.string().max(200), url: z.string().url().max(500).refine((u) => /^https?:\/\//i.test(u), 'only http(s) links').optional(), note: z.string().max(500).optional() })).max(30).default([]),
     chart_configs: z.array(z.record(z.string(), z.unknown())).max(10).default([]), assumptions: z.string().max(5000).optional(), counterarguments: z.string().max(5000).optional(),
     thesis: z.string().max(5000).optional(), evidence_for: z.string().max(5000).optional(), evidence_against: z.string().max(5000).optional(), horizon_days: z.number().int().min(1).max(3650).optional(),
-    benchmark_key: instrumentKey.optional(), review_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    benchmark_key: instrumentKey.optional(), review_date: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)').optional(),
     expected: z.string().max(5000).optional(), observed: z.string().max(5000).optional(), missed: z.string().max(5000).optional(),
   });
   const substantial = (s?: string | null) => (s ?? '').trim().length >= 20;

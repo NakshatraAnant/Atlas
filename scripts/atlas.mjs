@@ -81,7 +81,23 @@ function loadLocalEnv() {
 // ---------- process helpers ----------
 
 const pidFile = (name) => join(RUN, `${name}.pid`);
-const readPid = (name) => (existsSync(pidFile(name)) ? Number(readFileSync(pidFile(name), 'utf8').trim()) || null : null);
+const OWNED = { api: /supervise\.mjs/i, web: /next[\\/]dist[\\/]bin[\\/]next/i };
+const ownership = new Map();
+/** Windows reuses process ids: a leftover pid file can name someone else's program, which must never be stopped. */
+function isOurs(name, pid) {
+  const key = `${name}:${pid}`;
+  if (!ownership.has(key)) {
+    const r = process.platform === 'win32'
+      ? spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`], { encoding: 'utf8', windowsHide: true })
+      : spawnSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' });
+    ownership.set(key, OWNED[name].test(r.stdout ?? ''));
+  }
+  return ownership.get(key);
+}
+function readPid(name) {
+  const pid = existsSync(pidFile(name)) ? Number(readFileSync(pidFile(name), 'utf8').trim()) || null : null;
+  return pid && alive(pid) && isOurs(name, pid) ? pid : null;
+}
 function alive(pid) {
   if (!pid) return false;
   try {
@@ -106,12 +122,19 @@ function killTree(pid) {
 function launch(name, args, cwd, env) {
   mkdirSync(LOGS, { recursive: true });
   mkdirSync(RUN, { recursive: true });
-  const out = openSync(join(LOGS, `${name}.log`), 'a');
+  const logFile = join(LOGS, `${name}.log`);
+  // Keep one previous log; without this the file grows for as long as the installation lives.
+  if (existsSync(logFile) && statSync(logFile).size > 20_000_000) {
+    rmSync(`${logFile}.1`, { force: true });
+    renameSync(logFile, `${logFile}.1`);
+  }
+  const out = openSync(logFile, 'a');
   writeFileSync(out, `\n===== ${new Date().toISOString()} starting ${name} =====\n`);
   const child = spawn(process.execPath, args, { cwd, env: { ...process.env, ...env }, detached: true, stdio: ['ignore', out, out], windowsHide: true });
   child.unref();
   closeSync(out);
   writeFileSync(pidFile(name), String(child.pid));
+  ownership.set(`${name}:${child.pid}`, true);
   return child.pid;
 }
 
@@ -186,21 +209,35 @@ function catchUp(env) {
 }
 
 function webBuilt() {
-  return existsSync(join(WEB_DIR, '.next', 'BUILD_ID'));
+  const id = join(WEB_DIR, '.next', 'BUILD_ID');
+  if (!existsSync(id)) return false;
+  // A build older than the source it came from would serve the previous version of the app.
+  const built = statSync(id).mtimeMs;
+  const newer = (dir) => readdirSync(dir, { withFileTypes: true }).some((e) => {
+    if (['node_modules', '.next', 'dist', 'test'].includes(e.name) || /^next-env\.d\.ts$|\.tsbuildinfo$|\.test\.ts$/.test(e.name)) return false;
+    const p = join(dir, e.name);
+    return e.isDirectory() ? newer(p) : statSync(p).mtimeMs > built;
+  });
+  return !newer(WEB_DIR) && !newer(join(ROOT, 'packages', 'shared', 'src'));
 }
 
 async function start() {
   const { env, apiPort, webPort } = loadLocalEnv();
-  if (alive(readPid('api')) || alive(readPid('web'))) {
+  const up = [alive(readPid('api')), alive(readPid('web'))];
+  if (up[0] && up[1]) {
     log('ATLAS is already running.');
     return status();
+  }
+  if (up[0] || up[1]) {
+    log('Only part of ATLAS is running; restarting all of it.');
+    await stop();
   }
   for (const [port, label] of [[apiPort, 'API'], [webPort, 'web']]) {
     const r = await httpOk(`http://${HOST}:${port}/`, 1500);
     if (r.status !== 0) fail(`Port ${port} (${label}) is already in use by another program. Set ${label === 'API' ? 'API_PORT' : 'WEB_PORT'} in .env.local.`);
   }
   if (!webBuilt()) {
-    log('Web app is not built yet; building (one time).');
+    log('Web app is not built, or the source has changed; building.');
     run('npm', ['run', 'build', '-w', '@atlas/shared']);
     run('npm', ['run', 'build', '-w', '@atlas/web'], ROOT, { ATLAS_API_URL: env.ATLAS_API_URL });
   }
@@ -300,7 +337,11 @@ async function backup() {
   const file = join(BACKUPS, name);
   // Windows 10+ ships bsdtar as tar.exe; relative paths keep the archive portable.
   const r = spawnSync(TAR, ['-czf', file, '-C', ROOT, 'data'], { stdio: 'inherit' });
-  if (r.status !== 0) fail('tar failed; no backup was written.');
+  if (r.status !== 0) {
+    rmSync(file, { force: true });
+    if (wasRunning) await start();
+    fail('tar failed; no backup was written.');
+  }
   const manifest = { file: name, created_at: new Date().toISOString(), sha256: sha256(file), bytes: statSync(file).size, contains: 'data/ (PGlite database and object store)', atlas_version: JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version };
   writeFileSync(`${file}.json`, JSON.stringify(manifest, null, 2));
   log(`Backup written: backups/${name} (${(manifest.bytes / 1e6).toFixed(1)} MB, sha256 ${manifest.sha256.slice(0, 12)}…)`);
@@ -407,6 +448,17 @@ async function verifyBackup(args) {
   }
 }
 
+/** Replace the published development password on the seeded accounts (before sharing ATLAS with anyone). */
+async function secureAccounts() {
+  const { env } = loadLocalEnv();
+  const wasRunning = !!readPid('api') || !!readPid('web');
+  if (wasRunning && !env.DATABASE_URL) await stop();
+  const out = join(ROOT, '.atlas', 'dev-credentials.txt');
+  const r = spawnSync(process.execPath, [TSX(), 'src/cli/secure-accounts.ts', out], { cwd: API_DIR, env: { ...process.env, ...env }, stdio: 'inherit', windowsHide: true });
+  if (wasRunning) await start();
+  if (r.status !== 0) fail('The accounts were not changed (see the output above).');
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 const commands = {
   start, stop, status, backup,
@@ -418,9 +470,10 @@ const commands = {
   seed: seedCmd,
   crypto: () => cryptoCmd(rest),
   'verify-backup': () => verifyBackup(rest),
+  'secure-accounts': secureAccounts,
 };
 if (!cmd || !commands[cmd]) {
-  console.log('Usage: node scripts/atlas.mjs <start|stop|restart|status|logs [api|web|seed] [--follow]|backup|restore [file] [--start]|update|test|seed|crypto [status|run <job…>|tick [rounds]|jobs]|verify-backup [file]>');
+  console.log('Usage: node scripts/atlas.mjs <start|stop|restart|status|logs [api|web|seed] [--follow]|backup|restore [file] [--start]|update|test|seed|crypto [status|run <job…>|tick [rounds]|jobs]|verify-backup [file]|secure-accounts>');
   process.exit(cmd ? 1 : 0);
 }
 try {

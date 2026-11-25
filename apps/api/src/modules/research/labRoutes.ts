@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import { sha256Hex } from '../../lib/crypto.js';
-import { notFound, parse, badRequest } from '../../lib/http.js';
+import { notFound, parse, badRequest, isIsoDate } from '../../lib/http.js';
 import { renderPdf, type PdfBlock } from '../../lib/pdf.js';
 import { track } from '../analytics/events.js';
 import { consume, requireFeature, userPlan } from '../billing/entitlements.js';
@@ -184,7 +184,7 @@ export async function labRoutes(app: FastifyInstance, ctx: AppContext): Promise<
   });
 
   // ── AI research assistant (AIA) ──
-  const askSchema = z.object({ question: z.string().trim().min(2).max(1000), conversation_id: uuid.optional(), context: z.object({ company_id: uuid.optional(), metric: z.string().max(60).optional(), period: z.string().max(20).optional(), run_id: uuid.optional(), briefing_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).default({}), onboarding: z.boolean().optional() });
+  const askSchema = z.object({ question: z.string().trim().min(2).max(1000), conversation_id: uuid.optional(), context: z.object({ company_id: uuid.optional(), metric: z.string().max(60).optional(), period: z.string().max(20).optional(), run_id: uuid.optional(), briefing_date: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)').optional() }).default({}), onboarding: z.boolean().optional() });
   app.post('/v1/assistant/ask', async (req, reply) => {
     const u = requireUser(req);
     const body = parse(askSchema, req.body);

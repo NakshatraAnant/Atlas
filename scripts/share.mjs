@@ -33,7 +33,31 @@ function cloudflared() {
 }
 
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-const readPid = () => { try { return Number(readFileSync(PID, 'utf8').trim()) || null; } catch { return null; } };
+/** Only a process that really is cloudflared: Windows reuses process ids. */
+const readPid = () => {
+  try {
+    const pid = Number(readFileSync(PID, 'utf8').trim()) || null;
+    if (!pid) return null;
+    const r = process.platform === 'win32' ? spawnSync('tasklist', ['/FI', `PID eq ${pid}`, '/NH'], { encoding: 'utf8', windowsHide: true }) : spawnSync('ps', ['-p', String(pid), '-o', 'comm='], { encoding: 'utf8' });
+    return /cloudflared/i.test(r.stdout ?? '') ? pid : null;
+  } catch { return null; }
+};
+
+/** The development passwords are published in the repository: never expose an installation that accepts them. */
+async function refuseKnownPasswords() {
+  const base = `http://127.0.0.1:${webPort()}`;
+  const password = readFileSync(join(ROOT, 'apps', 'api', 'src', 'seed.ts'), 'utf8').match(/DEV_PASSWORD = '([^']+)'/)?.[1];
+  if (!password) throw new Error('Could not read the development password to check against; not sharing.');
+  const csrf = await fetch(`${base}/v1/auth/csrf`).catch(() => null);
+  if (!csrf?.ok) throw new Error('ATLAS is not running. Start it first: node scripts/atlas.mjs start');
+  const cookie = csrf.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+  const token = decodeURIComponent(/atlas_csrf=([^;]+)/.exec(cookie)?.[1] ?? '');
+  for (const who of ['admin', 'pro', 'plus', 'free']) {
+    const r = await fetch(`${base}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': token, cookie }, body: JSON.stringify({ email: `${who}@atlas.test`, password }) });
+    if (r.ok) throw new Error(`${who}@atlas.test still accepts the published development password. Run: node scripts/atlas.mjs secure-accounts`);
+    if (r.status !== 401) throw new Error(`Could not check ${who}@atlas.test (HTTP ${r.status}); not sharing. Try again in 15 minutes.`);
+  }
+}
 const tunnelUrl = () => { try { return readFileSync(LOG, 'utf8').match(new RegExp(URL_RE.source, 'g'))?.pop() ?? null; } catch { return null; } };
 const webPort = () => { try { return Number(readFileSync(ENV, 'utf8').match(/^WEB_PORT=(\d+)/m)?.[1]) || 3000; } catch { return 3000; } };
 
@@ -67,6 +91,7 @@ function updateShareFile(url) {
 
 async function start() {
   const exe = cloudflared();
+  await refuseKnownPasswords();
   let pid = readPid();
   let url = pid && alive(pid) ? tunnelUrl() : null;
   if (url && (await answers(url))) {
@@ -105,7 +130,7 @@ async function status() {
 
 function stop() {
   const pid = readPid();
-  if (pid && alive(pid)) { process.kill(pid); log('Tunnel stopped; the link no longer works.'); } else log('No tunnel was running.');
+  if (pid && alive(pid)) { process.kill(pid); log('Tunnel stopped; the link no longer works.'); if (setOrigin(`http://localhost:${webPort()}`)) log('Restart ATLAS so email links use the local address again: node scripts/atlas.mjs restart'); } else log('No tunnel was running.');
 }
 
 const cmd = process.argv[2] ?? 'status';

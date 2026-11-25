@@ -63,7 +63,7 @@ export interface UserPlan {
 /** Effective plan: an active subscription, or past_due within the 7-day grace period (BIL-06). */
 export async function userPlan(db: Db, userId: string, now: Date = new Date()): Promise<UserPlan> {
   const sub = await db.maybeOne<{ plan_code: PlanCode; status: string; grace_until: string | null; current_period_end: string | null; cancel_at_period_end: boolean }>(
-    `SELECT plan_code, status, grace_until, current_period_end, cancel_at_period_end FROM app.subscriptions WHERE user_id=$1 AND status IN ('active','past_due','cancelled') ORDER BY created_at DESC LIMIT 1`,
+    `SELECT plan_code, status, grace_until, current_period_end, cancel_at_period_end FROM app.subscriptions WHERE user_id=$1 AND (status IN ('active','past_due') OR (status='cancelled' AND current_period_end IS NOT NULL)) ORDER BY created_at DESC LIMIT 1`,
     [userId],
   );
   let plan: PlanCode = 'free';

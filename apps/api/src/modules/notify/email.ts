@@ -1,3 +1,4 @@
+import nodemailer, { type Transporter } from 'nodemailer';
 import type { Db } from '../../db/db.js';
 
 // Email service (Blueprint §4.2). All mail is written to app.email_outbox first; a transport
@@ -15,6 +16,24 @@ export class OutboxOnlyTransport implements EmailTransport {
   readonly name = 'outbox';
   async send(): Promise<void> {
     // Delivery is the outbox row itself in development; nothing leaves the machine.
+  }
+}
+
+/** Delivers through any SMTP provider. Plain smtp:// connections must upgrade to TLS before credentials are sent. */
+export class SmtpTransport implements EmailTransport {
+  readonly name = 'smtp';
+  private readonly mailer: Transporter;
+  constructor(url: string, private readonly from: string) {
+    const u = new URL(url);
+    const secure = u.protocol === 'smtps:';
+    this.mailer = nodemailer.createTransport({
+      host: u.hostname, port: Number(u.port) || (secure ? 465 : 587), secure, requireTLS: !secure,
+      auth: u.username ? { user: decodeURIComponent(u.username), pass: decodeURIComponent(u.password) } : undefined,
+      connectionTimeout: 15_000, greetingTimeout: 15_000, socketTimeout: 30_000,
+    });
+  }
+  async send(msg: { to: string; subject: string; text: string }): Promise<void> {
+    await this.mailer.sendMail({ from: this.from, to: msg.to, subject: msg.subject, text: msg.text });
   }
 }
 

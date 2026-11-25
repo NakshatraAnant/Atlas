@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import type { Db } from '../../db/db.js';
-import { badRequest, conflict, notFound, parse } from '../../lib/http.js';
+import { badRequest, conflict, notFound, parse, isIsoDate } from '../../lib/http.js';
 import { isOperator, requireRole, requireUser } from '../auth/service.js';
 import { loadBars, metricsOf, missingSessionsFor, sessionsBehind, toObs, type Bars } from './analytics.js';
 import { importEquityPrices, type EquityKeys } from './ingest.js';
@@ -276,7 +276,7 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
 
   app.get('/v1/equity/calendar', async (req) => {
     requireUser(req);
-    const q = parse(z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }), req.query);
+    const q = parse(z.object({ from: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)').optional(), to: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)').optional() }), req.query);
     const t = now();
     const from = q.from ?? iso(t.getTime() - 90 * 86_400_000);
     const to = q.to ?? iso(t.getTime() + 365 * 86_400_000);
@@ -292,7 +292,7 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
 
   app.post('/admin/v1/equity/import', { config: { rateLimit: { limit: 10, windowMs: 60_000, key: 'user' } } }, async (req) => {
     const u = admin(req);
-    const b = parse(z.object({ provider: z.enum(['eodhd', 'alphavantage']), exchange: z.enum(['NSE', 'BSE', 'INDEX']), symbol: z.string().trim().toUpperCase().pipe(z.string().regex(/^[A-Z0-9&_.-]{1,30}$/)), kind: z.enum(['equity', 'index']).default('equity'), name: z.string().max(120).optional(), provider_symbol: z.string().max(40).regex(/^[A-Za-z0-9&_.^-]+$/).optional(), from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), dry_run: z.boolean().default(false), use_reserve: z.boolean().default(false) }), req.body);
+    const b = parse(z.object({ provider: z.enum(['eodhd', 'alphavantage']), exchange: z.enum(['NSE', 'BSE', 'INDEX']), symbol: z.string().trim().toUpperCase().pipe(z.string().regex(/^[A-Z0-9&_.-]{1,30}$/)), kind: z.enum(['equity', 'index']).default('equity'), name: z.string().max(120).optional(), provider_symbol: z.string().max(40).regex(/^[A-Za-z0-9&_.^-]+$/).optional(), from: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)').optional(), dry_run: z.boolean().default(false), use_reserve: z.boolean().default(false) }), req.body);
     const rt = equityRuntime(ctx);
     // A dry run still calls the provider, so it is charged like any other manual request.
     return importEquityPrices(db, fetchFn, equityKeys(ctx), { provider: b.provider, exchange: b.exchange, symbol: b.symbol, kind: b.kind, name: b.name, providerSymbol: b.provider_symbol, from: b.from, dryRun: b.dry_run, requestedBy: u.userId }, now(),
@@ -354,7 +354,7 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
 
   app.post('/admin/v1/equity/calendar', async (req) => {
     admin(req);
-    const b = parse(z.object({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), kind: z.enum(['holiday', 'special_session']), description: z.string().trim().min(3).max(200) }), req.body);
+    const b = parse(z.object({ day: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)'), kind: z.enum(['holiday', 'special_session']), description: z.string().trim().min(3).max(200) }), req.body);
     await db.query(`INSERT INTO equity.calendar_days (exchange, day, kind, description, source, retrieved_at) VALUES ('NSE',$1,$2,$3,'user',$4)
       ON CONFLICT (exchange, day, source) DO UPDATE SET kind=EXCLUDED.kind, description=EXCLUDED.description, retrieved_at=EXCLUDED.retrieved_at`, [b.day, b.kind, b.description, now().toISOString()]);
     return { ok: true };
@@ -362,7 +362,7 @@ export async function equityRoutes(app: FastifyInstance, ctx: AppContext, fetchF
 
   app.delete('/admin/v1/equity/calendar/:day', async (req) => {
     admin(req);
-    const p = parse(z.object({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }), req.params);
+    const p = parse(z.object({ day: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)') }), req.params);
     // Only entries you added; provider and inferred entries are managed by ATLAS.
     const r = await db.query(`DELETE FROM equity.calendar_days WHERE exchange='NSE' AND day=$1 AND source='user' RETURNING 1`, [p.day]);
     if (!r.length) throw notFound('No calendar entry of yours on that day.');

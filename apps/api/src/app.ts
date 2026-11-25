@@ -92,6 +92,29 @@ export function isLoopbackOrigin(origin: string): boolean {
   }
 }
 
+/** Does any string (key or value) in a parsed request part contain NUL? Iterative, so deep nesting is safe. */
+export function containsNul(v: unknown): boolean {
+  const stack: unknown[] = [v];
+  while (stack.length) {
+    const x = stack.pop();
+    if (typeof x === 'string') { if (x.includes('\u0000')) return true; }
+    else if (x && typeof x === 'object') for (const [k, y] of Object.entries(x)) { if (k.includes('\u0000')) return true; stack.push(y); }
+  }
+  return false;
+}
+
+/** PostgreSQL errors caused by the caller's input (SQLSTATE), answered as client errors instead of 500. */
+const DB_INPUT_ERRORS: Record<string, ApiError> = {
+  '22007': new ApiError(400, 'Bad request', 'A date or time in the request is not valid.'),
+  '22008': new ApiError(400, 'Bad request', 'A date or time in the request is not valid.'),
+  '22P02': new ApiError(400, 'Bad request', 'A value in the request has the wrong format.'),
+  '22003': new ApiError(400, 'Bad request', 'A number in the request is out of range.'),
+  '22021': new ApiError(400, 'Bad request', 'The request contains characters that cannot be stored.'),
+  '22P05': new ApiError(400, 'Bad request', 'The request contains characters that cannot be stored.'),
+  '23503': new ApiError(404, 'Not found', 'The request refers to something that does not exist.'),
+  '23505': new ApiError(409, 'Conflict', 'That already exists.'),
+};
+
 /** Longest list a request body may contain (twice the largest schema limit, 5,000). */
 export const MAX_JSON_ARRAY = 10_000;
 /** Size of the largest list or object (items or keys) anywhere in a parsed JSON value (iterative, so deep nesting is safe). */
@@ -109,7 +132,13 @@ export function longestArray(v: unknown): number {
 export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics } = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: false,
-    trustProxy: ctx.cfg.TRUST_PROXY === 'true',
+    // Longer than the web server keeps an idle connection, so the client side closes first: a request sent on a
+    // connection the API was just closing surfaced as "socket hang up" (HTTP 500 from the proxy).
+    keepAliveTimeout: 10 * 60_000,
+    // The API listens on loopback only, so its peer is always the local web server. Trusting exactly the
+    // loopback hops yields the real client address, so limits and lockouts are per client rather than shared
+    // by everyone behind the proxy. The nearest non-loopback hop wins, so a client cannot choose its address.
+    trustProxy: 'loopback',
     bodyLimit: 3 * 1024 * 1024,
     genReqId: (req) => (typeof req.headers['x-correlation-id'] === 'string' && /^[\w-]{8,64}$/.test(req.headers['x-correlation-id']) ? req.headers['x-correlation-id'] : randomUUID()),
   });
@@ -189,6 +218,11 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
     return payload;
   });
 
+  // PostgreSQL text cannot hold NUL, and no field or identifier legitimately contains one.
+  app.addHook('preValidation', async (req) => {
+    if (containsNul(req.params) || containsNul(req.query) || containsNul(req.body)) throw new ApiError(400, 'Bad request', 'The request contains a NUL character.');
+  });
+
   app.addHook('onResponse', async (req, reply) => {
     const ms = performance.now() - ((req as unknown as { startedAt?: number }).startedAt ?? performance.now());
     metrics.record(`${req.method} ${req.routeOptions.url ?? 'unknown'}`, reply.statusCode, ms);
@@ -199,6 +233,11 @@ export async function buildApp(ctx: AppContext, opts: { metrics?: RequestMetrics
     if (err instanceof ApiError) return sendProblem(reply, req, err);
     const e = err as { statusCode?: number; code?: string; message: string };
     if (e.statusCode && e.statusCode < 500) return sendProblem(reply, req, new ApiError(e.statusCode, 'Bad request', e.code === 'FST_ERR_CTP_BODY_TOO_LARGE' ? 'The request is too large.' : 'The request could not be processed.'));
+    const dbProblem = e.code ? DB_INPUT_ERRORS[e.code] : undefined;
+    if (dbProblem) {
+      ctx.log.warn('request refused by the database', { correlation_id: req.id, route: req.routeOptions?.url, code: e.code, error: e.message });
+      return sendProblem(reply, req, dbProblem);
+    }
     ctx.log.error('unhandled error', { correlation_id: req.id, route: req.routeOptions?.url, error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined });
     return sendProblem(reply, req, new ApiError(500, 'Internal error', 'Something went wrong on our side. The error has been logged with this correlation id.'));
   });

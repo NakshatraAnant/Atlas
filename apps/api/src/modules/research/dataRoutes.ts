@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { worthInvestigating } from '../market/investigate.js';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
-import { forbidden, notFound, paymentRequired, parse } from '../../lib/http.js';
+import { forbidden, notFound, paymentRequired, parse, isIsoDate } from '../../lib/http.js';
 import { periodStart, requireFeature, userPlan, consume, upgradeHint } from '../billing/entitlements.js';
 import { requireUser, requireVerified } from '../auth/service.js';
 import { track } from '../analytics/events.js';
@@ -15,7 +15,7 @@ import { SCREEN_TEMPLATES, runScreen, screenSchema, screenerFields, screenToCsv,
 import { nextTradingDay } from '../market/briefing.js';
 
 const uuid = z.string().uuid();
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const date = z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)');
 
 async function planFor(ctx: AppContext, req: FastifyRequest) {
   return req.user ? userPlan(ctx.db, req.user.userId, ctx.clock()) : null;
@@ -187,7 +187,7 @@ export async function dataRoutes(app: FastifyInstance, ctx: AppContext): Promise
   app.get('/v1/companies/:id/announcements', async (req) => {
     requireUser(req);
     const { id } = parse(z.object({ id: uuid }), req.params);
-    const q = parse(z.object({ from: z.string().max(30).optional(), to: z.string().max(30).optional(), category: z.string().max(60).optional() }), req.query);
+    const q = parse(z.object({ from: z.string().max(30).refine((s) => !Number.isNaN(Date.parse(s)), 'must be a date').optional(), to: z.string().max(30).refine((s) => !Number.isNaN(Date.parse(s)), 'must be a date').optional(), category: z.string().max(60).optional() }), req.query);
     return { announcements: await getAnnouncements(ctx.db, id, { from: q.from, to: q.to, categories: q.category ? [q.category] : undefined, limit: 100 }), latency_target: 'Within 60 minutes of arrival in the licensed feed' };
   });
   app.get('/v1/companies/:id/prices', async (req) => {

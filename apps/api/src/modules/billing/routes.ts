@@ -96,7 +96,8 @@ export async function billingRoutes(app: FastifyInstance, ctx: AppContext): Prom
   app.post('/webhooks/payments', { config: { rawBody: true, csrfExempt: true } }, async (req, reply) => {
     const raw = (req as unknown as { rawBody?: string }).rawBody ?? JSON.stringify(req.body ?? {});
     const sig = (req.headers['x-razorpay-signature'] ?? req.headers['x-atlas-signature']) as string | undefined;
-    const r = await processWebhook(ctx, raw, sig);
+    const eventId = req.headers['x-razorpay-event-id'];
+    const r = await processWebhook(ctx, raw, sig, typeof eventId === 'string' ? eventId : undefined);
     if (r.status === 'rejected') return reply.status(400).send({ status: 'rejected' });
     return { status: r.status };
   });

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
 import type { Db } from '../../db/db.js';
-import { badRequest, notFound } from '../../lib/http.js';
+import { badRequest, notFound, isIsoDate } from '../../lib/http.js';
 import { track } from '../analytics/events.js';
 import { consume, refund, requireFeature, type UserPlan } from '../billing/entitlements.js';
 import { DEFAULT_COST_TABLE, ZERO_COSTS } from './costs.js';
@@ -25,7 +25,7 @@ export const backtestRequestSchema = z.object({
     z.object({ type: z.literal('index'), index_code: z.string().max(20) }),
     z.object({ type: z.literal('screen'), screen_id: z.string().uuid() }),
   ]),
-  period: z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
+  period: z.object({ from: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)'), to: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)') }),
   costs: z.object({ included: z.boolean().default(true), slippage_bps: z.number().min(0).max(200).default(10), brokerage_bps: z.number().min(0).max(100).default(0) }).prefault({}),
   liquidity: z.object({ max_adv_pct: z.number().min(0.001).max(1).default(0.05), min_adv_cr: z.number().min(0).max(1000).default(1), mode: z.enum(['skip', 'cap']).default('skip') }).prefault({}),
   benchmark: z.string().max(20).optional(),

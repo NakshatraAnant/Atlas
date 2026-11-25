@@ -21,9 +21,15 @@ const shutdown = async (reason: string) => {
   stopJobs();
   stopCrypto();
   stopResearch();
-  await app.close();
+  // A request that never ends (a stalled stream) must not stop the database from being flushed.
+  await Promise.race([app.close(), new Promise((ok) => setTimeout(ok, 10_000))]).catch((err) => ctx.log.error('HTTP shutdown failed', { error: String(err) }));
   // Closing the database flushes the embedded PGlite store to disk; a hard kill can lose recent writes.
-  await ctx.db.close();
+  try {
+    await ctx.db.close();
+  } catch (err) {
+    ctx.log.error('database did not close cleanly', { error: String(err) });
+    process.exit(1);
+  }
   ctx.log.info('ATLAS API stopped cleanly');
   process.exit(0);
 };

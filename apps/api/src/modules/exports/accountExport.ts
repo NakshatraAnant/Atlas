@@ -10,8 +10,9 @@ function toCsv(rows: Record<string, unknown>[]): string {
   const esc = (v: unknown) => {
     const s = v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
     // Neutralise spreadsheet formula injection.
-    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-    return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+    // Numbers are written as numbers: "-5" is not a formula.
+    const safe = typeof v !== 'number' && /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
   };
   return [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n');
 }
@@ -28,7 +29,17 @@ export async function collectUserContent(ctx: AppContext, userId: string) {
   const alerts = await db.query(`SELECT rule_id, kind, config, digest, status, created_at FROM app.alert_rules WHERE user_id=$1 AND deleted_at IS NULL`, [userId]);
   const hypotheses = await db.query(`SELECT hypothesis_id, statement, evidence, review_date, created_at FROM app.hypotheses WHERE user_id=$1 AND deleted_at IS NULL`, [userId]);
   const consents = await db.query(`SELECT kind, version, granted, at, source FROM app.consents WHERE user_id=$1 ORDER BY at`, [userId]);
-  return { watchlists, notes, saved_screens: screens, backtest_configurations: backtests, workspaces, alert_rules: alerts, hypotheses, consents };
+  // Research hub, Digital Assets, uploads, follows and Academy records are the user's own content as well.
+  const own: Record<string, Record<string, unknown>[]> = {};
+  for (const [section, table, live] of [
+    ['research_portfolios', 'research.portfolios', true], ['research_views', 'research.saved_views', true], ['research_notebook', 'research.notebook_entries', true],
+    ['research_reports', 'research.reports', true], ['research_alerts', 'research.alert_rules', true], ['imported_statements', 'research.user_fundamentals', false],
+    ['crypto_notes', 'crypto.research_notes', false], ['crypto_watchlist', 'crypto.watchlist_items', false], ['uploaded_datasets', 'app.user_datasets', true],
+    ['followed_series', 'app.series_follows', false], ['academy_enrolments', 'acad.enrolments', false], ['academy_lesson_progress', 'acad.lesson_progress', false],
+    ['academy_quiz_attempts', 'acad.quiz_attempts', false], ['academy_capstones', 'acad.capstone_submissions', false], ['academy_completions', 'acad.completion_records', false],
+  ] as const) own[section] = await db.query(`SELECT * FROM ${table} WHERE user_id=$1${live ? ' AND deleted_at IS NULL' : ''}`, [userId]);
+  own.research_portfolio_holdings = await db.query(`SELECT h.* FROM research.portfolio_holdings h JOIN research.portfolios p USING (portfolio_id) WHERE p.user_id=$1 AND p.deleted_at IS NULL`, [userId]);
+  return { ...own, watchlists, notes, saved_screens: screens, backtest_configurations: backtests, workspaces, alert_rules: alerts, hypotheses, consents };
 }
 
 export async function requestAccountExport(ctx: AppContext, userId: string): Promise<{ exportId: string; status: string; downloadPath: string; expiresAt: string }> {

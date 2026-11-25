@@ -1,6 +1,7 @@
 'use client';
 import { use, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { safeInternalPath } from '@/lib/safe-path';
 import { Loading, Problem, useApi } from '@/components/ui';
 import { dateOrDash } from '@/lib/format';
 
@@ -14,7 +15,7 @@ export default function LessonPage({ params }: { params: Promise<{ slug: string 
   const [returnTo, setReturnTo] = useState<string | null>(null);
   useEffect(() => {
     const r = new URLSearchParams(location.search).get('return_to');
-    const safe = r && r.startsWith('/') && !r.startsWith('//') ? r : null;
+    const safe = safeInternalPath(r);
     setReturnTo(safe);
     void api('/v1/learn/progress', { body: { lesson: slug, started: true, return_to: safe ?? undefined } }).catch(() => undefined);
   }, [slug]);

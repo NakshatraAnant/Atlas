@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
-import { badRequest, notFound, parse, paymentRequired } from '../../lib/http.js';
+import { badRequest, notFound, parse, paymentRequired, isIsoDate } from '../../lib/http.js';
 import { track } from '../analytics/events.js';
 import { assertWithinCount, editableIds, requireFeature, upgradeHint, userPlan } from '../billing/entitlements.js';
 import { requireUser, requireVerified } from '../auth/service.js';
@@ -193,7 +193,7 @@ export async function workspaceRoutes(app: FastifyInstance, ctx: AppContext): Pr
   // ── Hypotheses (WSR-05) ──
   app.post('/v1/hypotheses', async (req) => {
     const u = requireVerified(req);
-    const body = parse(z.object({ company_id: uuid.nullable().optional(), statement: z.string().trim().min(5).max(1000), evidence: z.array(z.object({ label: z.string().max(200), href: z.string().max(300) })).max(20).default([]), review_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), metrics: z.array(z.string().max(60)).max(10).default([]) }), req.body);
+    const body = parse(z.object({ company_id: uuid.nullable().optional(), statement: z.string().trim().min(5).max(1000), evidence: z.array(z.object({ label: z.string().max(200), href: z.string().max(300) })).max(20).default([]), review_date: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)'), metrics: z.array(z.string().max(60)).max(10).default([]) }), req.body);
     const baseline: Record<string, number | null> = {};
     if (body.company_id) for (const m of body.metrics) baseline[m] = (await db.maybeOne<{ value: number | null }>(`SELECT value FROM calc.metric_values WHERE entity_id=$1 AND metric_code=$2 AND period_key='LATEST'`, [body.company_id, m]))?.value ?? null;
     return db.one(`INSERT INTO app.hypotheses (user_id, company_id, statement, evidence, baseline, review_date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING hypothesis_id`, [u.userId, body.company_id ?? null, body.statement, JSON.stringify(body.evidence), JSON.stringify(baseline), body.review_date]);

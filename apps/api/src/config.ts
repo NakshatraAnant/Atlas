@@ -4,6 +4,17 @@ import { DEFAULT_EODHD_BUDGETS, parseBudgets, type QuotaCategory } from './modul
 // Centralised configuration (engineering standard 5.1). Every setting is validated at
 // start-up; production refuses unsafe defaults instead of silently continuing.
 
+/** A JSON object of strings held in one environment variable; a malformed value stops start-up with its name. */
+const idMap = (name: string) => z.string().optional().default('').transform((v, c): Record<string, string> => {
+  if (!v.trim()) return {};
+  try {
+    return z.record(z.string(), z.string().min(1)).parse(JSON.parse(v));
+  } catch {
+    c.addIssue({ code: 'custom', message: name + ' must be a JSON object of text values' });
+    return z.NEVER;
+  }
+});
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().optional().default(''),
@@ -16,7 +27,11 @@ const schema = z.object({
   WEB_ORIGIN: z.string().default('http://localhost:3000'),
   APP_SECRET: z.string().min(32).default('dev-only-secret-dev-only-secret-dev-only-secret'),
   OBJECT_STORE_DIR: z.string().default('./data/objects'),
-  EMAIL_TRANSPORT: z.enum(['outbox', 'ses']).default('outbox'),
+  /** 'outbox' stores mail locally (development); 'smtp' delivers it through SMTP_URL. */
+  EMAIL_TRANSPORT: z.enum(['outbox', 'smtp']).default('outbox'),
+  /** smtp(s)://user:password@host:port, from your mail provider. */
+  SMTP_URL: z.string().optional().default(''),
+  EMAIL_FROM: z.string().optional().default(''),
   AI_PROVIDER: z.enum(['deterministic', 'anthropic']).default('deterministic'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
   AI_MODEL: z.string().default('claude-opus-5-5'),
@@ -26,6 +41,8 @@ const schema = z.object({
   RAZORPAY_KEY_ID: z.string().optional().default(''),
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
+  RAZORPAY_PLAN_IDS: idMap('RAZORPAY_PLAN_IDS'),
+  RAZORPAY_OFFER_IDS: idMap('RAZORPAY_OFFER_IDS'),
   SANDBOX_WEBHOOK_SECRET: z.string().default('sandbox-webhook-secret-dev-only'),
   GST_RATE: z.coerce.number().min(0).max(1).default(0.18),
   SUPPLIER_STATE_CODE: z.string().default('29'),
@@ -36,7 +53,6 @@ const schema = z.object({
   /** Serve Academy content that is still in review (labelled as draft). Defaults to on outside production. */
   ACADEMY_SHOW_DRAFTS: z.enum(['true', 'false']).optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
-  TRUST_PROXY: z.enum(['true', 'false']).default('false'),
   /** Scales route rate limits (tests use a high value; never set above 1 in production). */
   RATE_LIMIT_MULTIPLIER: z.coerce.number().min(1).max(100000).default(1),
   // ATLAS Digital Assets (docs/crypto). Free public sources; an optional free CoinGecko Demo key raises its limit.
@@ -111,7 +127,11 @@ export function assertProductionSafe(cfg: Config): void {
   if (cfg.allowSyntheticData) problems.push('Synthetic data must never be served in production (ALLOW_SYNTHETIC_DATA)');
   if (cfg.PAYMENT_GATEWAY === 'sandbox') problems.push('PAYMENT_GATEWAY=sandbox is not allowed in production');
   if (cfg.PAYMENT_GATEWAY === 'razorpay' && (!cfg.RAZORPAY_KEY_ID || !cfg.RAZORPAY_KEY_SECRET || !cfg.RAZORPAY_WEBHOOK_SECRET)) problems.push('Razorpay keys and webhook secret are required');
-  if (cfg.EMAIL_TRANSPORT === 'outbox') problems.push('EMAIL_TRANSPORT must be a real provider in production');
+  if (cfg.PAYMENT_GATEWAY === 'razorpay' && (!cfg.RAZORPAY_PLAN_IDS.plus || !cfg.RAZORPAY_PLAN_IDS.pro)) problems.push('RAZORPAY_PLAN_IDS must give a plan id for plus and pro');
+  if (cfg.EMAIL_TRANSPORT === 'outbox') problems.push('EMAIL_TRANSPORT must be a real provider in production (smtp)');
+  if (cfg.EMAIL_TRANSPORT === 'smtp' && (!/^smtps?:\/\//.test(cfg.SMTP_URL) || !cfg.EMAIL_FROM)) problems.push('EMAIL_TRANSPORT=smtp needs SMTP_URL (smtp:// or smtps://) and EMAIL_FROM');
+  if (cfg.RATE_LIMIT_MULTIPLIER !== 1) problems.push('RATE_LIMIT_MULTIPLIER must be 1 in production');
+  if (!cfg.WEB_ORIGIN.startsWith('https://')) problems.push('WEB_ORIGIN must be an https address in production');
   if (cfg.AI_PROVIDER === 'anthropic' && !cfg.ANTHROPIC_API_KEY) problems.push('ANTHROPIC_API_KEY is required for AI_PROVIDER=anthropic');
   if (problems.length) throw new Error(`Unsafe production configuration:\n- ${problems.join('\n- ')}`);
 }

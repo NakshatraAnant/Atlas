@@ -55,7 +55,7 @@ export async function importMandi(db: Db, fetchFn: FetchFn, key: string, commodi
     const url = `https://api.data.gov.in/resource/${MANDI_RESOURCE}?api-key=${encodeURIComponent(key)}&format=json&limit=1000&offset=${offset}&filters[commodity]=${encodeURIComponent(commodity)}`;
     let status = 0;
     try {
-      const r = await fetchFn(url, { headers: { accept: 'application/json', 'user-agent': 'ATLAS-local-research/0.1' } });
+      const r = await fetchFn(url, { signal: AbortSignal.timeout(20_000), headers: { accept: 'application/json', 'user-agent': 'ATLAS-local-research/0.1' } });
       status = r.status;
       const body = await r.text();
       if (status >= 400) {

@@ -8,7 +8,7 @@ const prod = (extra: Record<string, string> = {}) =>
   loadConfig({
     NODE_ENV: 'production', APP_SECRET: 'a-managed-production-secret-of-sufficient-length', LOG_LEVEL: 'silent', WEB_ORIGIN: 'https://atlas.example',
     DATABASE_URL: 'postgres://u:p@db.example:5432/atlas', DATABASE_SSL: 'verify-full', DATABASE_CA_CERT: 'ca.pem',
-    PAYMENT_GATEWAY: 'razorpay', RAZORPAY_KEY_ID: 'k', RAZORPAY_KEY_SECRET: 's', RAZORPAY_WEBHOOK_SECRET: 'w', EMAIL_TRANSPORT: 'ses',
+    PAYMENT_GATEWAY: 'razorpay', RAZORPAY_KEY_ID: 'k', RAZORPAY_KEY_SECRET: 's', RAZORPAY_WEBHOOK_SECRET: 'w', RAZORPAY_PLAN_IDS: '{"plus":"plan_1","pro":"plan_2"}', EMAIL_TRANSPORT: 'smtp', SMTP_URL: 'smtps://u:p@mail.example', EMAIL_FROM: 'atlas@mail.example',
     ...extra,
   } as NodeJS.ProcessEnv);
 

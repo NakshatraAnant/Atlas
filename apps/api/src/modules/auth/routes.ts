@@ -47,7 +47,7 @@ export async function authRoutes(app: FastifyInstance, ctx: AppContext): Promise
   app.get('/v1/auth/csrf', async (req, reply) => {
     // Issues a CSRF token cookie for anonymous forms (sign-up, sign-in).
     const token = (req.cookies[CSRF_COOKIE] as string | undefined) ?? (await import('../../lib/crypto.js')).randomToken(18);
-    reply.setCookie(CSRF_COOKIE, token, cookieOptions(ctx, 12 * 3600, false));
+    reply.setCookie(CSRF_COOKIE, token, cookieOptions(ctx, 12 * 3600, false, req.protocol === 'https'));
     return { csrf: token };
   });
 
@@ -57,7 +57,7 @@ export async function authRoutes(app: FastifyInstance, ctx: AppContext): Promise
     return { message: NEUTRAL_RESET };
   });
 
-  app.post('/v1/auth/password-reset/confirm', async (req) => {
+  app.post('/v1/auth/password-reset/confirm', { config: { rateLimit: { limit: 20, windowMs: 3600_000, key: 'ip' } } }, async (req) => {
     const body = parse(z.object({ token: z.string().min(10).max(200), password: z.string().min(1).max(200) }), req.body);
     await resetPassword(ctx, body.token, body.password);
     return { reset: true, message: 'Password changed. All sessions were signed out; sign in again.' };
@@ -75,13 +75,13 @@ export async function authRoutes(app: FastifyInstance, ctx: AppContext): Promise
     const u = requireUser(req);
     return beginTotpEnrolment(ctx, u);
   });
-  app.post('/v1/auth/totp/confirm', async (req, reply) => {
+  app.post('/v1/auth/totp/confirm', { config: { rateLimit: { limit: 10, windowMs: 15 * 60_000, key: 'user' } } }, async (req, reply) => {
     const u = requireUser(req);
     const { code } = parse(z.object({ code: z.string().regex(/^\d{6}$/) }), req.body);
     const r = await confirmTotpEnrolment(ctx, req, reply, u, code);
     return { enabled: true, recovery_codes: r.recoveryCodes, note: 'Store these 10 single-use recovery codes somewhere safe. They are shown once.' };
   });
-  app.post('/v1/auth/mfa/verify', async (req, reply) => {
+  app.post('/v1/auth/mfa/verify', { config: { rateLimit: { limit: 10, windowMs: 15 * 60_000, key: 'user' } } }, async (req, reply) => {
     const u = requireUser(req);
     const { code } = parse(z.object({ code: z.string().trim().min(6).max(20) }), req.body);
     await verifyMfaForSession(ctx, req, reply, u, code);

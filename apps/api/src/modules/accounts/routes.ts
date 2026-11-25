@@ -63,10 +63,10 @@ export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Prom
     );
     // Changes save immediately and apply from the next briefing cycle (ACC-06).
     await ctx.db.query(
-      `UPDATE app.users SET display_name=COALESCE($2, display_name), experience_level=COALESCE($3, experience_level), interests=COALESCE($4, interests), briefing_email=COALESCE($5, briefing_email),
+      `UPDATE app.users SET display_name=CASE WHEN $9::boolean THEN $2 ELSE display_name END, experience_level=COALESCE($3, experience_level), interests=COALESCE($4, interests), briefing_email=COALESCE($5, briefing_email),
          display_prefs = display_prefs || COALESCE($6::jsonb, '{}'::jsonb), state_code=COALESCE($7, state_code),
          onboarding_completed_at = CASE WHEN $8::boolean THEN COALESCE(onboarding_completed_at, now()) ELSE onboarding_completed_at END, updated_at=now() WHERE user_id=$1`,
-      [u.userId, body.display_name ?? null, body.experience_level ?? null, body.interests ?? null, body.briefing_email ?? null, body.display_prefs ? JSON.stringify(body.display_prefs) : null, body.state_code ?? null, body.onboarding_completed ?? false],
+      [u.userId, body.display_name ?? null, body.experience_level ?? null, body.interests ?? null, body.briefing_email ?? null, body.display_prefs ? JSON.stringify(body.display_prefs) : null, body.state_code ?? null, body.onboarding_completed ?? false, body.display_name !== undefined],
     );
     if (body.experience_level) await track(ctx.db, 'onboarding_step_completed', { step: 'experience_level', experience_level: body.experience_level }, { userId: u.userId, origin: 'server' });
     if (body.interests) await track(ctx.db, 'onboarding_step_completed', { step: 'interests' }, { userId: u.userId, origin: 'server' });
@@ -118,10 +118,13 @@ export async function accountRoutes(app: FastifyInstance, ctx: AppContext): Prom
   });
 
   // Account deletion (ACC-07): re-authentication; access ends immediately; erasure within 30 days.
-  app.delete('/v1/me', async (req, reply) => {
+  app.delete('/v1/me', { config: { rateLimit: { limit: 10, windowMs: 15 * 60_000, key: 'user' } } }, async (req, reply) => {
     const u = requireUser(req);
     const { password, confirm } = parse(z.object({ password: z.string().min(1).max(200), confirm: z.literal('DELETE') }), req.body);
     await reauthenticate(ctx, u, password);
+    // Stop the gateway's debits first: marking our own row alone would leave the customer being charged.
+    const live = await ctx.db.query<{ gateway_subscription_id: string; first_charge_at: string | null }>(`SELECT gateway_subscription_id, first_charge_at FROM app.subscriptions WHERE user_id=$1 AND status IN ('active','past_due','pending','created') AND gateway_subscription_id IS NOT NULL AND NOT cancel_at_period_end`, [u.userId]);
+    for (const s of live) await ctx.payments.cancelSubscription(s.gateway_subscription_id, !!s.first_charge_at);
     await ctx.db.tx(async (db) => {
       await db.query(`UPDATE app.sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, [u.userId]);
       await db.query(`UPDATE app.users SET status='deleted', deleted_at=now() WHERE user_id=$1`, [u.userId]);

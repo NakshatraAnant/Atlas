@@ -56,7 +56,9 @@ Then open **http://localhost:3000**.
 | `admin@atlas.test` | Admin | needs a TOTP code: the secret is `DEV_ADMIN_TOTP_SECRET` in `apps/api/src/seed.ts` |
 
 The shared development password is `DEV_PASSWORD` in `apps/api/src/seed.ts`. These accounts
-exist only in local and test databases. You can also sign up with any address: the verification
+exist only in local and test databases. The password is public in the repository, so before sharing
+an install run `node scripts/atlas.mjs secure-accounts`: it sets random passwords and writes them
+to `.atlas/dev-credentials.txt`, which is never committed. You can also sign up with any address: the verification
 email appears under **Admin → Email outbox** (or in the `app.email_outbox` table).
 
 ## Everyday commands

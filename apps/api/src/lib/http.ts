@@ -16,6 +16,13 @@ export class ApiError extends Error {
   }
 }
 
+/** A real calendar date written YYYY-MM-DD ('2026-99-99' and '2026-02-30' are refused). */
+export function isIsoDate(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const t = Date.parse(s + 'T00:00:00Z');
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === s;
+}
+
 export const badRequest = (detail: string, extra: Record<string, unknown> = {}) => new ApiError(400, 'Bad request', detail, extra, 'https://atlas.example/problems/validation');
 export const unauthorized = (detail = 'Sign in to continue.') => new ApiError(401, 'Unauthorised', detail, {}, 'https://atlas.example/problems/unauthenticated');
 export const forbidden = (detail = 'You do not have access to this resource.') => new ApiError(403, 'Forbidden', detail, {}, 'https://atlas.example/problems/forbidden');

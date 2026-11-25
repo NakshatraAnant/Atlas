@@ -2,7 +2,7 @@ import * as A from '@atlas/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../../context.js';
-import { badRequest, notFound, parse } from '../../lib/http.js';
+import { badRequest, notFound, parse, isIsoDate } from '../../lib/http.js';
 import { requireUser } from '../auth/service.js';
 import { recordActivity, studyRef } from './activity.js';
 import { isInstrumentKey, resolveInstrument, searchInstruments, type Instrument } from './instruments.js';
@@ -337,7 +337,7 @@ export async function crossRoutes(app: FastifyInstance, ctx: AppContext): Promis
 
   app.post('/v1/research/integrity/finding', async (req) => {
     const u = requireUser(req);
-    const b = parse(z.object({ key: z.string().refine(isInstrumentKey), finding: z.enum(['gap', 'deviation', 'suspect', 'revision']), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), explanation: z.string().trim().min(20).max(2000) }), req.body);
+    const b = parse(z.object({ key: z.string().refine(isInstrumentKey), finding: z.enum(['gap', 'deviation', 'suspect', 'revision']), date: z.string().refine(isIsoDate, 'must be a date (YYYY-MM-DD)'), explanation: z.string().trim().min(20).max(2000) }), req.body);
     // The finding must point at something the integrity check actually reports (server re-checks it).
     const integ = (await integrityFor(u.userId, b.key)) as unknown as { gaps: { from: string; to: string }[]; reconciliation?: { worst: { date: string }[] }[]; revisions?: { trade_date: string }[]; suspect_observations?: number };
     const exists = b.finding === 'gap' ? integ.gaps.some((g) => g.from <= b.date && b.date <= g.to)
