@@ -250,7 +250,7 @@ async function start() {
   launch('web', [NEXT(), 'start', '-p', String(webPort), '-H', HOST], WEB_DIR, env);
   await waitFor(`http://${HOST}:${webPort}/`, 'Web app', 90_000, 'web');
   log(`ATLAS is running at http://localhost:${webPort}  (API on ${HOST}:${apiPort}, loopback only)`);
-  log('Sign in with a development account: free@atlas.test, plus@atlas.test, pro@atlas.test (password in apps/api/src/seed.ts).');
+  log(`Sign in with a development account: free@atlas.test, plus@atlas.test, pro@atlas.test (${existsSync(join(ROOT, '.atlas', 'dev-credentials.txt')) ? 'passwords in .atlas/dev-credentials.txt' : 'password in apps/api/src/seed.ts'}).`);
   log('Stop with: node scripts/atlas.mjs stop');
 }
 
