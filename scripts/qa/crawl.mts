@@ -3,14 +3,20 @@
 // desktop and mobile sizes, saves a screenshot of each, and records console errors, failed requests
 // (HTTP >= 400 or network failures), pages that render almost nothing, and horizontal overflow.
 // Usage: npx tsx scripts/qa/crawl.mts <outDir> [--mobile] [--only=/app,/app/macro]
-// Uses development accounts from apps/api/src/seed.ts; never prints passwords or provider keys.
-import { mkdirSync, writeFileSync } from 'node:fs';
+// Uses the development accounts: the values written by `atlas secure-accounts` (.atlas/dev-credentials.txt) when
+// that file exists, otherwise the public defaults in apps/api/src/seed.ts. Never prints passwords or provider keys.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Page } from 'playwright';
 import { totpCode } from '../../apps/api/src/lib/crypto.js';
 import { DEV_ADMIN_TOTP_SECRET, DEV_PASSWORD } from '../../apps/api/src/seed.js';
 
-const BASE = process.env.ATLAS_URL ?? 'http://localhost:3000';
+/** Address of the running install: ATLAS_URL, else WEB_ORIGIN from .env.local, else the default port. */
+const BASE = process.env.ATLAS_URL ?? (existsSync('.env.local') ? /^WEB_ORIGIN=(.+)$/m.exec(readFileSync('.env.local', 'utf8'))?.[1]?.trim() : undefined) ?? 'http://localhost:3000';
+const CREDS = existsSync('.atlas/dev-credentials.txt') ? readFileSync('.atlas/dev-credentials.txt', 'utf8') : '';
+const credLine = (email: string) => CREDS.split('\n').find((l) => l.startsWith(`${email} `)) ?? '';
+const passwordFor = (email: string) => /password: (\S+)/.exec(credLine(email))?.[1] ?? DEV_PASSWORD;
+const ADMIN_TOTP = /authenticator secret: (\S+)/.exec(credLine('admin@atlas.test'))?.[1] ?? DEV_ADMIN_TOTP_SECRET;
 const out = process.argv[2] ?? 'artifacts/qa';
 const mobile = process.argv.includes('--mobile');
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7).split(',');
@@ -29,7 +35,7 @@ async function signIn(page: Page, email: string, totp?: string) {
     const t = document.cookie.match(/atlas_csrf=([^;]+)/)?.[1] ?? '';
     const res = await fetch('/v1/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': t }, body: JSON.stringify({ email, password, ...(totp ? { totp } : {}) }), credentials: 'same-origin' });
     return res.status;
-  }, { email, password: DEV_PASSWORD, totp });
+  }, { email, password: passwordFor(email), totp });
   if (r !== 200) throw new Error(`sign-in failed for ${email}: ${r}`);
 }
 
@@ -80,7 +86,7 @@ async function main() {
   // Operator console with a separate, two-step-verified session.
   const actx = await browser.newContext({ viewport });
   const apage = await actx.newPage();
-  await signIn(apage, 'admin@atlas.test', totpCode(DEV_ADMIN_TOTP_SECRET, Date.now()));
+  await signIn(apage, 'admin@atlas.test', totpCode(ADMIN_TOTP, Date.now()));
   if (!only || only.includes('/admin')) findings.push(await visit(apage, '/admin', vpName));
   await browser.close();
   writeFileSync(join(out, `findings-${vpName}.json`), JSON.stringify(findings, null, 2));
